@@ -27,9 +27,21 @@ visible and drive the same input actions (mouse clicks work on them too, via
 
 ## Adding content (no code needed)
 
-- **New comedian:** drop a 16x16 head PNG anywhere in the project and add an
-  entry to `data/characters.json` (`CharacterName`, `HeadSpritePath`,
-  `BodyType` "M" or "F"). It appears in character select and the enemy pool.
+- **New comedian:** drop a head PNG into `assets/heads/` (any square size —
+  200x200 photos work; they're auto-scaled to the standard bobblehead size)
+  and add an entry to `data/characters.json`. It appears in character select
+  and the enemy pool. Keys:
+  - `CharacterName`, `HeadSpritePath`, `BodyType` ("M" or "F") — required
+  - `HeadOffsetY` — optional, body pixels; positive moves the head DOWN.
+    Use for long hair/tall hairdos where the chin sits well above the image
+    bottom (typical values 2–6; negative raises the head).
+  - `HeadOffsetX` — optional; positive moves the head toward the facing
+    direction (auto-mirrors when the character turns).
+  - `HeadScale` — optional zoom multiplier (default 1.0). Big hair filling
+    the crop makes the face render smaller than everyone else's — bump to
+    1.2–1.5 to compensate (often paired with a `HeadOffsetY` tweak).
+  Tip: faces should look to the right in the source image; a chin near the
+  bottom edge sockets best onto the neck.
 - **New venue:** add an entry to `data/venues.json` (`VenueName`,
   `ExteriorSpritePath` 160x120 with the door at bottom center,
   `InteriorSpritePath` 640x360).

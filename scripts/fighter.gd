@@ -14,11 +14,23 @@ const STAND_BOX := Rect2(-8, -44, 16, 44)
 const DUCK_BOX := Rect2(-8, -26, 16, 26)
 ## Whole-fighter scale (boxes scale with it) and extra bobblehead scale for
 ## the head sprite — heads are real people's pixelated photos, go big.
+## Head textures can be any size (200x200 photos, 16x16 pixel art...): they
+## are normalized so every head displays as if it were 16px * HEAD_SCALE.
 const BODY_SCALE := 1.4
 const HEAD_SCALE := 2.4
+const HEAD_BASE_PX := 16.0
 
 var body_type := "M"
 var head_path := ""
+## Optional per-character head nudges (JSON "HeadOffsetX"/"HeadOffsetY", in
+## body pixels). Positive Y moves the head DOWN — use it when long hair puts
+## the chin well above the image bottom, so the chin still meets the neck.
+## Positive X moves the head toward the facing direction (mirrors on flip).
+## head_scale (JSON "HeadScale") is an extra zoom on top of normalization —
+## bump it above 1.0 when big hair fills the crop and shrinks the face.
+var head_offset_x := 0.0
+var head_offset_y := 0.0
+var head_scale := 1.0
 var max_health := 100.0
 var health := 100.0
 var move_speed := 130.0
@@ -56,7 +68,9 @@ func _build_visuals() -> void:
 
 	head_sprite = Sprite2D.new()
 	head_sprite.texture = CharacterFactory.head_texture(head_path)
-	head_sprite.scale = Vector2(HEAD_SCALE, HEAD_SCALE)
+	var s := HEAD_SCALE * head_scale \
+			* (HEAD_BASE_PX / maxf(head_sprite.texture.get_width(), 1.0))
+	head_sprite.scale = Vector2(s, s)
 	add_child(head_sprite)
 
 
@@ -103,9 +117,19 @@ func _process(_delta: float) -> void:
 	head_sprite.flip_h = facing < 0
 	var neck := CharacterFactory.head_offset(body_sprite.animation)
 	# Lift the head so it sits on the neck, minus a little overlap.
-	var lift := 8.0 * HEAD_SCALE - 4.0
-	head_sprite.position = Vector2(neck.x * facing, neck.y - lift)
+	var lift := head_sprite.texture.get_height() * head_sprite.scale.y / 2.0 - 4.0
+	head_sprite.position = Vector2((neck.x + head_offset_x) * facing,
+			neck.y - lift + head_offset_y)
 	hitbox.position.x = 18 * facing
+
+
+## Apply a character entry from characters.json. Call before add_child().
+func configure(cfg: Dictionary) -> void:
+	body_type = String(cfg.get("BodyType", "M"))
+	head_path = String(cfg.get("HeadSpritePath", ""))
+	head_offset_x = float(cfg.get("HeadOffsetX", 0))
+	head_offset_y = float(cfg.get("HeadOffsetY", 0))
+	head_scale = maxf(float(cfg.get("HeadScale", 1.0)), 0.1)
 
 
 # ---------------------------------------------------------------- actions

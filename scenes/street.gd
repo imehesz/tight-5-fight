@@ -150,9 +150,7 @@ func _update_door_hints() -> void:
 # ---------------------------------------------------------------- spawns
 func _spawn_player(pos: Vector2) -> void:
 	player = Player.new()
-	var cfg := GameState.selected_character_data()
-	player.body_type = String(cfg.get("BodyType", "M"))
-	player.head_path = String(cfg.get("HeadSpritePath", ""))
+	player.configure(GameState.selected_character_data())
 	player.position = pos
 	player.interact_pressed.connect(_on_player_interact)
 	player.died.connect(_on_player_died)
@@ -170,10 +168,8 @@ func _maybe_spawn_heckler(delta: float) -> void:
 	if not is_instance_valid(player) \
 			or get_tree().get_nodes_in_group("enemies").size() >= HECKLER_MAX:
 		return
-	var cfg: Dictionary = GameState.enemy_characters(1)[0]
 	var e := Enemy.new()
-	e.body_type = String(cfg.get("BodyType", "M"))
-	e.head_path = String(cfg.get("HeadSpritePath", ""))
+	e.configure(GameState.enemy_characters(1)[0])
 	e.aggressive = randf() < 0.4
 	e.move_speed = randf_range(60.0, 95.0)
 	e.score_value = 100

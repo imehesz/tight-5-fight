@@ -5,6 +5,14 @@
     { "CharacterName": "Sassy Sue", "HeadSpritePath": "res://assets/gen/heads/sue.png", "BodyType": "F" },
     { "CharacterName": "Loud Linda", "HeadSpritePath": "res://assets/gen/heads/linda.png", "BodyType": "F" },
     { "CharacterName": "Punny Pete", "HeadSpritePath": "res://assets/gen/heads/pete.png", "BodyType": "M" },
-    { "CharacterName": "Grumpy Greta", "HeadSpritePath": "res://assets/gen/heads/greta.png", "BodyType": "F" }
+    { "CharacterName": "Grumpy Greta", "HeadSpritePath": "res://assets/gen/heads/greta.png", "BodyType": "F" },
+    { 
+      "CharacterName": "Tucker", 
+      "HeadScale": 2, 
+      "HeadOffsetY": 30, 
+      "HeadSpritePath": 
+      "res://assets/heads/tucker.png", 
+      "BodyType": "F" 
+    }
   ]
 }

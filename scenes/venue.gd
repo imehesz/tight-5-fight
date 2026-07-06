@@ -77,9 +77,7 @@ func _build_background(data: Dictionary) -> void:
 
 func _spawn_player() -> void:
 	player = Player.new()
-	var cfg := GameState.selected_character_data()
-	player.body_type = String(cfg.get("BodyType", "M"))
-	player.head_path = String(cfg.get("HeadSpritePath", ""))
+	player.configure(GameState.selected_character_data())
 	player.position = Vector2(100, GROUND_Y)
 	player.died.connect(_on_player_died)
 	add_child(player)
@@ -93,10 +91,8 @@ func _spawn_player() -> void:
 func _spawn_next_enemy() -> void:
 	if _to_spawn.is_empty():
 		return
-	var cfg: Dictionary = _to_spawn.pop_front()
 	var e := Enemy.new()
-	e.body_type = String(cfg.get("BodyType", "M"))
-	e.head_path = String(cfg.get("HeadSpritePath", ""))
+	e.configure(_to_spawn.pop_front())
 	e.aggressive = true  # venue comedians always attack immediately
 	e.max_health = 55.0 + 12.0 * (_level - 1)
 	e.damage_scale = 0.6 + 0.08 * (_level - 1)
