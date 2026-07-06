@@ -1,0 +1,16 @@
+.godot/
+*.import
+export.cfg
+export_presets.cfg
+build
+deployScriptPROD.sh
+rsync_exclude.txt
+
+# multiplayer server
+server/node_modules/
+server/data/
+server/config.dev.js
+server/config.prod.js
+server/config.qa.js
+deployScriptPRODBE.sh
+deploy-be/

@@ -1,0 +1,103 @@
+class_name Enemy
+extends Fighter
+## Street hecklers and rival venue comedians. Passive hecklers wander and
+## yell insults until provoked; aggressive ones chase and attack the player.
+
+const INSULTS := [
+	"Hey, you suck!",
+	"BOO!",
+	"My grandma is funnier!",
+	"Heard 'em all before!",
+	"Get a day job!",
+	"Weak material, pal!",
+	"Is THIS the show?",
+]
+
+var aggressive := true
+var provoked := false
+var target: Node2D
+var score_value := 100
+var attack_cooldown := 1.2
+var attack_range := 30.0
+
+var _cooldown_left := 1.0
+var _wander_dir := 0.0
+var _wander_left := 0.0
+var _insult_left := 0.0
+
+
+func _init() -> void:
+	hurt_layer = 4
+	attack_mask = 2
+	move_speed = 90.0
+	max_health = 40.0
+	damage_scale = 0.5
+
+
+func _ready() -> void:
+	super()
+	add_to_group("enemies")
+	_insult_left = randf_range(1.0, 3.0)
+
+
+func _physics_process(delta: float) -> void:
+	if state == FState.DEAD:
+		return
+	if state == FState.HIT:
+		velocity.x = move_toward(velocity.x, 0.0, 300.0 * delta)
+		move_and_slide()
+		return
+
+	_cooldown_left = maxf(_cooldown_left - delta, 0.0)
+	var has_target: bool = is_instance_valid(target) and target.get("state") != FState.DEAD
+	if (aggressive or provoked) and has_target:
+		_fight(delta)
+	else:
+		_wander(delta)
+		_heckle(delta)
+
+
+func _fight(_delta: float) -> void:
+	var dx := target.global_position.x - global_position.x
+	if absf(dx) > attack_range:
+		apply_locomotion(signf(dx))
+		return
+	facing = 1 if dx > 0 else -1
+	apply_locomotion(0.0)
+	if _cooldown_left == 0.0 and can_act():
+		try_attack(FState.PUNCH if randf() < 0.6 else FState.KICK)
+		_cooldown_left = attack_cooldown
+
+
+func _wander(delta: float) -> void:
+	_wander_left -= delta
+	if _wander_left <= 0.0:
+		_wander_left = randf_range(1.0, 2.5)
+		_wander_dir = [-0.5, 0.0, 0.0, 0.5].pick_random()
+	apply_locomotion(_wander_dir)
+
+
+func _heckle(delta: float) -> void:
+	if aggressive:
+		return
+	_insult_left -= delta
+	if _insult_left <= 0.0:
+		_insult_left = randf_range(3.0, 6.0)
+		FloatingText.spawn(get_parent(), global_position + Vector2(0, -56),
+				INSULTS.pick_random(), Color(1.0, 0.9, 0.6))
+
+
+func take_hit(damage: float, from_x: float) -> void:
+	provoked = true
+	super(damage, from_x)
+
+
+func _die() -> void:
+	GameState.add_score(score_value)
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -56),
+			"+%d" % score_value, Color(0.6, 1.0, 0.6))
+	super()
+	var tw := create_tween()
+	tw.tween_interval(1.0)
+	tw.tween_property(self, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(queue_free)

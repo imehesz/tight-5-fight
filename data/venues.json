@@ -1,0 +1,7 @@
+{
+  "venues": [
+    { "VenueName": "The Giggle Shack", "ExteriorSpritePath": "res://assets/gen/venues/venue1_ext.png", "InteriorSpritePath": "res://assets/gen/venues/venue1_int.png" },
+    { "VenueName": "Laff Lounge", "ExteriorSpritePath": "res://assets/gen/venues/venue2_ext.png", "InteriorSpritePath": "res://assets/gen/venues/venue2_int.png" },
+    { "VenueName": "The Snort Cellar", "ExteriorSpritePath": "res://assets/gen/venues/venue3_ext.png", "InteriorSpritePath": "res://assets/gen/venues/venue3_int.png" }
+  ]
+}
