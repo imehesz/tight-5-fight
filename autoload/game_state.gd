@@ -5,6 +5,7 @@ extends Node
 signal score_changed(new_score: int)
 signal lives_changed(new_lives: int)
 
+const SCENE_SPLASH := "res://scenes/splash.tscn"
 const SCENE_MAIN_MENU := "res://scenes/main_menu.tscn"
 const SCENE_CHARACTER_SELECT := "res://scenes/character_select.tscn"
 const SCENE_SETTINGS := "res://scenes/settings_menu.tscn"
@@ -23,6 +24,11 @@ const STARTING_LIVES := 3
 const MAX_HIGH_SCORES := 10
 const BOSS_EVERY := 5
 
+const MUSIC_BASE := "res://assets/audio/song"
+const SFX_BASE := "res://assets/audio/sfx_"
+const SFX_NAMES := ["punch", "kick", "hurt", "defeat", "smash", "clear", "click", "throw"]
+const SFX_POOL_SIZE := 6
+
 var characters: Array = []
 var venues: Array = []
 var selected_character := 0
@@ -39,6 +45,11 @@ var last_run_rank := -1
 var music_volume := 0.8
 var sfx_volume := 0.8
 
+var _music_player: AudioStreamPlayer
+var _sfx_streams := {}
+var _sfx_pool: Array = []
+var _sfx_next := 0
+
 
 func _ready() -> void:
 	randomize()
@@ -49,6 +60,7 @@ func _ready() -> void:
 	_ensure_bus("SFX")
 	_load_settings()
 	_load_scores()
+	_setup_audio()
 
 
 # ---------------------------------------------------------------- run lifecycle
@@ -134,6 +146,51 @@ func current_venue_data() -> Dictionary:
 	return venue_data_for_index(maxi(venues_entered - 1, 0))
 
 
+# ---------------------------------------------------------------- audio
+func _setup_audio() -> void:
+	_music_player = AudioStreamPlayer.new()
+	_music_player.bus = "Music"
+	add_child(_music_player)
+	var music := _load_stream(MUSIC_BASE)
+	if music:
+		_set_looping(music)
+		_music_player.stream = music
+		_music_player.play()
+	for sfx_name in SFX_NAMES:
+		var s := _load_stream(SFX_BASE + sfx_name)
+		if s:
+			_sfx_streams[sfx_name] = s
+	for i in SFX_POOL_SIZE:
+		var p := AudioStreamPlayer.new()
+		p.bus = "SFX"
+		add_child(p)
+		_sfx_pool.append(p)
+
+
+func play_sfx(sfx_name: String) -> void:
+	if not _sfx_streams.has(sfx_name):
+		return
+	var p: AudioStreamPlayer = _sfx_pool[_sfx_next]
+	_sfx_next = (_sfx_next + 1) % _sfx_pool.size()
+	p.stream = _sfx_streams[sfx_name]
+	p.play()
+
+
+func _load_stream(base_path: String) -> AudioStream:
+	for ext in [".ogg", ".mp3", ".wav"]:
+		if ResourceLoader.exists(base_path + ext):
+			return load(base_path + ext)
+	return null
+
+
+func _set_looping(s: AudioStream) -> void:
+	if s is AudioStreamMP3 or s is AudioStreamOggVorbis:
+		s.loop = true
+	elif s is AudioStreamWAV:
+		s.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		s.loop_end = int(s.data.size() / (2.0 * (2 if s.stereo else 1)))
+
+
 # ---------------------------------------------------------------- settings
 func set_music_volume(v: float) -> void:
 	music_volume = clampf(v, 0.0, 1.0)
@@ -177,6 +234,7 @@ func _save_settings() -> void:
 func _record_score() -> int:
 	var entry := {
 		"score": score,
+		"venue": venues_entered,
 		"character": String(selected_character_data().get("CharacterName", "?")),
 		"date": Time.get_date_string_from_system(),
 	}

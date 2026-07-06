@@ -145,6 +145,7 @@ func try_attack(kind: FState) -> void:
 	_victims.clear()
 	_attack_damage = (PUNCH_DAMAGE if kind == FState.PUNCH else KICK_DAMAGE) * damage_scale
 	_play("punch" if kind == FState.PUNCH else "kick")
+	GameState.play_sfx("punch" if kind == FState.PUNCH else "kick")
 
 
 func set_ducking(on: bool) -> void:
@@ -192,6 +193,7 @@ func take_hit(damage: float, from_x: float) -> void:
 	hitbox.set_deferred("monitoring", false)
 	velocity.x = signf(global_position.x - from_x) * 60.0
 	_play("hit")
+	GameState.play_sfx("hurt")
 
 
 func _die() -> void:
@@ -200,6 +202,7 @@ func _die() -> void:
 	hurtbox.set_deferred("collision_layer", 0)
 	hitbox.set_deferred("monitoring", false)
 	_play("defeated")
+	GameState.play_sfx("defeat")
 	died.emit(self)
 
 

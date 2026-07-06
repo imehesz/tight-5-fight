@@ -3,16 +3,17 @@ extends MenuBase
 
 
 func _ready() -> void:
-	var box := build_backdrop()
+	var box := build_backdrop(MENU_BG)
 	add_title(box, "HIGH SCORES", 18)
 	add_spacer(box, 8)
 	if GameState.high_scores.is_empty():
 		add_text(box, "No scores yet. Go bomb somewhere!")
 	for i in GameState.high_scores.size():
 		var entry: Dictionary = GameState.high_scores[i]
-		var row := "%2d.  %6d   %s   (%s)" % [
+		var row := "%2d. %6d  V%-2d %s (%s)" % [
 			i + 1,
 			int(entry.get("score", 0)),
+			int(entry.get("venue", 0)),
 			String(entry.get("character", "?")),
 			String(entry.get("date", "")),
 		]

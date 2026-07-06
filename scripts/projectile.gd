@@ -39,6 +39,7 @@ func _physics_process(delta: float) -> void:
 func _smash() -> void:
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -10),
 			"*crash*", Color(0.7, 0.9, 0.7))
+	GameState.play_sfx("smash")
 	queue_free()
 
 

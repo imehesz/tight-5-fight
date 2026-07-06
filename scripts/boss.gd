@@ -62,6 +62,7 @@ func _process(delta: float) -> void:
 
 func _throw() -> void:
 	_body.play("punch")
+	GameState.play_sfx("throw")
 	var b := Projectile.new()
 	# Parent-space spawn point: head-high for a 1.4x fighter — over a duck,
 	# into a standing face. (Standing hurtbox top ~-62, ducking ~-36.)

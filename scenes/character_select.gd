@@ -5,7 +5,7 @@ const GRID_COLUMNS := 3
 
 
 func _ready() -> void:
-	var box := build_backdrop()
+	var box := build_backdrop(MENU_BG)
 	add_title(box, "CHOOSE YOUR COMEDIAN", 14)
 	add_spacer(box, 6)
 

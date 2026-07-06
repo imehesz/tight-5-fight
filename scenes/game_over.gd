@@ -3,7 +3,7 @@ extends MenuBase
 
 
 func _ready() -> void:
-	var box := build_backdrop()
+	var box := build_backdrop(MENU_BG)
 	add_title(box, "GAME OVER", 24, Color(0.95, 0.3, 0.25))
 	add_text(box, "%s bombed after %d venue%s." % [
 		String(GameState.selected_character_data().get("CharacterName", "You")),

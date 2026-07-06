@@ -1,4 +1,6 @@
-# Open Mic Night!
+# Tight 5 FIGHT!
+
+(repo folder keeps its original `open-mic-night` name)
 
 2D pixel-art side-scrolling beat-'em-up for mobile landscape, built in **Godot 4.4+**.
 Walk the street, beat up hecklers, storm comedy venues, and survive the club
@@ -7,7 +9,7 @@ owner's bottle barrage every 5th venue. See `requirements.md` for the full desig
 ## Running it
 
 1. Open the project folder in Godot 4.4 or newer (`project.godot`).
-2. Press Play. Main scene is `scenes/main_menu.tscn`.
+2. Press Play. Main scene is `scenes/splash.tscn` (tap through to the menu).
 3. The `GameState` singleton is registered under Project Settings > Globals.
 
 **Desktop test controls:** A/D or arrows to move, W/Up to enter doors, S/Down to
@@ -23,7 +25,9 @@ visible and drive the same input actions (mouse clicks work on them too, via
   once), pulled from `characters.json` excluding your pick. Clearing awards a bonus.
 - **Boss (every 5th venue):** Big Lou can't be damaged — duck the head-high
   bottles and sidestep the lobbed ones until the SURVIVE timer runs out.
-- 3 lives, health bar, local top-10 scoreboard (`user://highscores.json`).
+- 3 lives, health bar, local top-10 scoreboard stored on-device at
+  `user://highscores.json` — each entry keeps score, highest venue level
+  reached, character and date.
 
 ## Adding content (no code needed)
 
@@ -60,8 +64,15 @@ punch(3), kick(3), duck(1), hit(1), defeated(1) — layout is mirrored in
 `scripts/character_factory.gd`, which also holds the per-animation head socket
 offsets.
 
-## Audio
+## Art & audio (AI-generated via Higgsfield)
 
-`Music` and `SFX` buses are created at startup and wired to the Settings
-sliders. There are no sound assets yet — when adding them, set each
-AudioStreamPlayer's bus to `Music` or `SFX` and the volume controls will apply.
+`assets/art/` holds the splash, menu background and the Laughing Skull /
+Comedy Zone / Bonkers venue art (z_image, pixelated down in post).
+`assets/audio/` holds the looping chiptune theme (`song.ogg`, sonilo_music)
+and the SFX set (mirelo_text_to_audio → WAV): punch, kick, hurt, defeat,
+smash, clear, click, throw.
+
+Music plays on the `Music` bus, effects through a pooled `SFX` bus — both
+wired to the Settings sliders (persisted to `user://settings.json`). Trigger
+effects from code with `GameState.play_sfx("punch")`. Swapping any file for
+a new one with the same name is all it takes to replace a sound.

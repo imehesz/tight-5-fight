@@ -123,6 +123,7 @@ func _venue_cleared() -> void:
 		return
 	_finished = true
 	GameState.mark_pending_venue_cleared()
+	GameState.play_sfx("clear")
 	var bonus := CLEAR_BONUS_PER_LEVEL * _level
 	GameState.add_score(bonus)
 	hud.set_center_text("VENUE CLEARED!  +%d" % bonus)
@@ -135,6 +136,7 @@ func _boss_survived() -> void:
 		return
 	_finished = true
 	GameState.mark_pending_venue_cleared()
+	GameState.play_sfx("clear")
 	if is_instance_valid(_boss):
 		_boss.active = false
 	for p in get_tree().get_nodes_in_group("projectiles"):

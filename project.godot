@@ -10,8 +10,8 @@ config_version=5
 
 [application]
 
-config/name="Open Mic Night!"
-run/main_scene="res://scenes/main_menu.tscn"
+config/name="Tight 5 FIGHT!"
+run/main_scene="res://scenes/splash.tscn"
 config/features=PackedStringArray("4.4")
 config/icon="res://assets/gen/heads/chuckles.png"
 

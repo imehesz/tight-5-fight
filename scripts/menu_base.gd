@@ -3,12 +3,25 @@ extends Control
 ## Shared scaffolding for menu screens: dark backdrop, centered column,
 ## title/button helpers. Menus build their UI in code in _ready().
 
+const MENU_BG := "res://assets/art/menu_bg.png"
 
-func build_backdrop() -> VBoxContainer:
+
+func build_backdrop(bg_path := "") -> VBoxContainer:
 	var bg := ColorRect.new()
 	bg.color = Color(0.08, 0.07, 0.12)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	if bg_path != "" and ResourceLoader.exists(bg_path):
+		var art := TextureRect.new()
+		art.texture = load(bg_path)
+		art.set_anchors_preset(Control.PRESET_FULL_RECT)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		add_child(art)
+		var shade := ColorRect.new()
+		shade.color = Color(0, 0, 0, 0.45)
+		shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(shade)
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
@@ -44,6 +57,7 @@ func add_button(box: Container, text: String, cb: Callable) -> Button:
 	b.text = text
 	b.custom_minimum_size = Vector2(220, 36)
 	b.add_theme_font_size_override("font_size", 12)
+	b.pressed.connect(func(): GameState.play_sfx("click"))
 	b.pressed.connect(cb)
 	box.add_child(b)
 	return b

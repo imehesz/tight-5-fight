@@ -3,7 +3,7 @@ extends MenuBase
 
 
 func _ready() -> void:
-	var box := build_backdrop()
+	var box := build_backdrop(MENU_BG)
 	add_title(box, "SETTINGS", 18)
 	add_spacer(box, 10)
 	box.add_child(_volume_row("MUSIC", GameState.music_volume, GameState.set_music_volume))
