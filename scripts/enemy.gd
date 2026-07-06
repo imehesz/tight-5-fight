@@ -18,12 +18,16 @@ var provoked := false
 var target: Node2D
 var score_value := 100
 var attack_cooldown := 1.2
-var attack_range := 30.0
+var attack_range := 42.0
+
+const BAR_W := 26.0
 
 var _cooldown_left := 1.0
 var _wander_dir := 0.0
 var _wander_left := 0.0
 var _insult_left := 0.0
+var _bar_bg: ColorRect
+var _bar_fill: ColorRect
 
 
 func _init() -> void:
@@ -38,6 +42,35 @@ func _ready() -> void:
 	super()
 	add_to_group("enemies")
 	_insult_left = randf_range(1.0, 3.0)
+	_build_health_bar()
+	health_changed.connect(_on_health_bar_update)
+
+
+## Tiny life bar above the head; only visible once they've taken damage.
+func _build_health_bar() -> void:
+	_bar_bg = ColorRect.new()
+	_bar_bg.color = Color(0, 0, 0, 0.6)
+	_bar_bg.size = Vector2(BAR_W + 2, 5)
+	_bar_bg.position = Vector2(-(BAR_W + 2) / 2.0, -82)
+	_bar_bg.z_index = 40
+	_bar_bg.visible = false
+	add_child(_bar_bg)
+	_bar_fill = ColorRect.new()
+	_bar_fill.position = Vector2(1, 1)
+	_bar_fill.size = Vector2(BAR_W, 3)
+	_bar_bg.add_child(_bar_fill)
+
+
+func _on_health_bar_update(current: float, maximum: float) -> void:
+	var ratio := current / maxf(maximum, 1.0)
+	_bar_bg.visible = ratio < 0.999 and state != FState.DEAD
+	_bar_fill.size.x = BAR_W * ratio
+	if ratio < 0.35:
+		_bar_fill.color = Color(0.9, 0.25, 0.2)
+	elif ratio < 0.7:
+		_bar_fill.color = Color(0.95, 0.8, 0.25)
+	else:
+		_bar_fill.color = Color(0.3, 0.9, 0.35)
 
 
 func _physics_process(delta: float) -> void:
@@ -83,8 +116,8 @@ func _heckle(delta: float) -> void:
 	_insult_left -= delta
 	if _insult_left <= 0.0:
 		_insult_left = randf_range(3.0, 6.0)
-		FloatingText.spawn(get_parent(), global_position + Vector2(0, -56),
-				INSULTS.pick_random(), Color(1.0, 0.9, 0.6))
+		FloatingText.spawn(get_parent(), global_position + Vector2(0, -100),
+				INSULTS.pick_random(), Color.WHITE, true)
 
 
 func take_hit(damage: float, from_x: float) -> void:
@@ -93,8 +126,9 @@ func take_hit(damage: float, from_x: float) -> void:
 
 
 func _die() -> void:
+	_bar_bg.visible = false
 	GameState.add_score(score_value)
-	FloatingText.spawn(get_parent(), global_position + Vector2(0, -56),
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -90),
 			"+%d" % score_value, Color(0.6, 1.0, 0.6))
 	super()
 	var tw := create_tween()

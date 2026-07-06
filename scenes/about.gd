@@ -16,8 +16,8 @@ Built with Godot. Powered by cheap laughs."""
 
 func _ready() -> void:
 	var box := build_backdrop()
-	add_title(box, "ABOUT", 28)
+	add_title(box, "ABOUT", 18)
 	add_spacer(box, 6)
-	add_text(box, BLURB, 11)
+	add_text(box, BLURB, 8)
 	add_spacer(box, 12)
 	add_button(box, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))

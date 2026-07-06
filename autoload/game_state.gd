@@ -30,6 +30,10 @@ var score := 0
 var lives := STARTING_LIVES
 var venues_entered := 0
 var pending_venue: Dictionary = {}
+## Street layout persisted across venue visits (see street.gd) and the index
+## of the door being entered, so it can be marked CANCELLED once cleared.
+var street_state: Dictionary = {}
+var pending_door := -1
 var high_scores: Array = []
 var last_run_rank := -1
 var music_volume := 0.8
@@ -54,6 +58,8 @@ func start_new_game(character_index: int) -> void:
 	lives = STARTING_LIVES
 	venues_entered = 0
 	pending_venue = {}
+	street_state = {}
+	pending_door = -1
 	last_run_rank = -1
 	change_scene(SCENE_STREET)
 
@@ -65,6 +71,15 @@ func enter_venue() -> void:
 
 func is_boss_venue() -> bool:
 	return venues_entered > 0 and venues_entered % BOSS_EVERY == 0
+
+
+## Called by the venue scene on victory: the door the player entered through
+## gets taped over and can't be entered again.
+func mark_pending_venue_cleared() -> void:
+	var doors: Array = street_state.get("doors", [])
+	if pending_door >= 0 and pending_door < doors.size():
+		doors[pending_door]["cleared"] = true
+	pending_door = -1
 
 
 func add_score(points: int) -> void:

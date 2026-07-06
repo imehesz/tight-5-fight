@@ -19,15 +19,17 @@ const ANIMS := [
 	{"name": "hit", "row": 5, "frames": 1, "fps": 3.0, "loop": false},
 	{"name": "defeated", "row": 6, "frames": 1, "fps": 2.0, "loop": false},
 ]
-## Head socket (neck) position per animation, relative to the fighter's feet.
+## Neck anchor per animation, relative to the fighter's feet. The head sprite
+## is centered above this point (lifted by half its scaled height), so heads
+## of any size stay socketed to the neck.
 const HEAD_OFFSETS := {
-	"idle": Vector2(0, -45),
-	"walk": Vector2(0, -45),
-	"punch": Vector2(1, -45),
-	"kick": Vector2(1, -45),
-	"duck": Vector2(0, -33),
-	"hit": Vector2(-2, -43),
-	"defeated": Vector2(-10, -5),
+	"idle": Vector2(0, -39),
+	"walk": Vector2(0, -39),
+	"punch": Vector2(1, -39),
+	"kick": Vector2(1, -39),
+	"duck": Vector2(0, -27),
+	"hit": Vector2(-2, -38),
+	"defeated": Vector2(-10, -2),
 }
 
 static var _frames_cache := {}
@@ -63,4 +65,4 @@ static func head_texture(path: String) -> Texture2D:
 
 
 static func head_offset(anim: String) -> Vector2:
-	return HEAD_OFFSETS.get(anim, Vector2(0, -45))
+	return HEAD_OFFSETS.get(anim, Vector2(0, -39))

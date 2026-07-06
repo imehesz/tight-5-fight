@@ -25,11 +25,11 @@ func _ready() -> void:
 	_health_fill.size = Vector2(BAR_W, 10)
 	add_child(_health_fill)
 
-	_lives_label = _label(Vector2(10, 26), 10)
-	_score_label = _label(Vector2(466, 8), 10, 164, HORIZONTAL_ALIGNMENT_RIGHT)
-	_venue_label = _label(Vector2(170, 8), 10, 300, HORIZONTAL_ALIGNMENT_CENTER)
+	_lives_label = _label(Vector2(10, 26), 8)
+	_score_label = _label(Vector2(466, 8), 8, 164, HORIZONTAL_ALIGNMENT_RIGHT)
+	_venue_label = _label(Vector2(170, 8), 8, 300, HORIZONTAL_ALIGNMENT_CENTER)
 	_venue_label.modulate = Color(1.0, 0.85, 0.4)
-	_center_label = _label(Vector2(120, 110), 22, 400, HORIZONTAL_ALIGNMENT_CENTER)
+	_center_label = _label(Vector2(120, 110), 14, 400, HORIZONTAL_ALIGNMENT_CENTER)
 
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.lives_changed.connect(_on_lives_changed)

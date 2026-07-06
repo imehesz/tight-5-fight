@@ -19,7 +19,7 @@ func build_backdrop() -> VBoxContainer:
 	return box
 
 
-func add_title(box: Container, text: String, size := 32, color := Color(1.0, 0.85, 0.4)) -> Label:
+func add_title(box: Container, text: String, size := 20, color := Color(1.0, 0.85, 0.4)) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -29,7 +29,7 @@ func add_title(box: Container, text: String, size := 32, color := Color(1.0, 0.8
 	return l
 
 
-func add_text(box: Container, text: String, size := 11, color := Color(0.8, 0.8, 0.85)) -> Label:
+func add_text(box: Container, text: String, size := 8, color := Color(0.8, 0.8, 0.85)) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -43,6 +43,7 @@ func add_button(box: Container, text: String, cb: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(220, 36)
+	b.add_theme_font_size_override("font_size", 12)
 	b.pressed.connect(cb)
 	box.add_child(b)
 	return b

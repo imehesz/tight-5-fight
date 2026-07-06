@@ -6,7 +6,7 @@ const GRID_COLUMNS := 3
 
 func _ready() -> void:
 	var box := build_backdrop()
-	add_title(box, "CHOOSE YOUR COMEDIAN", 22)
+	add_title(box, "CHOOSE YOUR COMEDIAN", 14)
 	add_spacer(box, 6)
 
 	var grid := GridContainer.new()
@@ -39,6 +39,6 @@ func _character_card(index: int, cfg: Dictionary) -> VBoxContainer:
 	var name_label := Label.new()
 	name_label.text = String(cfg.get("CharacterName", "?"))
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 10)
+	name_label.add_theme_font_size_override("font_size", 8)
 	card.add_child(name_label)
 	return card

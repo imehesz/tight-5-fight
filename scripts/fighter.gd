@@ -12,6 +12,10 @@ const PUNCH_DAMAGE := 10.0
 const KICK_DAMAGE := 16.0
 const STAND_BOX := Rect2(-8, -44, 16, 44)
 const DUCK_BOX := Rect2(-8, -26, 16, 26)
+## Whole-fighter scale (boxes scale with it) and extra bobblehead scale for
+## the head sprite — heads are real people's pixelated photos, go big.
+const BODY_SCALE := 1.4
+const HEAD_SCALE := 2.4
 
 var body_type := "M"
 var head_path := ""
@@ -36,6 +40,7 @@ var _victims := {}
 func _ready() -> void:
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	health = max_health
+	scale = Vector2(BODY_SCALE, BODY_SCALE)
 	_build_visuals()
 	_build_boxes()
 	_play("idle")
@@ -51,6 +56,7 @@ func _build_visuals() -> void:
 
 	head_sprite = Sprite2D.new()
 	head_sprite.texture = CharacterFactory.head_texture(head_path)
+	head_sprite.scale = Vector2(HEAD_SCALE, HEAD_SCALE)
 	add_child(head_sprite)
 
 
@@ -95,8 +101,10 @@ func _build_boxes() -> void:
 func _process(_delta: float) -> void:
 	body_sprite.flip_h = facing < 0
 	head_sprite.flip_h = facing < 0
-	var off := CharacterFactory.head_offset(body_sprite.animation)
-	head_sprite.position = Vector2(off.x * facing, off.y)
+	var neck := CharacterFactory.head_offset(body_sprite.animation)
+	# Lift the head so it sits on the neck, minus a little overlap.
+	var lift := 8.0 * HEAD_SCALE - 4.0
+	head_sprite.position = Vector2(neck.x * facing, neck.y - lift)
 	hitbox.position.x = 18 * facing
 
 

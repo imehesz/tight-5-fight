@@ -4,7 +4,7 @@ extends MenuBase
 
 func _ready() -> void:
 	var box := build_backdrop()
-	add_title(box, "SETTINGS", 28)
+	add_title(box, "SETTINGS", 18)
 	add_spacer(box, 10)
 	box.add_child(_volume_row("MUSIC", GameState.music_volume, GameState.set_music_volume))
 	box.add_child(_volume_row("SFX", GameState.sfx_volume, GameState.set_sfx_volume))
@@ -18,7 +18,7 @@ func _volume_row(label_text: String, value: float, setter: Callable) -> HBoxCont
 	var l := Label.new()
 	l.text = label_text
 	l.custom_minimum_size = Vector2(60, 0)
-	l.add_theme_font_size_override("font_size", 12)
+	l.add_theme_font_size_override("font_size", 8)
 	row.add_child(l)
 	var slider := HSlider.new()
 	slider.min_value = 0.0
