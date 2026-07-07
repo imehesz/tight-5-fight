@@ -8,6 +8,9 @@ const BODY_SHEETS := {
 	"M": "res://assets/gen/bodies/body_male.png",
 	"F": "res://assets/gen/bodies/body_female.png",
 }
+## Skin tone baked into the generated sheets (SKIN in tools/gen_assets.py).
+## body_frames() palette-swaps exactly these pixels to a character's SkinColor.
+const DEFAULT_SKIN := Color(233 / 255.0, 192 / 255.0, 152 / 255.0)
 const FRAME_W := 32
 const FRAME_H := 48
 const ANIMS := [
@@ -35,11 +38,12 @@ const HEAD_OFFSETS := {
 static var _frames_cache := {}
 
 
-static func body_frames(body_type: String) -> SpriteFrames:
-	var key := body_type if BODY_SHEETS.has(body_type) else "M"
+static func body_frames(body_type: String, skin: Color = DEFAULT_SKIN) -> SpriteFrames:
+	var body := body_type if BODY_SHEETS.has(body_type) else "M"
+	var key := body + "|" + skin.to_html(false)
 	if _frames_cache.has(key):
 		return _frames_cache[key]
-	var tex: Texture2D = load(BODY_SHEETS[key])
+	var tex := _body_texture(body, skin)
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
 	for a in ANIMS:
@@ -53,6 +57,29 @@ static func body_frames(body_type: String) -> SpriteFrames:
 			sf.add_frame(a.name, at)
 	_frames_cache[key] = sf
 	return sf
+
+
+static func _body_texture(body: String, skin: Color) -> Texture2D:
+	var tex: Texture2D = load(BODY_SHEETS[body])
+	if skin.is_equal_approx(DEFAULT_SKIN):
+		return tex
+	var img := tex.get_image()
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.a > 0.0 and _is_default_skin(c):
+				img.set_pixel(x, y, Color(skin.r, skin.g, skin.b, c.a))
+	return ImageTexture.create_from_image(img)
+
+
+static func _is_default_skin(c: Color) -> bool:
+	# Tolerant compare: import/quantization can shift channels by a hair.
+	return absf(c.r - DEFAULT_SKIN.r) < 0.02 \
+			and absf(c.g - DEFAULT_SKIN.g) < 0.02 \
+			and absf(c.b - DEFAULT_SKIN.b) < 0.02
 
 
 static func head_texture(path: String) -> Texture2D:

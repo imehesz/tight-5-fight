@@ -14,3 +14,5 @@ server/config.prod.js
 server/config.qa.js
 deployScriptPRODBE.sh
 deploy-be/
+*.Identifier
+tools/*

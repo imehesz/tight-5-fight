@@ -9,7 +9,7 @@ const FIRST_VENUE_X := 900.0
 const VENUE_SPACING_MIN := 1100.0
 const VENUE_SPACING_MAX := 1600.0
 const DOOR_HALF_WIDTH := 34.0
-const EXTERIOR_SCALE := 1.5
+const EXTERIOR_HEIGHT := 180.0
 const HECKLER_MAX := 4
 
 var player: Player
@@ -96,9 +96,14 @@ func _add_venue(vx: float, data: Dictionary, cleared: bool) -> void:
 	if ResourceLoader.exists(path):
 		ext.texture = load(path)
 	ext.centered = false
-	ext.scale = Vector2(EXTERIOR_SCALE, EXTERIOR_SCALE)
-	# Exterior art is 160x120 (scaled to 240x180), door at bottom center (vx).
-	ext.position = Vector2(vx - 120.0, GROUND_Y - 174.0)
+	# Exterior art displays at a fixed 180px height (640x360 source → 0.5x,
+	# never upscaled beyond legacy 160x120), door at bottom center (vx).
+	var ext_w := 240.0
+	if ext.texture:
+		var s := EXTERIOR_HEIGHT / float(ext.texture.get_height())
+		ext.scale = Vector2(s, s)
+		ext_w = ext.texture.get_width() * s
+	ext.position = Vector2(vx - ext_w / 2.0, GROUND_Y - 174.0)
 	ext.z_index = -5
 	add_child(ext)
 

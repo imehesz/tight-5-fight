@@ -44,6 +44,9 @@ visible and drive the same input actions (mouse clicks work on them too, via
   - `HeadScale` — optional zoom multiplier (default 1.0). Big hair filling
     the crop makes the face render smaller than everyone else's — bump to
     1.2–1.5 to compensate (often paired with a `HeadOffsetY` tweak).
+  - `SkinColor` — optional hex color (default `"#e9c098"`, the tone baked
+    into the generated body sheets). The body's skin pixels are palette-
+    swapped to this at load, so match it to the head photo's skin tone.
   Tip: faces should look to the right in the source image; a chin near the
   bottom edge sockets best onto the neck.
 - **New venue:** add an entry to `data/venues.json` (`VenueName`,

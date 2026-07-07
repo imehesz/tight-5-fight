@@ -1,7 +1,7 @@
 extends Control
 ## Splash screen: key art + title, any input continues to the main menu.
 
-const ART_PATH := "res://assets/art/splash.png"
+const ART_PATH := "res://assets/art/splash_jax.png"
 
 var _done := false
 
@@ -20,7 +20,7 @@ func _ready() -> void:
 		add_child(art)
 
 	var title := Label.new()
-	title.text = "TIGHT 5 FIGHT!"
+	title.text = ""
 	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	title.offset_top = 18
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -35,7 +35,7 @@ func _ready() -> void:
 	tap.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	tap.offset_top = -40
 	tap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tap.add_theme_font_size_override("font_size", 12)
+	tap.add_theme_font_size_override("font_size", 14)
 	tap.add_theme_color_override("font_outline_color", Color.BLACK)
 	tap.add_theme_constant_override("outline_size", 6)
 	add_child(tap)

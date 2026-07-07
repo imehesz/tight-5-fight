@@ -21,6 +21,7 @@ const HEAD_SCALE := 2.4
 const HEAD_BASE_PX := 16.0
 
 var body_type := "M"
+var skin_color := CharacterFactory.DEFAULT_SKIN
 var head_path := ""
 ## Optional per-character head nudges (JSON "HeadOffsetX"/"HeadOffsetY", in
 ## body pixels). Positive Y moves the head DOWN — use it when long hair puts
@@ -60,7 +61,7 @@ func _ready() -> void:
 
 func _build_visuals() -> void:
 	body_sprite = AnimatedSprite2D.new()
-	body_sprite.sprite_frames = CharacterFactory.body_frames(body_type)
+	body_sprite.sprite_frames = CharacterFactory.body_frames(body_type, skin_color)
 	body_sprite.offset = Vector2(0, -CharacterFactory.FRAME_H / 2.0)
 	body_sprite.animation_finished.connect(_on_animation_finished)
 	body_sprite.frame_changed.connect(_on_frame_changed)
@@ -126,6 +127,8 @@ func _process(_delta: float) -> void:
 ## Apply a character entry from characters.json. Call before add_child().
 func configure(cfg: Dictionary) -> void:
 	body_type = String(cfg.get("BodyType", "M"))
+	skin_color = Color.from_string(String(cfg.get("SkinColor", "")),
+			CharacterFactory.DEFAULT_SKIN)
 	head_path = String(cfg.get("HeadSpritePath", ""))
 	head_offset_x = float(cfg.get("HeadOffsetX", 0))
 	head_offset_y = float(cfg.get("HeadOffsetY", 0))

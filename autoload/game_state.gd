@@ -24,7 +24,12 @@ const STARTING_LIVES := 3
 const MAX_HIGH_SCORES := 10
 const BOSS_EVERY := 5
 
-const MUSIC_BASE := "res://assets/audio/song"
+## Looping background tracks; venue fights get their own tune, everything
+## else (menus, street, game over) shares the main theme.
+const MUSIC_TRACKS := {
+	"main": "res://assets/audio/song",
+	"venue": "res://assets/audio/song_venue",
+}
 const SFX_BASE := "res://assets/audio/sfx_"
 const SFX_NAMES := ["punch", "kick", "hurt", "defeat", "smash", "clear", "click", "throw"]
 const SFX_POOL_SIZE := 6
@@ -46,6 +51,8 @@ var music_volume := 0.8
 var sfx_volume := 0.8
 
 var _music_player: AudioStreamPlayer
+var _music_streams := {}
+var _music_track := ""
 var _sfx_streams := {}
 var _sfx_pool: Array = []
 var _sfx_next := 0
@@ -112,6 +119,7 @@ func finish_run() -> void:
 
 
 func change_scene(path: String) -> void:
+	play_music("venue" if path == SCENE_VENUE else "main")
 	get_tree().call_deferred("change_scene_to_file", path)
 
 
@@ -151,11 +159,12 @@ func _setup_audio() -> void:
 	_music_player = AudioStreamPlayer.new()
 	_music_player.bus = "Music"
 	add_child(_music_player)
-	var music := _load_stream(MUSIC_BASE)
-	if music:
-		_set_looping(music)
-		_music_player.stream = music
-		_music_player.play()
+	for track in MUSIC_TRACKS:
+		var s := _load_stream(MUSIC_TRACKS[track])
+		if s:
+			_set_looping(s)
+			_music_streams[track] = s
+	play_music("main")
 	for sfx_name in SFX_NAMES:
 		var s := _load_stream(SFX_BASE + sfx_name)
 		if s:
@@ -165,6 +174,16 @@ func _setup_audio() -> void:
 		p.bus = "SFX"
 		add_child(p)
 		_sfx_pool.append(p)
+
+
+## Swap the looping background track; no-op if it's already playing (so
+## menu-to-menu transitions never restart the tune) or the file is missing.
+func play_music(track: String) -> void:
+	if track == _music_track or not _music_streams.has(track):
+		return
+	_music_track = track
+	_music_player.stream = _music_streams[track]
+	_music_player.play()
 
 
 func play_sfx(sfx_name: String) -> void:
