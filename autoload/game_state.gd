@@ -62,6 +62,7 @@ func _ready() -> void:
 	randomize()
 	_register_input_actions()
 	characters = _load_json(CHARACTERS_PATH).get("characters", [])
+	characters.shuffle()
 	venues = _load_json(VENUES_PATH).get("venues", [])
 	_ensure_bus("Music")
 	_ensure_bus("SFX")

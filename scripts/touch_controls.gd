@@ -4,6 +4,10 @@ extends CanvasLayer
 ## (up = enter doors, down = duck), punch/kick buttons on the right.
 ## Buttons emit the same input actions as the keyboard bindings.
 
+const SCALE := 1.5
+## Positions are the original 1x layout for 40px buttons on the 640x360
+## viewport; _ready() scales each corner cluster outward from its screen
+## corner so margins grow proportionally and nothing hangs off-screen.
 const BUTTONS := [
 	{"action": "move_left", "tex": "res://assets/gen/ui/btn_left.png", "pos": Vector2(12, 284)},
 	{"action": "move_right", "tex": "res://assets/gen/ui/btn_right.png", "pos": Vector2(100, 284)},
@@ -16,10 +20,13 @@ const BUTTONS := [
 
 func _ready() -> void:
 	layer = 90
+	var view := get_viewport().get_visible_rect().size
 	for b in BUTTONS:
 		var btn := TouchScreenButton.new()
 		btn.texture_normal = load(b.tex)
 		btn.action = b.action
-		btn.position = b.pos
+		btn.scale = Vector2(SCALE, SCALE)
+		var anchor := Vector2(0.0 if b.pos.x < view.x / 2.0 else view.x, view.y)
+		btn.position = anchor + (b.pos - anchor) * SCALE
 		btn.passby_press = true
 		add_child(btn)
