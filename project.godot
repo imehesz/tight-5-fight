@@ -13,8 +13,8 @@ config_version=5
 config/name="Tight 5 FIGHT!"
 run/main_scene="res://scenes/splash.tscn"
 config/features=PackedStringArray("4.4")
-boot_splash/image="uid://be2xavhkdkpnk"
-config/icon="res://assets/gen/heads/chuckles.png"
+boot_splash/image="res://shared/assets/icon.png"
+config/icon="res://shared/assets/icon.png"
 
 [autoload]
 
@@ -32,7 +32,7 @@ window/handheld/orientation=4
 
 [gui]
 
-theme/custom_font="res://assets/fonts/PressStart2P-Regular.ttf"
+theme/custom_font="res://shared/assets/fonts/PressStart2P-Regular.ttf"
 
 [input_devices]
 

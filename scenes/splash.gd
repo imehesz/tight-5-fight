@@ -1,7 +1,6 @@
 extends Control
 ## Splash screen: key art + title, any input continues to the main menu.
-
-const ART_PATH := "res://assets/art/splash_jax.png"
+## Background art comes from the active game's manifest (GameState.splash_path).
 
 var _done := false
 
@@ -11,9 +10,10 @@ func _ready() -> void:
 	bg.color = Color(0.05, 0.04, 0.08)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
-	if ResourceLoader.exists(ART_PATH):
+	var art_path := GameState.splash_path()
+	if ResourceLoader.exists(art_path):
 		var art := TextureRect.new()
-		art.texture = load(ART_PATH)
+		art.texture = load(art_path)
 		art.set_anchors_preset(Control.PRESET_FULL_RECT)
 		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED

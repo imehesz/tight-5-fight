@@ -3,8 +3,8 @@ extends MenuBase
 
 
 func _ready() -> void:
-	var box := build_backdrop(MENU_BG)
-	add_title(box, "TIGHT 5 FIGHT!", 24)
+	var box := build_backdrop()
+	add_title(box, GameState.menu_title(), 24)
 	add_text(box, "beat the streets. bomb gracefully.", 8, Color(0.7, 0.7, 0.8))
 	add_spacer(box, 12)
 	add_button(box, "PLAY", func(): GameState.change_scene(GameState.SCENE_CHARACTER_SELECT))

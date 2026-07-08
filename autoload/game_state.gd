@@ -15,24 +15,41 @@ const SCENE_STREET := "res://scenes/street.tscn"
 const SCENE_VENUE := "res://scenes/venue.tscn"
 const SCENE_GAME_OVER := "res://scenes/game_over.tscn"
 
-const CHARACTERS_PATH := "res://data/characters.json"
-const VENUES_PATH := "res://data/venues.json"
-const SCORES_PATH := "user://highscores.json"
-const SETTINGS_PATH := "user://settings.json"
+## Names the game this build ships (see games/<id>/). The build step writes it;
+## for local dev you may hand-edit it to switch which game you're testing.
+const ACTIVE_GAME_PATH := "res://data/active_game.json"
+
+## App version. The build stamp after it is baked into VERSION_PATH at deploy.
+const APP_VERSION := "1.0"
+const VERSION_PATH := "res://data/version.txt"
+
+## Shared engine fallbacks, used when a game manifest omits an optional asset.
+const DEFAULT_BODY := {
+	"M": "res://shared/assets/bodies/body_male.png",
+	"F": "res://shared/assets/bodies/body_female.png",
+}
+
+## Save files are namespaced per active game (%s = active game id) so two games
+## deployed under one origin never stomp each other's high scores/settings.
+const SCORES_PATH := "user://%s_highscores.json"
+const SETTINGS_PATH := "user://%s_settings.json"
 
 const STARTING_LIVES := 3
 const MAX_HIGH_SCORES := 10
 const BOSS_EVERY := 5
 
-## Looping background tracks; venue fights get their own tune, everything
-## else (menus, street, game over) shares the main theme.
-const MUSIC_TRACKS := {
-	"main": "res://assets/audio/song",
-	"venue": "res://assets/audio/song_venue",
-}
-const SFX_BASE := "res://assets/audio/sfx_"
+## Looping background tracks come from the active game's manifest (main +
+## venue). SFX are shared engine chrome. See _music_tracks()/_setup_audio().
+const SFX_BASE := "res://shared/assets/sfx/sfx_"
 const SFX_NAMES := ["punch", "kick", "hurt", "defeat", "smash", "clear", "click", "throw"]
 const SFX_POOL_SIZE := 6
+
+## The active game id and its parsed game.json manifest. Loaded first in
+## _ready() from data/active_game.json; everything game-specific reads from here.
+var active_game := "tight5"
+var manifest: Dictionary = {}
+var _scores_file := ""
+var _settings_file := ""
 
 var characters: Array = []
 var venues: Array = []
@@ -61,14 +78,126 @@ var _sfx_next := 0
 func _ready() -> void:
 	randomize()
 	_register_input_actions()
-	characters = _load_json(CHARACTERS_PATH).get("characters", [])
-	characters.shuffle()
-	venues = _load_json(VENUES_PATH).get("venues", [])
+	_load_active_game()
+	get_window().title = game_title()
+	_load_roster()
 	_ensure_bus("Music")
 	_ensure_bus("SFX")
 	_load_settings()
 	_load_scores()
 	_setup_audio()
+
+
+# ---------------------------------------------------------------- active game
+## Resolve which game this build is, load its manifest, and derive save paths.
+func _load_active_game() -> void:
+	active_game = String(_load_json(ACTIVE_GAME_PATH).get("active", "tight5"))
+	manifest = _load_json(game_path("game.json"))
+	_scores_file = SCORES_PATH % active_game
+	_settings_file = SETTINGS_PATH % active_game
+
+
+## Prefix a game-relative path (as stored in game.json / characters.json /
+## venues.json) with this build's game folder. The one place game ids turn into
+## res:// paths — engine code never hardcodes res://games/... itself.
+func game_path(rel: String) -> String:
+	return "res://games/%s/%s" % [active_game, rel]
+
+
+## Load roster + venues, resolving their game-relative sprite paths to absolute
+## res:// paths up front so every downstream consumer keeps working unchanged.
+func _load_roster() -> void:
+	var chars: Array = _load_json(game_path(String(manifest.get("characters", "characters.json")))).get("characters", [])
+	for c in chars:
+		if String(c.get("HeadSpritePath", "")) != "":
+			c["HeadSpritePath"] = game_path(String(c["HeadSpritePath"]))
+	chars.shuffle()
+	characters = chars
+	var vs: Array = _load_json(game_path(String(manifest.get("venues", "venues.json")))).get("venues", [])
+	for v in vs:
+		for k in ["ExteriorSpritePath", "InteriorSpritePath"]:
+			if String(v.get(k, "")) != "":
+				v[k] = game_path(String(v[k]))
+	venues = vs
+
+
+# ---------------------------------------------------------------- manifest resolvers
+## Manifest value if present (resolved game-relative), else the shared default.
+func _bg_path(key: String, fallback_rel: String) -> String:
+	var bgs: Dictionary = manifest.get("backgrounds", {})
+	return game_path(String(bgs.get(key, fallback_rel)))
+
+
+func game_title() -> String:
+	return String(manifest.get("title", "Beat the Streets"))
+
+
+func menu_title() -> String:
+	return String(manifest.get("menuTitle", game_title()))
+
+
+## "v.1.0.<build stamp>" shown faintly in Settings. In the editor the stamp is
+## the current time (you're running live code); in an exported/deployed build
+## it's the timestamp the deploy script bakes into data/version.txt, so you can
+## confirm at a glance that a build is fresh and not a cached old one.
+func version_string() -> String:
+	var stamp := ""
+	if OS.has_feature("editor"):
+		var t := Time.get_datetime_dict_from_system()
+		stamp = "%04d%02d%02d%02d%02d" % [t.year, t.month, t.day, t.hour, t.minute]
+	elif FileAccess.file_exists(VERSION_PATH):
+		var f := FileAccess.open(VERSION_PATH, FileAccess.READ)
+		if f:
+			stamp = f.get_as_text().strip_edges()
+	if stamp == "":
+		stamp = "dev"
+	return "v.%s.%s" % [APP_VERSION, stamp]
+
+
+func splash_path() -> String:
+	return _bg_path("splash", "assets/backgrounds/splash.png")
+
+
+func menu_bg_path() -> String:
+	return _bg_path("menu", "assets/backgrounds/menu_bg.png")
+
+
+func street_tile_path() -> String:
+	return _bg_path("streetTile", "assets/backgrounds/street_tile.png")
+
+
+## Optional assets: empty string means "no override" — the consumer applies its
+## own placeholder (boss/projectile) rather than crashing on a missing file.
+func boss_head_path() -> String:
+	var boss: Dictionary = manifest.get("boss", {})
+	var p = boss.get("headSprite", null)
+	return game_path(String(p)) if p != null and String(p) != "" else ""
+
+
+func projectile_path() -> String:
+	var p = manifest.get("projectileSprite", null)
+	return game_path(String(p)) if p != null and String(p) != "" else ""
+
+
+## Body sheet for M/F, honouring a manifest override, else the shared default.
+func body_path(body_type: String) -> String:
+	var ov: Dictionary = manifest.get("overrides", {})
+	var key := "bodyMale" if body_type == "M" else "bodyFemale"
+	var p = ov.get(key, null)
+	if p != null and String(p) != "":
+		return game_path(String(p))
+	return DEFAULT_BODY.get(body_type, DEFAULT_BODY["M"])
+
+
+## Looping tracks from the manifest; a game may omit either (or both).
+func _music_tracks() -> Dictionary:
+	var audio: Dictionary = manifest.get("audio", {})
+	var tracks := {}
+	if String(audio.get("musicMain", "")) != "":
+		tracks["main"] = game_path(String(audio["musicMain"]))
+	if String(audio.get("musicVenue", "")) != "":
+		tracks["venue"] = game_path(String(audio["musicVenue"]))
+	return tracks
 
 
 # ---------------------------------------------------------------- run lifecycle
@@ -160,8 +289,9 @@ func _setup_audio() -> void:
 	_music_player = AudioStreamPlayer.new()
 	_music_player.bus = "Music"
 	add_child(_music_player)
-	for track in MUSIC_TRACKS:
-		var s := _load_stream(MUSIC_TRACKS[track])
+	var tracks := _music_tracks()
+	for track in tracks:
+		var s := _load_stream(tracks[track])
 		if s:
 			_set_looping(s)
 			_music_streams[track] = s
@@ -239,7 +369,7 @@ func _ensure_bus(bus_name: String) -> void:
 
 
 func _load_settings() -> void:
-	var d := _load_json(SETTINGS_PATH)
+	var d := _load_json(_settings_file)
 	music_volume = clampf(float(d.get("music", 0.8)), 0.0, 1.0)
 	sfx_volume = clampf(float(d.get("sfx", 0.8)), 0.0, 1.0)
 	_apply_volume("Music", music_volume)
@@ -247,7 +377,7 @@ func _load_settings() -> void:
 
 
 func _save_settings() -> void:
-	_save_json(SETTINGS_PATH, {"music": music_volume, "sfx": sfx_volume})
+	_save_json(_settings_file, {"music": music_volume, "sfx": sfx_volume})
 
 
 # ---------------------------------------------------------------- high scores
@@ -268,11 +398,11 @@ func _record_score() -> int:
 
 
 func _load_scores() -> void:
-	high_scores = _load_json(SCORES_PATH).get("scores", [])
+	high_scores = _load_json(_scores_file).get("scores", [])
 
 
 func _save_scores() -> void:
-	_save_json(SCORES_PATH, {"scores": high_scores})
+	_save_json(_scores_file, {"scores": high_scores})
 
 
 # ---------------------------------------------------------------- json helpers

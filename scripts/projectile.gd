@@ -16,7 +16,9 @@ func _ready() -> void:
 	collision_layer = 0
 	collision_mask = 2  # player hurtbox
 	_sprite = Sprite2D.new()
-	_sprite.texture = load("res://assets/gen/props/bottle.png")
+	var bottle_path := GameState.projectile_path()
+	if bottle_path != "" and ResourceLoader.exists(bottle_path):
+		_sprite.texture = load(bottle_path)
 	add_child(_sprite)
 	var cs := CollisionShape2D.new()
 	var rs := RectangleShape2D.new()

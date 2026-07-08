@@ -63,7 +63,7 @@ func _process(delta: float) -> void:
 
 # ---------------------------------------------------------------- world
 func _build_tiles() -> void:
-	var tex: Texture2D = load("res://assets/gen/street/street_tile.png")
+	var tex: Texture2D = load(GameState.street_tile_path())
 	for i in TILE_COUNT:
 		var t := Sprite2D.new()
 		t.texture = tex

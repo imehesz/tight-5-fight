@@ -17,7 +17,7 @@ const SUPPORT_URL := "https://buymeacoffee.com/imehesz"
 
 
 func _ready() -> void:
-	var box := build_backdrop(MENU_BG)
+	var box := build_backdrop()
 	add_title(box, "ABOUT", 18)
 	add_spacer(box, 6)
 	add_text(box, BLURB, 8)

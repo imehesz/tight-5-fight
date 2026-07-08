@@ -4,10 +4,10 @@ extends RefCounted
 ## comedian heads socketed at the neck. Sheet layout must match
 ## tools/gen_assets.py (rows = animations, columns = frames, 32x48 frames).
 
-const BODY_SHEETS := {
-	"M": "res://assets/gen/bodies/body_male.png",
-	"F": "res://assets/gen/bodies/body_female.png",
-}
+## Body sheets are resolved per active game via GameState.body_path() (shared
+## defaults live in shared/assets/bodies/; a game may override them in its
+## manifest). M/F are the only supported body types.
+const BODY_TYPES := ["M", "F"]
 ## Skin tone baked into the generated sheets (SKIN in tools/gen_assets.py).
 ## body_frames() palette-swaps exactly these pixels to a character's SkinColor.
 const DEFAULT_SKIN := Color(233 / 255.0, 192 / 255.0, 152 / 255.0)
@@ -39,7 +39,7 @@ static var _frames_cache := {}
 
 
 static func body_frames(body_type: String, skin: Color = DEFAULT_SKIN) -> SpriteFrames:
-	var body := body_type if BODY_SHEETS.has(body_type) else "M"
+	var body := body_type if body_type in BODY_TYPES else "M"
 	var key := body + "|" + skin.to_html(false)
 	if _frames_cache.has(key):
 		return _frames_cache[key]
@@ -60,7 +60,7 @@ static func body_frames(body_type: String, skin: Color = DEFAULT_SKIN) -> Sprite
 
 
 static func _body_texture(body: String, skin: Color) -> Texture2D:
-	var tex: Texture2D = load(BODY_SHEETS[body])
+	var tex: Texture2D = load(GameState.body_path(body))
 	if skin.is_equal_approx(DEFAULT_SKIN):
 		return tex
 	var img := tex.get_image()

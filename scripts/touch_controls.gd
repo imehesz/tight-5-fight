@@ -9,12 +9,12 @@ const SCALE := 1.5
 ## viewport; _ready() scales each corner cluster outward from its screen
 ## corner so margins grow proportionally and nothing hangs off-screen.
 const BUTTONS := [
-	{"action": "move_left", "tex": "res://assets/gen/ui/btn_left.png", "pos": Vector2(12, 284)},
-	{"action": "move_right", "tex": "res://assets/gen/ui/btn_right.png", "pos": Vector2(100, 284)},
-	{"action": "interact", "tex": "res://assets/gen/ui/btn_up.png", "pos": Vector2(56, 240)},
-	{"action": "duck", "tex": "res://assets/gen/ui/btn_down.png", "pos": Vector2(56, 316)},
-	{"action": "punch", "tex": "res://assets/gen/ui/btn_punch.png", "pos": Vector2(548, 296)},
-	{"action": "kick", "tex": "res://assets/gen/ui/btn_kick.png", "pos": Vector2(596, 248)},
+	{"action": "move_left", "tex": "res://shared/assets/ui/btn_left.png", "pos": Vector2(12, 284)},
+	{"action": "move_right", "tex": "res://shared/assets/ui/btn_right.png", "pos": Vector2(100, 284)},
+	{"action": "interact", "tex": "res://shared/assets/ui/btn_up.png", "pos": Vector2(56, 240)},
+	{"action": "duck", "tex": "res://shared/assets/ui/btn_down.png", "pos": Vector2(56, 316)},
+	{"action": "punch", "tex": "res://shared/assets/ui/btn_punch.png", "pos": Vector2(548, 296)},
+	{"action": "kick", "tex": "res://shared/assets/ui/btn_kick.png", "pos": Vector2(596, 248)},
 ]
 
 

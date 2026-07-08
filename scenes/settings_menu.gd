@@ -1,18 +1,32 @@
 extends MenuBase
 ## Settings: Music and SFX volume sliders (persisted to user://settings.json).
-## The SFX slider plays a punch at the new volume so changes are audible.
+## The SFX slider plays a hurt sound at the new volume so changes are audible.
 
 var _feedback_cooldown := 0.0
 
 
 func _ready() -> void:
-	var box := build_backdrop(MENU_BG)
+	var box := build_backdrop()
 	add_title(box, "SETTINGS", 18)
 	add_spacer(box, 10)
 	box.add_child(_volume_row("MUSIC", GameState.music_volume, GameState.set_music_volume))
 	box.add_child(_volume_row("SFX", GameState.sfx_volume, GameState.set_sfx_volume, true))
 	add_spacer(box, 14)
 	add_button(box, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
+	_add_version_label()
+
+
+## Faint build stamp pinned to the screen bottom, so a deployed build can be
+## eyeballed as up to date (see GameState.version_string).
+func _add_version_label() -> void:
+	var v := Label.new()
+	v.text = GameState.version_string()
+	v.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	v.offset_top = -16
+	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_theme_font_size_override("font_size", 8)
+	v.modulate = Color(1.0, 1.0, 1.0, 0.3)
+	add_child(v)
 
 
 func _process(delta: float) -> void:
@@ -39,6 +53,6 @@ func _volume_row(label_text: String, value: float, setter: Callable,
 		# Throttled so dragging doesn't machine-gun the sample.
 		if feedback and _feedback_cooldown <= 0.0:
 			_feedback_cooldown = 0.25
-			GameState.play_sfx("punch"))
+			GameState.play_sfx("hurt"))
 	row.add_child(slider)
 	return row

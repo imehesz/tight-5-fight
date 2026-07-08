@@ -1,0 +1,7 @@
+{
+  "venues": [
+    { "VenueName": "The Celeb Club",
+      "ExteriorSpritePath": "assets/venues/club_ext.png",
+      "InteriorSpritePath": "assets/venues/club_int.png" }
+  ]
+}

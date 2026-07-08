@@ -60,7 +60,7 @@ class SelectionOrbit extends Control:
 
 
 func _ready() -> void:
-	var box := build_backdrop(MENU_BG)
+	var box := build_backdrop()
 	add_title(box, "CHOOSE YOUR COMEDIAN", 14)
 	add_spacer(box, 6)
 

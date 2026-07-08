@@ -3,10 +3,12 @@ extends Control
 ## Shared scaffolding for menu screens: dark backdrop, centered column,
 ## title/button helpers. Menus build their UI in code in _ready().
 
-const MENU_BG := "res://assets/art/menu_bg.png"
 
-
+## Passing "" (the default) uses the active game's menu background from the
+## manifest, so every menu screen shares one per-game backdrop.
 func build_backdrop(bg_path := "") -> VBoxContainer:
+	if bg_path == "":
+		bg_path = GameState.menu_bg_path()
 	var bg := ColorRect.new()
 	bg.color = Color(0.08, 0.07, 0.12)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)

@@ -1,0 +1,20 @@
+{
+  "characters": [
+    {
+      "CharacterName": "Hero One",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/hero1.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Hero Two",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/hero2.png",
+      "BodyType": "F",
+      "SkinColor": "#c98a5e"
+    }
+  ]
+}

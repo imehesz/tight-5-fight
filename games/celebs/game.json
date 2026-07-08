@@ -1,0 +1,14 @@
+{
+  "id": "celebs",
+  "title": "Tight 5 FIGHT! — Celebs Edition",
+  "menuTitle": "TIGHT 5 FIGHT!",
+
+  "characters": "characters.json",
+  "venues": "venues.json",
+
+  "backgrounds": {
+    "splash":     "assets/backgrounds/splash.png",
+    "menu":       "assets/backgrounds/menu_bg.png",
+    "streetTile": "assets/backgrounds/street_tile.png"
+  }
+}

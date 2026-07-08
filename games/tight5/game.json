@@ -1,0 +1,29 @@
+{
+  "id": "tight5",
+  "title": "Tight 5 FIGHT!",
+  "menuTitle": "TIGHT 5 FIGHT!",
+
+  "characters": "characters.json",
+  "venues": "venues.json",
+
+  "backgrounds": {
+    "splash":     "assets/backgrounds/splash.png",
+    "menu":       "assets/backgrounds/menu_bg.png",
+    "streetTile": "assets/backgrounds/street_tile.png"
+  },
+
+  "boss": {
+    "headSprite": "assets/misc/boss_head.png"
+  },
+  "projectileSprite": "assets/misc/bottle.png",
+
+  "audio": {
+    "musicMain":  "assets/audio/song",
+    "musicVenue": "assets/audio/song_venue"
+  },
+
+  "overrides": {
+    "bodyMale":   null,
+    "bodyFemale": null
+  }
+}

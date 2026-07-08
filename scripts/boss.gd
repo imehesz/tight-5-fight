@@ -33,7 +33,7 @@ func _ready() -> void:
 	_body.play("idle")
 
 	_head = Sprite2D.new()
-	_head.texture = CharacterFactory.head_texture("res://assets/gen/heads/boss_lou.png")
+	_head.texture = CharacterFactory.head_texture(GameState.boss_head_path())
 	_head.scale = Vector2(HEAD_SCALE, HEAD_SCALE)
 	add_child(_head)
 

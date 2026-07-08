@@ -8,7 +8,7 @@ const DANCE_FEET_POS := Vector2(110, 330)
 
 
 func _ready() -> void:
-	var box := build_backdrop(MENU_BG)
+	var box := build_backdrop()
 	add_title(box, "GAME OVER", 24, Color(0.95, 0.3, 0.25))
 	add_text(box, "%s bombed after %d venue%s." % [
 		String(GameState.selected_character_data().get("CharacterName", "You")),

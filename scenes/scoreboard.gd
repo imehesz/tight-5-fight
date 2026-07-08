@@ -3,7 +3,7 @@ extends MenuBase
 
 
 func _ready() -> void:
-	var box := build_backdrop(MENU_BG)
+	var box := build_backdrop()
 	add_title(box, "HIGH SCORES", 18)
 	add_spacer(box, 8)
 	if GameState.high_scores.is_empty():
