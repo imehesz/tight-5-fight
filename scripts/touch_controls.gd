@@ -19,6 +19,7 @@ const BUTTONS := [
 
 
 const DESIGN_W := 640.0
+const DESIGN_H := 360.0
 
 var _buttons: Array = []  # [{node, pos}]
 
@@ -43,5 +44,10 @@ func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	for b in _buttons:
 		var pos: Vector2 = b.pos
-		var anchor := Vector2(0.0 if pos.x < DESIGN_W / 2.0 else view.x, view.y)
-		b.node.position = anchor + (pos - anchor) * SCALE
+		# Scale each button's DESIGN-space offset from its corner, then hang
+		# it off the corresponding LIVE screen corner — on wider-than-design
+		# screens the right cluster must follow the real edge.
+		var x := pos.x * SCALE if pos.x < DESIGN_W / 2.0 \
+				else view.x - (DESIGN_W - pos.x) * SCALE
+		var y := view.y - (DESIGN_H - pos.y) * SCALE
+		b.node.position = Vector2(x, y)
