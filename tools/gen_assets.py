@@ -308,8 +308,8 @@ def gen_button(path, glyph):
     img = canvas(40, 40)
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([1, 1, 38, 38], radius=8, fill=(25, 25, 38, 150),
-                        outline=(240, 240, 250, 200), width=2)
-    w = (245, 245, 250, 230)
+                        outline=(255, 255, 255, 128), width=2)
+    w = (255, 255, 255, 128)
     if glyph == "left":
         d.polygon([(26, 10), (26, 30), (12, 20)], fill=w)
     elif glyph == "right":
@@ -320,7 +320,7 @@ def gen_button(path, glyph):
         d.polygon([(10, 14), (30, 14), (20, 28)], fill=w)
     elif glyph == "punch":
         d.ellipse([11, 11, 29, 29], fill=w)
-        rect(d, 13, 19, 27, 21, (25, 25, 38, 255))
+        rect(d, 13, 19, 27, 21, (25, 25, 38, 150))
     elif glyph == "kick":
         rect(d, 12, 10, 18, 28, w)
         rect(d, 12, 24, 30, 30, w)

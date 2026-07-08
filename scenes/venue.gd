@@ -60,17 +60,21 @@ func _process(delta: float) -> void:
 
 # ---------------------------------------------------------------- setup
 func _build_background(data: Dictionary) -> void:
+	var view := get_viewport().get_visible_rect().size
 	var path := String(data.get("InteriorSpritePath", ""))
 	if ResourceLoader.exists(path):
 		var bg := Sprite2D.new()
 		bg.texture = load(path)
 		bg.centered = false
+		# Stretch the 640x360 art to the device's visible size — phones wider
+		# than 16:9 expand the viewport (stretch/aspect="expand").
+		bg.scale = view / bg.texture.get_size()
 		bg.z_index = -10
 		add_child(bg)
 	else:
 		var rect := ColorRect.new()
 		rect.color = Color(0.2, 0.1, 0.15)
-		rect.size = Vector2(640, 360)
+		rect.size = view
 		rect.z_index = -10
 		add_child(rect)
 

@@ -13,20 +13,35 @@ const BUTTONS := [
 	{"action": "move_right", "tex": "res://assets/gen/ui/btn_right.png", "pos": Vector2(100, 284)},
 	{"action": "interact", "tex": "res://assets/gen/ui/btn_up.png", "pos": Vector2(56, 240)},
 	{"action": "duck", "tex": "res://assets/gen/ui/btn_down.png", "pos": Vector2(56, 316)},
-	{"action": "punch", "tex": "res://assets/gen/ui/btn_punch.png", "pos": Vector2(536, 296)},
-	{"action": "kick", "tex": "res://assets/gen/ui/btn_kick.png", "pos": Vector2(584, 248)},
+	{"action": "punch", "tex": "res://assets/gen/ui/btn_punch.png", "pos": Vector2(548, 296)},
+	{"action": "kick", "tex": "res://assets/gen/ui/btn_kick.png", "pos": Vector2(596, 248)},
 ]
+
+
+const DESIGN_W := 640.0
+
+var _buttons: Array = []  # [{node, pos}]
 
 
 func _ready() -> void:
 	layer = 90
-	var view := get_viewport().get_visible_rect().size
 	for b in BUTTONS:
 		var btn := TouchScreenButton.new()
 		btn.texture_normal = load(b.tex)
 		btn.action = b.action
 		btn.scale = Vector2(SCALE, SCALE)
-		var anchor := Vector2(0.0 if b.pos.x < view.x / 2.0 else view.x, view.y)
-		btn.position = anchor + (b.pos - anchor) * SCALE
 		btn.passby_press = true
 		add_child(btn)
+		_buttons.append({"node": btn, "pos": b.pos})
+	_layout()
+	# The OS/browser can report the real window size a frame (or a rotation)
+	# after _ready, so re-anchor whenever the viewport changes.
+	get_viewport().size_changed.connect(_layout)
+
+
+func _layout() -> void:
+	var view := get_viewport().get_visible_rect().size
+	for b in _buttons:
+		var pos: Vector2 = b.pos
+		var anchor := Vector2(0.0 if pos.x < DESIGN_W / 2.0 else view.x, view.y)
+		b.node.position = anchor + (pos - anchor) * SCALE
