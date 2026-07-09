@@ -17,7 +17,7 @@ func _ready() -> void:
 	])
 	add_spacer(box, 8)
 	add_title(box, "FINAL SCORE: %d" % GameState.score, 14, Color(0.9, 0.9, 0.95))
-	if GameState.last_run_rank >= 0:
+	if GameState.last_run_rank >= 0 and GameState.last_run_rank < GameState.CELEBRATED_HIGH_SCORES:
 		add_title(box, "NEW HIGH SCORE — #%d!" % (GameState.last_run_rank + 1), 10)
 	add_spacer(box, 14)
 	add_button(box, "PLAY AGAIN", func(): GameState.change_scene(GameState.SCENE_CHARACTER_SELECT))

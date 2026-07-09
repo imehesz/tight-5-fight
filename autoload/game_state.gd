@@ -36,7 +36,10 @@ const SCORES_PATH := "user://%s_highscores.json"
 const SETTINGS_PATH := "user://%s_settings.json"
 
 const STARTING_LIVES := 3
-const MAX_HIGH_SCORES := 10
+## The local board keeps a deep history (paged 10 at a time on the
+## scoreboard); only cracking the top few is worth a fanfare on game over.
+const MAX_HIGH_SCORES := 50
+const CELEBRATED_HIGH_SCORES := 10
 const BOSS_EVERY := 5
 ## Beer bottles the player can carry (unlocked after the first boss). They
 ## are picked up on the street and thrown at hecklers; venues bar them at
@@ -297,6 +300,10 @@ func lose_life() -> bool:
 
 func finish_run() -> void:
 	last_run_rank = _record_score()
+	# Banks this character's play on the global board. Deliberately not
+	# awaited: it outlives the scene change (Leaderboard is an autoload) and
+	# a failure must never stall or block game over.
+	Leaderboard.record_play()
 	change_scene(SCENE_GAME_OVER)
 
 

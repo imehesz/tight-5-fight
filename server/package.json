@@ -1,0 +1,14 @@
+{
+  "name": "tight5fight-leaderboard",
+  "version": "1.0.0",
+  "description": "Global character-popularity leaderboard for the open-mic-night engine",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "sync-rosters": "node sync_rosters.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.22.5"
+  }
+}

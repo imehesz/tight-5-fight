@@ -69,3 +69,18 @@ func add_spacer(box: Container, h := 8) -> void:
 	var s := Control.new()
 	s.custom_minimum_size = Vector2(0, h)
 	box.add_child(s)
+
+
+## A tall, narrow "<" / ">" pager button. Shared by character select and the
+## scoreboard so both pagers click and look the same; the caller decides what
+## turning a page means.
+func make_arrow_button(text: String, cb: Callable, min_size := Vector2(30, 60)) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = min_size
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	b.add_theme_font_size_override("font_size", 16)
+	b.pressed.connect(func():
+		GameState.play_sfx("click")
+		cb.call())
+	return b

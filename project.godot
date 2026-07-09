@@ -19,6 +19,7 @@ config/icon="res://shared/assets/icon.png"
 [autoload]
 
 GameState="*res://autoload/game_state.gd"
+Leaderboard="*res://autoload/leaderboard.gd"
 
 [display]
 

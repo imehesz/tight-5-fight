@@ -64,15 +64,26 @@ func _throw() -> void:
 	_body.play("punch")
 	GameState.play_sfx("throw")
 	var b := Projectile.new()
-	# Parent-space spawn point: head-high for a 1.4x fighter — over a duck,
-	# into a standing face. (Standing hurtbox top ~-62, ducking ~-36.)
-	b.position = position + Vector2(facing * 30, -50)
 	if randf() < 0.65 or not is_instance_valid(target):
 		# Head-high fastball: duck under it.
+		b.position = Vector2(position.x + facing * 30, _fastball_y())
 		b.velocity = Vector2(facing * randf_range(220.0, 300.0), 0.0)
 	else:
 		# Lobbed at the player's current spot: move away.
+		b.position = position + Vector2(facing * 30, -50)
 		var dx := target.global_position.x - global_position.x
 		b.velocity = Vector2(dx * 0.9, -170.0)
 		b.arc_gravity = 300.0
 	get_parent().add_child(b)
+
+
+## Parent-space height that clears a ducking player but meets a standing one:
+## midway between the two hurtbox tops. The rects are fighter-local, so they
+## have to be scaled by the player's own scale (BODY_SCALE * size_scale).
+func _fastball_y() -> float:
+	if not is_instance_valid(target):
+		return position.y - 50.0
+	var s: float = target.scale.y
+	var stand_top: float = target.position.y + Fighter.STAND_BOX.position.y * s
+	var duck_top: float = target.position.y + Fighter.DUCK_BOX.position.y * s
+	return (stand_top + duck_top) * 0.5

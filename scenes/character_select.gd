@@ -76,12 +76,12 @@ func _ready() -> void:
 
 	var paged := GameState.characters.size() > PAGE_SIZE
 	if paged:
-		row.add_child(_arrow_button("<", -1))
+		row.add_child(make_arrow_button("<", func(): _turn_page(-1)))
 	var center := CenterContainer.new()
 	center.add_child(_grid)
 	row.add_child(center)
 	if paged:
-		row.add_child(_arrow_button(">", 1))
+		row.add_child(make_arrow_button(">", func(): _turn_page(1)))
 	row.add_child(_build_preview())
 
 	_fill_page()
@@ -172,18 +172,6 @@ func _fill_page() -> void:
 	for i in range(start, mini(start + PAGE_SIZE, GameState.characters.size())):
 		_grid.add_child(_character_card(i, GameState.characters[i]))
 	_update_highlights()
-
-
-func _arrow_button(label: String, dir: int) -> Button:
-	var b := Button.new()
-	b.text = label
-	b.custom_minimum_size = Vector2(30, 60)
-	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	b.add_theme_font_size_override("font_size", 16)
-	b.pressed.connect(func():
-		GameState.play_sfx("click")
-		_turn_page(dir))
-	return b
 
 
 func _character_card(index: int, cfg: Dictionary) -> VBoxContainer:
