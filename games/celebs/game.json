@@ -15,5 +15,11 @@
   "audio": {
     "musicMain":  "assets/audio/song",
     "musicVenue": "assets/audio/song_venue"
+  },
+
+  "projectileSprite": "assets/misc/bottle.png",
+
+  "boss": {
+    "headSprite": "assets/misc/boss_head.png"
   }
 }

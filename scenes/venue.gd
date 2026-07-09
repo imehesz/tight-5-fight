@@ -6,6 +6,9 @@ extends Node2D
 const GROUND_Y := 310.0
 const MAX_CONCURRENT := 3
 const CLEAR_BONUS_PER_LEVEL := 250
+## Venue fighters (player + comedians) are drawn bigger than on the street;
+## the boss keeps its own scale.
+const FIGHTER_SCALE := 1.3
 
 var player: Player
 var hud: Hud
@@ -82,6 +85,7 @@ func _build_background(data: Dictionary) -> void:
 func _spawn_player() -> void:
 	player = Player.new()
 	player.configure(GameState.selected_character_data())
+	player.size_scale = FIGHTER_SCALE
 	player.position = Vector2(100, GROUND_Y)
 	player.died.connect(_on_player_died)
 	add_child(player)
@@ -97,9 +101,12 @@ func _spawn_next_enemy() -> void:
 		return
 	var e := Enemy.new()
 	e.configure(_to_spawn.pop_front())
+	e.size_scale = FIGHTER_SCALE
 	e.aggressive = true  # venue comedians always attack immediately
-	e.max_health = 55.0 + 12.0 * (_level - 1)
-	e.damage_scale = 0.6 + 0.08 * (_level - 1)
+	# Base venue scaling, then +10% per boss already cleared.
+	var mult := GameState.enemy_strength_mult()
+	e.max_health = (55.0 + 12.0 * (_level - 1)) * mult
+	e.damage_scale = (0.6 + 0.08 * (_level - 1)) * mult
 	e.move_speed = minf(85.0 + 4.0 * _level, 130.0)
 	e.attack_cooldown = maxf(1.3 - 0.05 * _level, 0.6)
 	e.score_value = 250 + 50 * _level
@@ -140,6 +147,7 @@ func _boss_survived() -> void:
 		return
 	_finished = true
 	GameState.mark_pending_venue_cleared()
+	GameState.on_boss_defeated()  # unlocks beer & toughens the mob by 10%
 	GameState.play_sfx("clear")
 	if is_instance_valid(_boss):
 		_boss.active = false

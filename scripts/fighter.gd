@@ -35,6 +35,9 @@ var head_scale := 1.0
 var max_health := 100.0
 var health := 100.0
 var move_speed := 130.0
+## Extra whole-fighter size multiplier on top of BODY_SCALE (boxes scale with
+## it). Venues bump this to make the comedians roomier; set before add_child.
+var size_scale := 1.0
 var damage_scale := 1.0
 var facing := 1
 var state: FState = FState.IDLE
@@ -53,7 +56,7 @@ var _victims := {}
 func _ready() -> void:
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	health = max_health
-	scale = Vector2(BODY_SCALE, BODY_SCALE)
+	scale = Vector2(BODY_SCALE, BODY_SCALE) * size_scale
 	_build_visuals()
 	_build_boxes()
 	_play("idle")

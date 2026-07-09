@@ -4,6 +4,7 @@ extends Node
 
 signal score_changed(new_score: int)
 signal lives_changed(new_lives: int)
+signal bottles_changed(new_count: int)
 
 const SCENE_SPLASH := "res://scenes/splash.tscn"
 const SCENE_MAIN_MENU := "res://scenes/main_menu.tscn"
@@ -37,6 +38,12 @@ const SETTINGS_PATH := "user://%s_settings.json"
 const STARTING_LIVES := 3
 const MAX_HIGH_SCORES := 10
 const BOSS_EVERY := 5
+## Beer bottles the player can carry (unlocked after the first boss). They
+## are picked up on the street and thrown at hecklers; venues bar them at
+## the door but the carried count is kept for when the player comes back out.
+const MAX_BOTTLES := 3
+## Each boss cleared makes every future enemy 10% stronger (health + damage).
+const STRENGTH_PER_BOSS := 0.10
 
 ## Looping background tracks come from the active game's manifest (main +
 ## venue). SFX are shared engine chrome. See _music_tracks()/_setup_audio().
@@ -57,6 +64,9 @@ var selected_character := 0
 var score := 0
 var lives := STARTING_LIVES
 var venues_entered := 0
+## Bosses cleared so far, and beer bottles currently carried (0..MAX_BOTTLES).
+var bosses_defeated := 0
+var beer_bottles := 0
 var pending_venue: Dictionary = {}
 ## Street layout persisted across venue visits (see street.gd) and the index
 ## of the door being entered, so it can be marked CANCELLED once cleared.
@@ -206,6 +216,8 @@ func start_new_game(character_index: int) -> void:
 	score = 0
 	lives = STARTING_LIVES
 	venues_entered = 0
+	bosses_defeated = 0
+	set_bottles(0)
 	pending_venue = {}
 	street_state = {}
 	pending_door = -1
@@ -220,6 +232,46 @@ func enter_venue() -> void:
 
 func is_boss_venue() -> bool:
 	return venues_entered > 0 and venues_entered % BOSS_EVERY == 0
+
+
+# ---------------------------------------------------------------- beer bottles
+## The beer-throwing mechanic unlocks once the first boss has been beaten.
+func beer_unlocked() -> bool:
+	return bosses_defeated > 0
+
+
+## Called by the venue when a boss is survived: banks the win so the beer
+## mechanic unlocks and every future enemy gets tougher.
+func on_boss_defeated() -> void:
+	bosses_defeated += 1
+
+
+## Enemy health/damage multiplier: +10% per boss cleared (1.0, 1.1, 1.21…).
+func enemy_strength_mult() -> float:
+	return pow(1.0 + STRENGTH_PER_BOSS, bosses_defeated)
+
+
+func set_bottles(n: int) -> void:
+	var clamped := clampi(n, 0, MAX_BOTTLES)
+	if clamped == beer_bottles:
+		return
+	beer_bottles = clamped
+	bottles_changed.emit(beer_bottles)
+
+
+## Try to pick one up; returns false (leave it on the ground) when already full.
+func add_bottle() -> bool:
+	if beer_bottles >= MAX_BOTTLES:
+		return false
+	set_bottles(beer_bottles + 1)
+	return true
+
+
+func use_bottle() -> bool:
+	if beer_bottles <= 0:
+		return false
+	set_bottles(beer_bottles - 1)
+	return true
 
 
 ## Called by the venue scene on victory: the door the player entered through
@@ -433,6 +485,7 @@ func _register_input_actions() -> void:
 		"interact": [KEY_W, KEY_UP],
 		"punch": [KEY_J, KEY_Z],
 		"kick": [KEY_K, KEY_X],
+		"throw": [KEY_I, KEY_L, KEY_C],
 	}
 	for action in actions:
 		if InputMap.has_action(action):

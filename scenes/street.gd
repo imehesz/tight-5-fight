@@ -11,6 +11,10 @@ const VENUE_SPACING_MAX := 1600.0
 const DOOR_HALF_WIDTH := 34.0
 const EXTERIOR_HEIGHT := 180.0
 const HECKLER_MAX := 4
+## Beer bottles rest slightly above the fighters' feet; at most a couple lie
+## on the visible street at once so they read as a treat, not litter.
+const BEER_GROUND_Y := 300.0
+const BEER_MAX_ON_SCREEN := 2
 
 var player: Player
 var camera: Camera2D
@@ -21,6 +25,7 @@ var _doors: Array = []  # [{x, data, cleared, hint}]
 var _next_venue_x := FIRST_VENUE_X
 var _venue_index := 0
 var _spawn_timer := 2.0
+var _beer_timer := 3.0
 var _busy := false
 
 
@@ -57,6 +62,7 @@ func _process(delta: float) -> void:
 	_recycle_tiles()
 	_maybe_spawn_venue()
 	_maybe_spawn_heckler(delta)
+	_maybe_spawn_beer(delta)
 	_cull_stragglers()
 	_update_door_hints()
 
@@ -178,15 +184,37 @@ func _maybe_spawn_heckler(delta: float) -> void:
 	e.aggressive = randf() < 0.4
 	e.move_speed = randf_range(60.0, 95.0)
 	e.score_value = 100
+	# Each boss cleared toughens the mob by 10% (health + damage).
+	var mult := GameState.enemy_strength_mult()
+	e.max_health *= mult
+	e.damage_scale *= mult
 	e.target = player
 	e.position = Vector2(camera.position.x + 380.0, GROUND_Y)
 	add_child(e)
+
+
+func _maybe_spawn_beer(delta: float) -> void:
+	if not GameState.beer_unlocked() or GameState.beer_bottles >= GameState.MAX_BOTTLES:
+		return
+	_beer_timer -= delta
+	if _beer_timer > 0.0:
+		return
+	_beer_timer = randf_range(4.0, 8.0)
+	if not is_instance_valid(player) \
+			or get_tree().get_nodes_in_group("beer_pickups").size() >= BEER_MAX_ON_SCREEN:
+		return
+	var pickup := BeerPickup.new()
+	pickup.position = Vector2(camera.position.x + randf_range(300.0, 440.0), BEER_GROUND_Y)
+	add_child(pickup)
 
 
 func _cull_stragglers() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e.position.x < camera.position.x - 700.0:
 			e.queue_free()
+	for b in get_tree().get_nodes_in_group("beer_pickups"):
+		if b.position.x < camera.position.x - 700.0:
+			b.queue_free()
 
 
 # ---------------------------------------------------------------- events

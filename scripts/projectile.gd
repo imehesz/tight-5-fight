@@ -8,13 +8,16 @@ const GROUND_Y := 314.0
 var velocity := Vector2.ZERO
 var arc_gravity := 0.0  # "gravity" is a native Area2D property
 var damage := 10.0
+## Boss throws (default) hit the player; player throws hit enemies instead.
+var hits_enemies := false
 var _sprite: Sprite2D
+var _life := 4.0  # safety net so a throw that misses everything can't linger
 
 
 func _ready() -> void:
 	add_to_group("projectiles")
 	collision_layer = 0
-	collision_mask = 2  # player hurtbox
+	collision_mask = 4 if hits_enemies else 2  # enemy vs player hurtbox layer
 	_sprite = Sprite2D.new()
 	var bottle_path := GameState.projectile_path()
 	if bottle_path != "" and ResourceLoader.exists(bottle_path):
@@ -29,12 +32,13 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_life -= delta
 	velocity.y += arc_gravity * delta
 	position += velocity * delta
 	_sprite.rotation += 8.0 * delta
 	if position.y >= GROUND_Y:
 		_smash()
-	elif position.x < -200.0 or position.x > 5000.0:
+	elif _life <= 0.0:
 		queue_free()
 
 

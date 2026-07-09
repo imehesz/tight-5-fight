@@ -1,7 +1,14 @@
 {
   "venues": [
-    { "VenueName": "The Celeb Club",
-      "ExteriorSpritePath": "assets/venues/club_ext.png",
-      "InteriorSpritePath": "assets/venues/club_int.png" }
+    { 
+      "VenueName": "The IMRPOV L.A.",
+      "ExteriorSpritePath": "assets/venues/improv-la_ext3.png",
+      "InteriorSpritePath": "assets/venues/improv-la_int.png" 
+    },
+    { 
+      "VenueName": "Comedy Cellar",
+      "ExteriorSpritePath": "assets/venues/comedy-cellar-nyc_ext.png",
+      "InteriorSpritePath": "assets/venues/comedy-cellar-nyc_int.png" 
+    }
   ]
 }

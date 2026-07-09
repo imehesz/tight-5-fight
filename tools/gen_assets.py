@@ -324,6 +324,13 @@ def gen_button(path, glyph):
     elif glyph == "kick":
         rect(d, 12, 10, 18, 28, w)
         rect(d, 12, 24, 30, 30, w)
+    elif glyph == "beer":
+        d.ellipse([11, 9, 18, 16], fill=w)               # foam bumps
+        d.ellipse([15, 8, 23, 16], fill=w)
+        d.ellipse([20, 10, 26, 16], fill=w)
+        d.rounded_rectangle([13, 13, 25, 30], radius=2, fill=w)  # mug body
+        d.rounded_rectangle([24, 17, 30, 27], radius=3, outline=w, width=2)  # handle
+        rect(d, 13, 16, 25, 17, (25, 25, 38, 150))       # foam/beer line
     img.save(path)
 
 
@@ -372,7 +379,7 @@ def main():
 
     gen_street_tile(os.path.join(dirs["street"], "street_tile.png"))
 
-    for g in ("left", "right", "up", "down", "punch", "kick"):
+    for g in ("left", "right", "up", "down", "punch", "kick", "beer"):
         gen_button(os.path.join(dirs["ui"], "btn_%s.png" % g), g)
     gen_bottle(os.path.join(dirs["props"], "bottle.png"))
     print("assets written to", OUT)
