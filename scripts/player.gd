@@ -14,6 +14,8 @@ func _init() -> void:
 	hurt_layer = 2
 	attack_mask = 4
 	move_speed = 140.0
+	# Here rather than at each spawn site, so no scene can forget it.
+	outfit = GameState.outfit
 
 
 func _physics_process(delta: float) -> void:

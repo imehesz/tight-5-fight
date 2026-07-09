@@ -29,10 +29,13 @@ func set_character(cfg: Dictionary) -> void:
 		_body.queue_free()
 		_head.queue_free()
 	_body = AnimatedSprite2D.new()
+	# Dancers only ever preview the player's own comedian, so they wear the
+	# outfit picked in settings.
 	_body.sprite_frames = CharacterFactory.body_frames(
 			String(cfg.get("BodyType", "M")),
 			Color.from_string(String(cfg.get("SkinColor", "")),
-					CharacterFactory.DEFAULT_SKIN))
+					CharacterFactory.DEFAULT_SKIN),
+			GameState.outfit)
 	_body.offset = Vector2(0, -CharacterFactory.FRAME_H / 2.0)
 	add_child(_body)
 

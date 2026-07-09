@@ -36,6 +36,9 @@ func _init() -> void:
 	move_speed = 90.0
 	max_health = 40.0
 	damage_scale = 0.5
+	# Every heckler dresses differently. Here rather than at each spawn site,
+	# so no scene can forget it.
+	outfit = GameState.random_enemy_outfit()
 
 
 func _ready() -> void:

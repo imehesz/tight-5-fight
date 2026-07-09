@@ -22,6 +22,9 @@ const HEAD_BASE_PX := 16.0
 
 var body_type := "M"
 var skin_color := CharacterFactory.DEFAULT_SKIN
+## Index into CharacterFactory.OUTFITS. Player and Enemy each pick one in
+## _init() (settings / random); anything else wears the sheet as drawn.
+var outfit := CharacterFactory.OUTFIT_BAKED
 var head_path := ""
 ## Optional per-character head nudges (JSON "HeadOffsetX"/"HeadOffsetY", in
 ## body pixels). Positive Y moves the head DOWN — use it when long hair puts
@@ -64,7 +67,7 @@ func _ready() -> void:
 
 func _build_visuals() -> void:
 	body_sprite = AnimatedSprite2D.new()
-	body_sprite.sprite_frames = CharacterFactory.body_frames(body_type, skin_color)
+	body_sprite.sprite_frames = CharacterFactory.body_frames(body_type, skin_color, outfit)
 	body_sprite.offset = Vector2(0, -CharacterFactory.FRAME_H / 2.0)
 	body_sprite.animation_finished.connect(_on_animation_finished)
 	body_sprite.frame_changed.connect(_on_frame_changed)

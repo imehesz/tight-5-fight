@@ -74,6 +74,10 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("h_separation", 24)
 	_grid.add_theme_constant_override("v_separation", 10)
 
+	# Open on the remembered comedian, on whichever page they live.
+	if not GameState.characters.is_empty():
+		_page = GameState.selected_character / PAGE_SIZE
+
 	var paged := GameState.characters.size() > PAGE_SIZE
 	if paged:
 		row.add_child(make_arrow_button("<", func(): _turn_page(-1)))
@@ -99,7 +103,7 @@ func _ready() -> void:
 	if GameState.characters.is_empty():
 		_fight_btn.disabled = true
 	else:
-		_select(0)
+		_select(GameState.selected_character)
 
 
 func _build_preview() -> Control:
@@ -124,6 +128,9 @@ func _build_preview() -> Control:
 
 func _select(index: int) -> void:
 	_selected = index
+	# Persisted here, not on FIGHT!, so the pick survives quitting from the
+	# roster. A no-op when it matches what's already saved.
+	GameState.set_selected_character(index)
 	var cfg: Dictionary = GameState.characters[index]
 	_dancer.set_character(cfg)
 	_preview_name.text = String(cfg.get("CharacterName", "?"))

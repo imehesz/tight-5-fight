@@ -79,6 +79,9 @@ var high_scores: Array = []
 var last_run_rank := -1
 var music_volume := 0.8
 var sfx_volume := 0.8
+## Player's chosen outfit color (index into CharacterFactory.OUTFITS). Worn on
+## whichever body the picked comedian has; NPCs keep their baked colors.
+var outfit := 0
 
 var _music_player: AudioStreamPlayer
 var _music_streams := {}
@@ -124,7 +127,6 @@ func _load_roster() -> void:
 	for c in chars:
 		if String(c.get("HeadSpritePath", "")) != "":
 			c["HeadSpritePath"] = game_path(String(c["HeadSpritePath"]))
-	chars.shuffle()
 	characters = chars
 	var vs: Array = _load_json(game_path(String(manifest.get("venues", "venues.json")))).get("venues", [])
 	for v in vs:
@@ -215,7 +217,7 @@ func _music_tracks() -> Dictionary:
 
 # ---------------------------------------------------------------- run lifecycle
 func start_new_game(character_index: int) -> void:
-	selected_character = clampi(character_index, 0, maxi(characters.size() - 1, 0))
+	set_selected_character(character_index)
 	score = 0
 	lives = STARTING_LIVES
 	venues_entered = 0
@@ -319,6 +321,16 @@ func selected_character_data() -> Dictionary:
 	return characters[clampi(selected_character, 0, characters.size() - 1)]
 
 
+## Roster position of a comedian by name, or 0 — the first — when the name is
+## unknown. That covers a player who has never picked, and a saved favorite
+## since renamed or dropped from characters.json.
+func character_index_by_name(char_name: String) -> int:
+	for i in characters.size():
+		if String(characters[i].get("CharacterName", "")) == char_name:
+			return i
+	return 0
+
+
 ## Random enemy configs pulled from the roster, excluding the player's pick.
 func enemy_characters(count: int) -> Array:
 	var pool: Array = []
@@ -413,6 +425,32 @@ func set_sfx_volume(v: float) -> void:
 	_save_settings()
 
 
+## Remembered across reloads, so the roster opens on your usual comedian.
+func set_selected_character(idx: int) -> void:
+	var i := clampi(idx, 0, maxi(characters.size() - 1, 0))
+	if i == selected_character:
+		return  # don't rewrite the save file just for opening a menu
+	selected_character = i
+	_save_settings()
+
+
+func set_outfit(idx: int) -> void:
+	# Never OUTFIT_BAKED: the player always wears a color they picked.
+	outfit = clampi(idx, 0, CharacterFactory.OUTFITS.size() - 1)
+	_save_settings()
+
+
+## A random outfit for an NPC — never the player's, so you can always pick
+## yourself out of the brawl.
+func random_enemy_outfit() -> int:
+	var n: int = CharacterFactory.OUTFITS.size()
+	if n <= 1:
+		return 0
+	# Draw from the n-1 colors that aren't the player's, then step over theirs.
+	var i := randi() % (n - 1)
+	return i if i < outfit else i + 1
+
+
 func _apply_volume(bus_name: String, v: float) -> void:
 	var idx := AudioServer.get_bus_index(bus_name)
 	if idx == -1:
@@ -431,12 +469,25 @@ func _load_settings() -> void:
 	var d := _load_json(_settings_file)
 	music_volume = clampf(float(d.get("music", 0.8)), 0.0, 1.0)
 	sfx_volume = clampf(float(d.get("sfx", 0.8)), 0.0, 1.0)
+	outfit = clampi(int(d.get("outfit", 0)), 0, CharacterFactory.OUTFITS.size() - 1)
+	# Stored by name, not position, so the favorite survives characters.json
+	# being reordered — or the roster being shuffled again. Older saves held a
+	# roster index here; those orderings are gone, so anything but a name
+	# falls back to the first comedian (and is rewritten on the next save).
+	var saved_name: Variant = d.get("character", "")
+	selected_character = character_index_by_name(saved_name) if saved_name is String else 0
 	_apply_volume("Music", music_volume)
 	_apply_volume("SFX", sfx_volume)
 
 
 func _save_settings() -> void:
-	_save_json(_settings_file, {"music": music_volume, "sfx": sfx_volume})
+	_save_json(_settings_file, {
+		"music": music_volume,
+		"sfx": sfx_volume,
+		"outfit": outfit,
+		"character": "" if characters.is_empty() \
+				else String(selected_character_data().get("CharacterName", "")),
+	})
 
 
 # ---------------------------------------------------------------- high scores
