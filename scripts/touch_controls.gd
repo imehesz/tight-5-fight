@@ -5,18 +5,20 @@ extends CanvasLayer
 ## Buttons emit the same input actions as the keyboard bindings.
 
 const SCALE := 1.5
+## The attack cluster runs 1.3x the D-pad — thumbs hunt for it mid-brawl.
+const ACTION_SCALE := SCALE * 1.3
 ## Positions are the original 1x layout for 40px buttons on the 640x360
 ## viewport; _ready() scales each corner cluster outward from its screen
 ## corner so margins grow proportionally and nothing hangs off-screen.
 const BUTTONS := [
-	{"action": "move_left", "tex": "res://shared/assets/ui/btn_left.png", "pos": Vector2(12, 284)},
-	{"action": "move_right", "tex": "res://shared/assets/ui/btn_right.png", "pos": Vector2(100, 284)},
-	{"action": "interact", "tex": "res://shared/assets/ui/btn_up.png", "pos": Vector2(56, 240)},
-	{"action": "duck", "tex": "res://shared/assets/ui/btn_down.png", "pos": Vector2(56, 316)},
-	{"action": "punch", "tex": "res://shared/assets/ui/btn_punch.png", "pos": Vector2(548, 296)},
-	{"action": "kick", "tex": "res://shared/assets/ui/btn_kick.png", "pos": Vector2(596, 248)},
+	{"action": "move_left", "tex": "res://shared/assets/ui/btn_left.png", "pos": Vector2(12, 284), "scale": SCALE},
+	{"action": "move_right", "tex": "res://shared/assets/ui/btn_right.png", "pos": Vector2(100, 284), "scale": SCALE},
+	{"action": "interact", "tex": "res://shared/assets/ui/btn_up.png", "pos": Vector2(56, 240), "scale": SCALE},
+	{"action": "duck", "tex": "res://shared/assets/ui/btn_down.png", "pos": Vector2(56, 316), "scale": SCALE},
+	{"action": "punch", "tex": "res://shared/assets/ui/btn_punch.png", "pos": Vector2(536, 296), "scale": ACTION_SCALE},
+	{"action": "kick", "tex": "res://shared/assets/ui/btn_kick.png", "pos": Vector2(584, 248), "scale": ACTION_SCALE},
 	# Beer sits under kick and in punch's row — the three form a reversed L.
-	{"action": "throw", "tex": "res://shared/assets/ui/btn_beer.png", "pos": Vector2(596, 296)},
+	{"action": "throw", "tex": "res://shared/assets/ui/btn_beer.png", "pos": Vector2(584, 296), "scale": ACTION_SCALE},
 ]
 const BUTTON_PX := 40.0  # source texture size, before SCALE
 
@@ -35,10 +37,10 @@ func _ready() -> void:
 		var btn := TouchScreenButton.new()
 		btn.texture_normal = _load_tex(b.tex)
 		btn.action = b.action
-		btn.scale = Vector2(SCALE, SCALE)
+		btn.scale = Vector2(b.scale, b.scale)
 		btn.passby_press = true
 		add_child(btn)
-		_buttons.append({"node": btn, "pos": b.pos})
+		_buttons.append({"node": btn, "pos": b.pos, "scale": b.scale})
 		if b.action == "throw":
 			_throw_btn = btn
 			_throw_pos = b.pos
@@ -75,20 +77,20 @@ func _refresh_throw(count: int) -> void:
 func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	for b in _buttons:
-		b.node.position = _screen_pos(b.pos, view)
+		b.node.position = _screen_pos(b.pos, b.scale, view)
 	if _throw_badge:
-		var tp := _screen_pos(_throw_pos, view)
+		var tp := _screen_pos(_throw_pos, ACTION_SCALE, view)
 		# Hug the button's top-right corner.
-		_throw_badge.position = tp + Vector2(BUTTON_PX * SCALE - 12.0, -8.0)
+		_throw_badge.position = tp + Vector2(BUTTON_PX * ACTION_SCALE - 12.0, -8.0)
 
 
 ## Scale a DESIGN-space button offset from its corner, then hang it off the
 ## corresponding LIVE screen corner — on wider-than-design screens the right
 ## cluster must follow the real edge.
-func _screen_pos(pos: Vector2, view: Vector2) -> Vector2:
-	var x := pos.x * SCALE if pos.x < DESIGN_W / 2.0 \
-			else view.x - (DESIGN_W - pos.x) * SCALE
-	var y := view.y - (DESIGN_H - pos.y) * SCALE
+func _screen_pos(pos: Vector2, btn_scale: float, view: Vector2) -> Vector2:
+	var x := pos.x * btn_scale if pos.x < DESIGN_W / 2.0 \
+			else view.x - (DESIGN_W - pos.x) * btn_scale
+	var y := view.y - (DESIGN_H - pos.y) * btn_scale
 	return Vector2(x, y)
 
 

@@ -12,11 +12,12 @@ extends Node
 signal board_loaded(data: Dictionary)
 signal board_failed(reason: String)
 
-## Production backend: the games.mehesz.net API hub, where Apache proxies
-## /tight5fight/api/ to the node process (see server/README.md). The game
-## itself is served from imstandup.com, so this is always a cross-origin
-## call — the server sends CORS headers for it.
-const PROD_HOST := "games.mehesz.net"
+## Production backend: Apache on games.imstandup.com proxies /tight5fight/api/
+## to the node process (see server/README.md). The game is served from the same
+## host (games.imstandup.com/tight5fight/<theme>), so this is a SAME-ORIGIN
+## call. The server still sends CORS headers, which is what lets a build served
+## from anywhere else (e.g. the mehesz.net hub) reach it too.
+const PROD_HOST := "games.imstandup.com"
 const PROD_API_PATH := "/tight5fight/api"
 const DEV_PORT := 8770
 

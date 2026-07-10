@@ -71,6 +71,35 @@ func add_spacer(box: Container, h := 8) -> void:
 	box.add_child(s)
 
 
+const EDGE_ARROW_MARGIN := 10.0
+
+## A "<" / ">" pager pinned to the screen's left or right edge, vertically
+## centred. Anchored to the menu root (not the content column), so the arrows
+## stay put no matter how wide the names/rows between them get — muscle-memory
+## tap targets. With aspect="expand" the anchors track the real screen edge.
+## 1.5x the in-row arrows: edge targets are hit by feel, so they run big.
+func add_edge_arrow(text: String, on_right: bool, cb: Callable, min_size := Vector2(45, 90)) -> Button:
+	var b := make_arrow_button(text, cb, min_size)
+	b.add_theme_font_size_override("font_size", 24)
+	var ax := 1.0 if on_right else 0.0
+	b.anchor_left = ax
+	b.anchor_right = ax
+	b.anchor_top = 0.5
+	b.anchor_bottom = 0.5
+	b.offset_top = -min_size.y / 2.0
+	b.offset_bottom = min_size.y / 2.0
+	if on_right:
+		b.offset_right = -EDGE_ARROW_MARGIN
+		b.offset_left = -EDGE_ARROW_MARGIN - min_size.x
+		b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	else:
+		b.offset_left = EDGE_ARROW_MARGIN
+		b.offset_right = EDGE_ARROW_MARGIN + min_size.x
+		b.grow_horizontal = Control.GROW_DIRECTION_END
+	add_child(b)
+	return b
+
+
 ## A tall, narrow "<" / ">" pager button. Shared by character select and the
 ## scoreboard so both pagers click and look the same; the caller decides what
 ## turning a page means.

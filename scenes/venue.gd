@@ -41,7 +41,8 @@ func _ready() -> void:
 	if _boss_stage:
 		_survive_left = 18.0 + 2.0 * float(_level / GameState.BOSS_EVERY)
 		_boss = Boss.new()
-		_boss.position = Vector2(540, GROUND_Y)
+		# 100px in from the live right edge (640-540 in the design layout).
+		_boss.position = Vector2(get_viewport().get_visible_rect().size.x - 100.0, GROUND_Y)
 		_boss.target = player
 		_boss.throw_interval = maxf(1.5 - 0.08 * _level, 0.6)
 		add_child(_boss)
@@ -53,7 +54,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if is_instance_valid(player):
-		player.position.x = clampf(player.position.x, 30.0, 610.0)
+		# The room spans the LIVE view width (the bg stretches to it), not the
+		# 640 design width — clamping to 610 walled off wide phones mid-screen.
+		var right := get_viewport().get_visible_rect().size.x - 30.0
+		player.position.x = clampf(player.position.x, 30.0, right)
 	if _boss_stage and not _finished:
 		_survive_left -= delta
 		hud.set_center_text("SURVIVE %d" % maxi(ceili(_survive_left), 0))
@@ -111,7 +115,9 @@ func _spawn_next_enemy() -> void:
 	e.attack_cooldown = maxf(1.3 - 0.05 * _level, 0.6)
 	e.score_value = 250 + 50 * _level
 	e.target = player
-	e.position = Vector2(660 if _spawned % 2 == 0 else -20, GROUND_Y)
+	# Just past the LIVE right edge, so wide phones don't see enemies pop in.
+	var off_right := get_viewport().get_visible_rect().size.x + 20.0
+	e.position = Vector2(off_right if _spawned % 2 == 0 else -20, GROUND_Y)
 	e.died.connect(_on_enemy_died)
 	add_child(e)
 	_alive += 1

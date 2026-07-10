@@ -78,6 +78,8 @@ func _ready() -> void:
 
 	add_spacer(box, 2)
 	box.add_child(_build_pager())
+	_prev_btn = add_edge_arrow("<", false, func(): _turn_page(-1))
+	_next_btn = add_edge_arrow(">", true, func(): _turn_page(1))
 	add_spacer(box, 4)
 	var back := add_button(box, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 	back.custom_minimum_size = Vector2(220, 28)
@@ -111,20 +113,17 @@ func _tab_button(tab: Tab, text: String) -> Button:
 	return b
 
 
+## Just the "PAGE x / y" label — the arrows are pinned to the screen edges in
+## _ready() so they never move with the table between them.
 func _build_pager() -> HBoxContainer:
 	var pager := HBoxContainer.new()
 	pager.alignment = BoxContainer.ALIGNMENT_CENTER
-	pager.add_theme_constant_override("separation", 12)
-	_prev_btn = make_arrow_button("<", func(): _turn_page(-1), Vector2(26, 26))
-	_next_btn = make_arrow_button(">", func(): _turn_page(1), Vector2(26, 26))
-	pager.add_child(_prev_btn)
 	_pager = Label.new()
 	_pager.custom_minimum_size = Vector2(110, 0)
 	_pager.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_pager.add_theme_font_size_override("font_size", 8)
 	_pager.add_theme_color_override("font_color", DIM)
 	pager.add_child(_pager)
-	pager.add_child(_next_btn)
 	return pager
 
 

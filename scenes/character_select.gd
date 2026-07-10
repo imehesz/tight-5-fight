@@ -78,14 +78,14 @@ func _ready() -> void:
 	if not GameState.characters.is_empty():
 		_page = GameState.selected_character / PAGE_SIZE
 
-	var paged := GameState.characters.size() > PAGE_SIZE
-	if paged:
-		row.add_child(make_arrow_button("<", func(): _turn_page(-1)))
+	# Pagers hug the screen edges (not the row) so they never shift with the
+	# widths of the names between them — taps land where the thumb expects.
+	if GameState.characters.size() > PAGE_SIZE:
+		add_edge_arrow("<", false, func(): _turn_page(-1))
+		add_edge_arrow(">", true, func(): _turn_page(1))
 	var center := CenterContainer.new()
 	center.add_child(_grid)
 	row.add_child(center)
-	if paged:
-		row.add_child(make_arrow_button(">", func(): _turn_page(1)))
 	row.add_child(_build_preview())
 
 	_fill_page()

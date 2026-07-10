@@ -1,11 +1,85 @@
 {
   "characters": [
 	{
+	  "CharacterName": "904 Nika",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 5,
+	  "HeadSpritePath":
+	  "assets/heads/904nika.png",
+	  "BodyType": "F",
+	  "SkinColor": "#a0683c"
+	},
+	{
+	  "CharacterName": "Alex Grindeland",
+	  "HeadScale": 1,
+	  "HeadSpritePath":
+	  "assets/heads/alex-grindeland.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Alex Sanders",
+	  "HeadScale": 1,
+	  "HeadSpritePath":
+	  "assets/heads/alex-sanders.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Amir Schuman",
+	  "HeadScale": 1,
+	  "HeadSpritePath":
+	  "assets/heads/amir-schuman.png",
+	  "BodyType": "M",
+	  "SkinColor": "#a0683c"
+	},
+	{
+	  "CharacterName": "Bryce",
+	  "HeadScale": 1,
+	  "HeadSpritePath":
+	  "assets/heads/bryce.png",
+	  "BodyType": "M",
+	  "SkinColor": "#a0683c"
+	},
+	{
+	  "CharacterName": "Cody Foxworthy",
+	  "HeadScale": 1,
+	  "HeadSpritePath":
+	  "assets/heads/cody-foxworthy.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Garrett Gutto",
+	  "HeadScale": 1,
+	  "HeadSpritePath":
+	  "assets/heads/garrett-gutto.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Isaiah Burns",
+	  "HeadScale": 1,
+	  "HeadSpritePath":
+	  "assets/heads/isaiah-burns.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
 	  "CharacterName": "Tucker",
 	  "HeadScale": 2,
 	  "HeadOffsetY": 30,
 	  "HeadSpritePath":
 	  "assets/heads/tucker.png",
+	  "BodyType": "F",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Cheryl Redd",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 1,
+	  "HeadSpritePath":
+	  "assets/heads/cheryl-redd.png",
 	  "BodyType": "F",
 	  "SkinColor": "#e9c098"
 	},
@@ -19,11 +93,65 @@
 	  "SkinColor": "#e9c098"
 	},
 	{
+	  "CharacterName": "Jenn Weeks",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/jenn-weeks.png",
+	  "BodyType": "F",
+	  "SkinColor": "#a0683c"
+	},
+	{
 	  "CharacterName": "Imre",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 0,
 	  "HeadSpritePath":
 	  "assets/heads/imre_clean.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Jimmy O'Connor",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/jimmy-oconnor.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "JPAW",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 2,
+	  "HeadSpritePath":
+	  "assets/heads/jpaw.png",
+	  "BodyType": "F",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Kenzo West",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/kenzo-west.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Madelaine Grindeland",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 1,
+	  "HeadSpritePath":
+	  "assets/heads/madelaine-grindeland.png",
+	  "BodyType": "F",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Mike Freed",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/mike-freed.png",
 	  "BodyType": "M",
 	  "SkinColor": "#e9c098"
 	},
@@ -44,6 +172,96 @@
 	  "assets/heads/daisyt.png",
 	  "BodyType": "F",
 	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Nan Cardoso",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/nan-cardoso.png",
+	  "BodyType": "F",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Romain Charles",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/romain-charles.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Scotty Chi",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/scotty-chi.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Sin Phony",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 3,
+	  "HeadSpritePath":
+	  "assets/heads/sin-phony.png",
+	  "BodyType": "F",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Wendy Gillis",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 1,
+	  "HeadSpritePath":
+	  "assets/heads/wendy-gillis.png",
+	  "BodyType": "F",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "TK Turner",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 1,
+	  "HeadSpritePath":
+	  "assets/heads/tkturner.png",
+	  "BodyType": "M",
+	  "SkinColor": "#a0683c"
+	},
+	{
+	  "CharacterName": "Southside",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/southside.png",
+	  "BodyType": "M",
+	  "SkinColor": "#a0683c"
+	},
+	{
+	  "CharacterName": "Spike Yoder",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/spike-yoder.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+	{
+	  "CharacterName": "Tarron Bartley",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/tarron-bartley.png",
+	  "BodyType": "M",
+	  "SkinColor": "#a0683c"
+	},
+	{
+	  "CharacterName": "The Last Leroy",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/the-last-leroy.png",
+	  "BodyType": "M",
+	  "SkinColor": "#a0683c"
 	},
 	{
 	  "CharacterName": "CJ H",
@@ -111,7 +329,7 @@
 	{
 	  "CharacterName": "Flo Funny",
 	  "HeadScale": 1,
-	  "HeadOffsetY": 0,
+	  "HeadOffsetY": 2,
 	  "HeadSpritePath":
 	  "assets/heads/flofunny.png",
 	  "BodyType": "F",
@@ -120,7 +338,7 @@
 	{
 	  "CharacterName": "Taylor E",
 	  "HeadScale": 1,
-	  "HeadOffsetY": 0,
+	  "HeadOffsetY": 1,
 	  "HeadSpritePath":
 	  "assets/heads/taylorembs.png",
 	  "BodyType": "F",
@@ -161,6 +379,24 @@
 	  "assets/heads/dean.png",
 	  "BodyType": "M",
 	  "SkinColor": "#a0683c"
+	},
+	{
+	  "CharacterName": "Xander Fraser",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/xander-fraser.png",
+	  "BodyType": "M",
+	  "SkinColor": "#a0683c"
+	},
+	{
+	  "CharacterName": "Zack Malcomb",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/zack-malcomb.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
 	}
   ]
 }
