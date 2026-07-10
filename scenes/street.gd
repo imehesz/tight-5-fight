@@ -11,6 +11,9 @@ const VENUE_SPACING_MAX := 1600.0
 const DOOR_HALF_WIDTH := 34.0
 const EXTERIOR_HEIGHT := 180.0
 const HECKLER_MAX := 4
+## Street fighters (player + hecklers) sit between the old 1.0 street size
+## and the venue's 1.3 — readable on phones without crowding the scroll.
+const FIGHTER_SCALE := 1.25
 ## Beer bottles rest slightly above the fighters' feet; at most a couple lie
 ## on the visible street at once so they read as a treat, not litter.
 const BEER_GROUND_Y := 300.0
@@ -162,6 +165,7 @@ func _update_door_hints() -> void:
 func _spawn_player(pos: Vector2) -> void:
 	player = Player.new()
 	player.configure(GameState.selected_character_data())
+	player.size_scale = FIGHTER_SCALE
 	player.position = pos
 	player.interact_pressed.connect(_on_player_interact)
 	player.died.connect(_on_player_died)
@@ -181,6 +185,7 @@ func _maybe_spawn_heckler(delta: float) -> void:
 		return
 	var e := Enemy.new()
 	e.configure(GameState.enemy_characters(1)[0])
+	e.size_scale = FIGHTER_SCALE
 	e.aggressive = randf() < 0.4
 	e.move_speed = randf_range(60.0, 95.0)
 	e.score_value = 100

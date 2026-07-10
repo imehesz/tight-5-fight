@@ -7,8 +7,10 @@ const GROUND_Y := 310.0
 const MAX_CONCURRENT := 3
 const CLEAR_BONUS_PER_LEVEL := 250
 ## Venue fighters (player + comedians) are drawn bigger than on the street;
-## the boss keeps its own scale.
-const FIGHTER_SCALE := 1.3
+## the boss keeps its own scale. 1.495 = the old 1.3 bumped 15% for phone
+## readability — safe for the boss fastball, whose height and duck clearance
+## derive from the player's live scale (see Boss._fastball_y).
+const FIGHTER_SCALE := 1.495
 
 var player: Player
 var hud: Hud
