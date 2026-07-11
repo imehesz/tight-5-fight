@@ -1,0 +1,309 @@
+<!doctype html>
+<!--
+  TIGHT 5 FIGHT! — landing page for the bare domain https://games.imstandup.com/
+
+  DEPLOY (owner runs this himself, from src/open-mic-night/):
+      ./deployScriptPRODWEB.sh        dry-run
+      ./deployScriptPRODWEB.sh go     real deploy
+  or the one-liner:
+      rsync -az website-for-all/ imehesz@172.245.91.173:/var/www/imstandup.com/games/
+  It lands NEXT TO the tight5fight/ build folders and touches nothing else.
+
+  ADD A THEME (60-second edit):
+    1. Copy one <a class="card"> ... </a> block below (marked THEME CARD).
+    2. Change the href, the name, and the description (keep it to ~3 lines /
+       ~70 characters — the description box is fixed-height so titles align).
+    3. Optional splash background: drop imgs/card_<theme>.jpg next to this
+       file (~800px wide keeps the page light) and change the url(...) at
+       the END of the card's style attribute. If the image is missing the
+       card still renders fine (the gradient scrim doubles as the fallback).
+    A not-yet-live theme: copy the COMING SOON block instead (it's a plain
+    <div>, not a link).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIGHT 5 FIGHT! — a comedian beat-'em-up</title>
+<meta name="description" content="A comedian beat-'em-up. Pick your city, pick your comic, survive the hecklers.">
+<meta property="og:title" content="TIGHT 5 FIGHT!">
+<meta property="og:description" content="A comedian beat-'em-up. Pick your city, pick your comic, survive the hecklers.">
+<meta property="og:url" content="https://games.imstandup.com/">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://games.imstandup.com/imgs/card_jax.jpg">
+<meta property="og:image:width" content="640">
+<meta property="og:image:height" content="360">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night:   #0b0716;
+    --street:  #141022;
+    --panel:   #1a1130;
+    --pink:    #ff59cc;
+    --purple:  #7326bf;
+    --gold:    #ffd966;
+    --paper:   #f5eee4;
+    --dim:     #b9a8d6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { max-width: 100%; }
+  body {
+    font-family: "Press Start 2P", "Courier New", monospace;
+    color: var(--paper);
+    background:
+      radial-gradient(1px 1px at 15% 12%, #fff8 50%, transparent 51%),
+      radial-gradient(1px 1px at 42% 28%, #fff6 50%, transparent 51%),
+      radial-gradient(1px 1px at 71% 9%,  #fff7 50%, transparent 51%),
+      radial-gradient(1px 1px at 88% 22%, #fff5 50%, transparent 51%),
+      radial-gradient(1px 1px at 58% 17%, #fff5 50%, transparent 51%),
+      radial-gradient(2px 2px at 30% 6%,  #fff4 50%, transparent 51%),
+      linear-gradient(180deg, var(--night) 0%, var(--night) 45%, #170d2b 78%, var(--street) 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 20px;
+    text-align: center;
+  }
+
+  /* ---------- header ---------- */
+  h1 {
+    font-size: clamp(22px, 6.5vw, 42px);
+    line-height: 1.3;
+    color: var(--pink);
+    text-shadow:
+      0 0 6px  var(--pink),
+      0 0 18px var(--pink),
+      0 0 42px var(--purple),
+      3px 3px 0 #3a0f33;
+    animation: flicker 4.5s infinite;
+  }
+  @keyframes flicker {
+    0%, 6%, 8%, 100% { opacity: 1; }
+    7%               { opacity: .55; }
+    62%, 66%         { opacity: 1; }
+    64%              { opacity: .8; }
+  }
+  .pitch {
+    margin: 18px auto 0;
+    max-width: 560px;
+    font-size: clamp(10px, 2.6vw, 13px);
+    line-height: 1.9;
+    color: var(--gold);
+    text-shadow: 2px 2px 0 #000;
+  }
+  .marquee {
+    margin-top: 26px;
+    font-size: clamp(9px, 2.4vw, 12px);
+    color: var(--dim);
+    letter-spacing: 2px;
+  }
+  .marquee .arrow {
+    display: inline-block;
+    color: var(--gold);
+    animation: bob 1.1s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(5px); }
+  }
+
+  /* ---------- theme cards ---------- */
+  .cards {
+    margin: 26px auto 0;
+    width: 100%;
+    max-width: 900px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    min-height: 270px;
+    text-decoration: none;
+    color: var(--paper);
+    background-color: var(--panel);
+    background-size: cover;
+    background-position: center top;
+    border: 3px solid var(--purple);
+    border-radius: 10px;
+    box-shadow: 0 0 14px #7326bf66, inset 0 0 30px #0007;
+    overflow: hidden;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  a.card:hover, a.card:focus-visible {
+    transform: translateY(-3px);
+    border-color: var(--pink);
+    box-shadow: 0 0 22px #ff59cc88, inset 0 0 30px #0007;
+    outline: none;
+  }
+  .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 14px 18px;
+  }
+  .card-name {
+    font-size: clamp(22px, 5.5vw, 28px);
+    color: var(--gold);
+    text-shadow: 2px 2px 0 #000, 0 0 10px #ffd96655;
+    line-height: 1.2;
+  }
+  .card-edition {
+    display: block;
+    margin-top: 8px;
+    font-size: clamp(13px, 3.4vw, 17px);
+    line-height: 1.4;
+  }
+  .card-desc {
+    margin: auto 0; /* centers the description between the title and the button */
+    padding: 12px 0;
+    font-size: clamp(9px, 2.3vw, 11px);
+    line-height: 1.8;
+    color: var(--dim);
+    text-shadow: 1px 1px 0 #000;
+  }
+  .play {
+    align-self: center;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 26px;
+    font-size: clamp(12px, 3vw, 14px);
+    color: #fff;
+    background: linear-gradient(180deg, var(--pink), #c1279a);
+    border: 2px solid #ffb3e6;
+    border-radius: 8px;
+    box-shadow: 0 0 12px #ff59cc99, 0 4px 0 #7a1560;
+    text-shadow: 2px 2px 0 #0008;
+  }
+  .card:hover .play { box-shadow: 0 0 20px #ff59cccc, 0 4px 0 #7a1560; }
+
+  /* not-yet-live theme */
+  .card.soon { border-style: dashed; }
+  .soon-badge {
+    align-self: center;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 22px;
+    font-size: clamp(11px, 2.8vw, 13px);
+    color: var(--gold);
+    background: #0b0716cc;
+    border: 2px dashed var(--gold);
+    border-radius: 8px;
+    text-shadow: 2px 2px 0 #000;
+    animation: flicker 4.5s infinite;
+  }
+
+  /* ---------- footer ---------- */
+  footer {
+    margin-top: 34px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .coffee {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 18px;
+    font-size: clamp(9px, 2.4vw, 11px);
+    color: var(--night);
+    background: var(--gold);
+    border-radius: 8px;
+    border: 2px solid #fff2c0;
+    box-shadow: 0 0 12px #ffd96677, 0 3px 0 #8a6a1c;
+    text-decoration: none;
+    text-shadow: none;
+  }
+  .coffee:hover { box-shadow: 0 0 20px #ffd966bb, 0 3px 0 #8a6a1c; }
+  .credits {
+    margin-top: 14px;
+    font-size: 8px;
+    line-height: 2;
+    color: var(--dim);
+  }
+  .legal-link {
+    color: var(--gold);
+    text-decoration: underline;
+    /* generous tap area without changing the line's look */
+    padding: 16px 6px;
+    margin: -16px -6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    h1, .marquee .arrow, .soon-badge { animation: none; }
+    .card, .play, .coffee { transition: none; }
+    a.card:hover, a.card:focus-visible { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TIGHT 5<br>FIGHT!</h1>
+  <p class="pitch">A comedian beat-'em-up. Pick your city, pick your comic, survive&nbsp;the&nbsp;hecklers.</p>
+  <p class="marquee"><span class="arrow">▼</span>&nbsp; PICK YOUR SCENE &nbsp;<span class="arrow">▼</span></p>
+</header>
+
+<main class="cards">
+
+  <!-- ==================== THEME CARD: JAX ==================== -->
+  <a class="card" href="https://games.imstandup.com/tight5fight/jax/"
+     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_jax.jpg')">
+    <span class="card-body">
+      <span class="card-name">JAX<span class="card-edition">EDITION</span></span>
+      <span class="card-desc">Jacksonville's own comedians brawl through the 904's open mics.</span>
+      <span class="play">▶ PLAY</span>
+    </span>
+  </a>
+
+  <!-- ==================== THEME CARD: CELEBS ==================== -->
+   <!--
+  <a class="card" href="https://games.imstandup.com/tight5fight/celebs/"
+     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_celebs.jpg')">
+    <span class="card-body">
+      <span class="card-name">CELEBS<span class="card-edition">EDITION</span></span>
+      <span class="card-desc">The biggest names in comedy throw down. No two crowds alike.</span>
+      <span class="play">▶ PLAY</span>
+    </span>
+  </a>
+-->
+
+  <!-- ==================== COMING SOON: DAYTONA ==================== -->
+  <div class="card soon">
+    <span class="card-body">
+      <span class="card-name">DAYTONA<span class="card-edition">EDITION</span></span>
+      <span class="card-desc">The World Center of Racing gets its own roster. Hecklers at 200&nbsp;mph.</span>
+      <span class="soon-badge">COMING SOON</span>
+    </span>
+  </div>
+
+  <div class="card soon">
+    <span class="card-body">
+      <span class="card-name">CELEBS<span class="card-edition">EDITION</span></span>
+      <span class="card-desc">The biggest names in comedy throw down. No two crowds alike.</span>
+      <span class="soon-badge">COMING SOON</span>
+    </span>
+  </div>
+
+  <!-- ==================== ADD NEW THEME CARDS ABOVE THIS LINE ====================
+       Copy a card block, change href + name + description (+ optional image URL).
+       Coming-soon panel: copy the <div class="card soon"> block instead.
+  ============================================================================== -->
+
+</main>
+
+<footer>
+  <a class="coffee" href="https://buymeacoffee.com/imehesz" target="_blank" rel="noopener">☕ BUY ME A COFFEE</a>
+  <p class="credits">PARODY — NOT AFFILIATED WITH OR ENDORSED BY ANYONE DEPICTED<br>
+  MADE IN JACKSONVILLE, FL &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; <a class="legal-link" href="legal.html">LEGAL</a></p>
+</footer>
+
+</body>
+</html>
