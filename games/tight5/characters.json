@@ -66,7 +66,7 @@
 	  "SkinColor": "#e9c098"
 	},
 	{
-	  "CharacterName": "Tucker",
+	  "CharacterName": "Tucker Lenora",
 	  "HeadScale": 2,
 	  "HeadOffsetY": 30,
 	  "HeadSpritePath":
@@ -84,7 +84,7 @@
 	  "SkinColor": "#e9c098"
 	},
 	{
-	  "CharacterName": "Marcus",
+	  "CharacterName": "Marcus Crespo",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 0,
 	  "HeadSpritePath":
@@ -165,7 +165,7 @@
 	  "SkinColor": "#a0683c"
 	},
 	{
-	  "CharacterName": "Daisy T",
+	  "CharacterName": "Daisy Tackett",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 0,
 	  "HeadSpritePath":
@@ -264,7 +264,7 @@
 	  "SkinColor": "#a0683c"
 	},
 	{
-	  "CharacterName": "CJ H",
+	  "CharacterName": "CJ Hightower",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 0,
 	  "HeadSpritePath":
@@ -282,7 +282,7 @@
 	  "SkinColor": "#e9c098"
 	},
 	{
-	  "CharacterName": "Brian T",
+	  "CharacterName": "Brian Thomas",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 0,
 	  "HeadSpritePath":
@@ -300,7 +300,7 @@
 	  "SkinColor": "#e9c098"
 	},
 	{
-	  "CharacterName": "Leroy E",
+	  "CharacterName": "Leroy Erran",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 0,
 	  "HeadSpritePath":
@@ -317,6 +317,7 @@
 	  "BodyType": "M",
 	  "SkinColor": "#e9c098"
 	},
+
 	{
 	  "CharacterName": "Bobby Parker",
 	  "HeadScale": 1,
@@ -326,6 +327,7 @@
 	  "BodyType": "M",
 	  "SkinColor": "#e9c098"
 	},
+
 	{
 	  "CharacterName": "Flo Funny",
 	  "HeadScale": 1,
@@ -336,7 +338,7 @@
 	  "SkinColor": "#e9c098"
 	},
 	{
-	  "CharacterName": "Taylor E",
+	  "CharacterName": "Taylor Embs",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 1,
 	  "HeadSpritePath":
@@ -345,7 +347,7 @@
 	  "SkinColor": "#e9c098"
 	},
 	{
-	  "CharacterName": "Richard A",
+	  "CharacterName": "Richard Aragon",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 0,
 	  "HeadSpritePath":
@@ -353,6 +355,97 @@
 	  "BodyType": "M",
 	  "SkinColor": "#e9c098"
 	},
+
+	{
+	  "CharacterName": "Allen Tracy",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/allen-tracy.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+
+	{
+	  "CharacterName": "Austin Tanner",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/austin-tanner.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+
+	{
+	  "CharacterName": "Kayla Mai",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 10,
+	  "HeadSpritePath":
+	  "assets/heads/kayla-mai.png",
+	  "BodyType": "F",
+	  "SkinColor": "#e9c098"
+	},
+
+	{
+	  "CharacterName": "Scott Weys",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 2,
+	  "HeadSpritePath":
+	  "assets/heads/scott-weys.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+
+	{
+	  "CharacterName": "Dan venti",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/dan-venti.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+
+	{
+	  "CharacterName": "Will Wagner",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/will-wagner.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+
+	{
+	  "CharacterName": "Ted Brown",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/ted-brown.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+
+	{
+	  "CharacterName": "Matt Hill",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/matt-hill.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+
+	{
+	  "CharacterName": "Bill Huebener",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath":
+	  "assets/heads/bill-huebener.png",
+	  "BodyType": "M",
+	  "SkinColor": "#e9c098"
+	},
+
 	{
 	  "CharacterName": "Joey .05",
 	  "HeadScale": 1,
@@ -363,7 +456,7 @@
 	  "SkinColor": "#e9c098"
 	},
 	{
-	  "CharacterName": "Brian Z",
+	  "CharacterName": "Brian Zeolla",
 	  "HeadScale": 1,
 	  "HeadOffsetY": 0,
 	  "HeadSpritePath":

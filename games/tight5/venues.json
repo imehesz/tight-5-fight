@@ -1,6 +1,6 @@
 {
   "venues": [
-	{ "VenueName": "The Giggle Shack", "ExteriorSpritePath": "assets/venues/venue1_ext.png", "InteriorSpritePath": "assets/venues/venue1_int.png" },
+	{ "VenueName": "Rain Dogs", "ExteriorSpritePath": "assets/venues/rain-dogs_ext.png", "InteriorSpritePath": "assets/venues/rain-dogs_int.png" },
 	{ "VenueName": "First Coast Comedy", "ExteriorSpritePath": "assets/venues/first-coast-comedy_ext.png", "InteriorSpritePath": "assets/venues/first-coast-comedy_int.png" },
 	{ "VenueName": "Shanty Town", "ExteriorSpritePath": "assets/venues/shnaty_640x360.png", "InteriorSpritePath": "assets/venues/shanty_int_640x360.png" },
 	{ "VenueName": "Voo Swar", "ExteriorSpritePath": "assets/venues/voo-swar_ext.png", "InteriorSpritePath": "assets/venues/voo-swar_int.png" },
