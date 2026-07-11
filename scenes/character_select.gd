@@ -98,12 +98,35 @@ func _ready() -> void:
 	buttons.add_theme_constant_override("separation", 12)
 	box.add_child(buttons)
 	_fight_btn = add_button(buttons, "FIGHT!", func(): GameState.start_new_game(_selected))
+	_style_fight_button(_fight_btn)
 	add_button(buttons, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 
 	if GameState.characters.is_empty():
 		_fight_btn.disabled = true
 	else:
 		_select(GameState.selected_character)
+
+
+## FIGHT! is this screen's one primary action, so it wears a neon-purple
+## fill — bright violet tube border, glowing lavender text — while BACK
+## stays on the stock gray, which is what makes this one pop. Disabled
+## keeps the default gray stylebox on purpose.
+func _style_fight_button(b: Button) -> void:
+	var fills := {
+		"normal": Color(0.45, 0.15, 0.75),
+		"hover": Color(0.58, 0.28, 0.9),
+		"pressed": Color(0.33, 0.1, 0.58),
+		"focus": Color(0.45, 0.15, 0.75),
+	}
+	for state in fills:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = fills[state]
+		sb.set_corner_radius_all(3)
+		sb.set_border_width_all(2)
+		sb.border_color = Color(0.85, 0.6, 1.0)
+		b.add_theme_stylebox_override(state, sb)
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(state, Color(0.97, 0.92, 1.0))
 
 
 func _build_preview() -> Control:

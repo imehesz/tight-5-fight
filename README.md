@@ -25,7 +25,7 @@ visible and drive the same input actions (mouse clicks work on them too, via
   once), pulled from `characters.json` excluding your pick. Clearing awards a bonus.
 - **Boss (every 3rd venue):** Big Lou can't be damaged — duck the head-high
   bottles and sidestep the lobbed ones until the SURVIVE timer runs out.
-- Lives are earned: start with 1, first boss grants a 2nd, third boss a 3rd. Health bar, local top-10 scoreboard stored on-device at
+- Lives are earned: start with 1, first boss grants a 2nd, second boss a 3rd. Health bar, local top-10 scoreboard stored on-device at
   `user://highscores.json` — each entry keeps score, highest venue level
   reached, character and date.
 

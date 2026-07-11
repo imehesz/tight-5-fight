@@ -82,6 +82,10 @@ var last_run_rank := -1
 ## Enemies KO'd this run, roster name -> count. Shipped with the play at game
 ## over (Leaderboard.record_play) to feed the global MOST BEAT UP board.
 var run_kos: Dictionary = {}
+## Venues entered this run, venue name -> count. Ships alongside run_kos to
+## feed the global VENUES board. The same name can recur: the street cycles
+## the venue list, so a deep run walks past The Giggle Shack more than once.
+var run_venues: Dictionary = {}
 var music_volume := 0.8
 var sfx_volume := 0.8
 ## Player's chosen outfit color (index into CharacterFactory.OUTFITS). Worn on
@@ -233,11 +237,15 @@ func start_new_game(character_index: int) -> void:
 	pending_door = -1
 	last_run_rank = -1
 	run_kos = {}
+	run_venues = {}
 	change_scene(SCENE_STREET)
 
 
 func enter_venue() -> void:
 	venues_entered += 1
+	var venue_name := String(pending_venue.get("VenueName", ""))
+	if venue_name != "":
+		run_venues[venue_name] = int(run_venues.get(venue_name, 0)) + 1
 	change_scene(SCENE_VENUE)
 
 
@@ -252,24 +260,25 @@ func beer_unlocked() -> bool:
 
 
 ## Lives are earned, not given: a run opens with 1, surviving the first boss
-## raises the ceiling to 2, the third boss to 3 — and it stays 3 from there.
+## raises the ceiling to 2, the second boss to 3 — and it stays 3 from there.
 ## Death comes fast early (game over IS the show), depth is the reward.
 func lives_cap() -> int:
 	if bosses_defeated < 1:
 		return 1
-	if bosses_defeated < 3:
+	if bosses_defeated < 2:
 		return 2
 	return 3
 
 
 ## Called by the venue when a boss is survived: banks the win so the beer
-## mechanic unlocks and every future enemy gets tougher, and tops lives back
-## up to the (possibly just-raised) ceiling. Returns true when that granted
-## a life, so the venue can celebrate it on the HUD.
+## mechanic unlocks and every future enemy gets tougher, and grants ONE life
+## if under the (possibly just-raised) ceiling — lives lost on the way to a
+## boss stay lost; a win is a reward, not a reset. Returns true when a life
+## was granted, so the venue can celebrate it on the HUD.
 func on_boss_defeated() -> bool:
 	bosses_defeated += 1
 	if lives < lives_cap():
-		lives = lives_cap()
+		lives += 1
 		lives_changed.emit(lives)
 		return true
 	return false

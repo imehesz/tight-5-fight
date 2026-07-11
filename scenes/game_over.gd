@@ -9,8 +9,11 @@ const DANCE_SCALE := Fighter.BODY_SCALE * 2.0
 const DANCE_FEET_POS := Vector2(110, 330)
 
 const MIC_TEXTURE := "res://shared/assets/ui/mic.png"
-## The stage floor the mic lands on — same line the dancer stands on.
-const FLOOR_Y := 330.0
+## Where the mic lands: the very bottom of the viewport (360 is fixed —
+## aspect="expand" widens on phones, never heightens), so it drops past the
+## button column instead of hovering beside it. The dancer keeps the stage
+## line at 330.
+const FLOOR_Y := 360.0
 ## Sprite is 48x96, center-anchored, drawn MIC_SCALE bigger: upright the
 ## floor is half the scaled height below center, lying flat half the WIDTH.
 const MIC_SCALE := 1.2

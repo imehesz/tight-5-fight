@@ -1,14 +1,16 @@
 extends MenuBase
-## Scoreboard, two tabs:
+## Leaderboard, three tabs:
 ##   LOCAL  — this device's high scores (user://<game>_highscores.json).
 ##   GLOBAL — two boards side by side (server/server.js; see
 ##            autoload/leaderboard.gd): MOST PLAYED counts each character's
 ##            recorded runs, MOST BEAT UP counts how many times each was
 ##            KO'd as an enemy. One pager drives both panels.
-## Both tabs are paged 10 rows at a time. LOCAL is shown first and never
+##   VENUES — one board: which venue doors players walk through the most,
+##            counted per run alongside the KO tally.
+## All tabs are paged 10 rows at a time. LOCAL is shown first and never
 ## needs the network, so the screen is useful even with the server down.
 
-enum Tab { LOCAL, GLOBAL }
+enum Tab { LOCAL, GLOBAL, VENUES }
 
 ## Must match Leaderboard.PAGE_SIZE (and pageSize in server/config.js). Not
 ## `= Leaderboard.PAGE_SIZE`: an autoload lookup isn't a constant expression.
@@ -39,8 +41,10 @@ const YOU := Color(1.0, 0.85, 0.4)
 var _tab := Tab.LOCAL
 var _local_page := 0
 var _global_page := 0
-## Page count reported by the server; 1 until the first response lands.
+var _venues_page := 0
+## Page counts reported by the server; 1 until the first response lands.
 var _global_pages := 1
+var _venues_pages := 1
 ## Rebuilt on every render, so a row can be dropped in mid-flight.
 var _rows: VBoxContainer
 var _pager: Label
@@ -59,12 +63,14 @@ func _ready() -> void:
 
 	Leaderboard.board_loaded.connect(_on_board_loaded)
 	Leaderboard.board_failed.connect(_on_board_failed)
+	Leaderboard.venues_loaded.connect(_on_venues_loaded)
+	Leaderboard.venues_failed.connect(_on_venues_failed)
 
 	var box := build_backdrop()
 	# Ten tall global rows leave little room to spare, so this screen packs its
 	# column tighter than MenuBase's default 8px gaps.
 	box.add_theme_constant_override("separation", 2)
-	add_title(box, "HIGH SCORES", 14)
+	add_title(box, "LEADERBOARD", 14)
 	add_spacer(box, 2)
 	box.add_child(_build_tabs())
 	add_spacer(box, 2)
@@ -104,6 +110,7 @@ func _build_tabs() -> HBoxContainer:
 	tabs.add_theme_constant_override("separation", 10)
 	tabs.add_child(_tab_button(Tab.LOCAL, "LOCAL"))
 	tabs.add_child(_tab_button(Tab.GLOBAL, "GLOBAL"))
+	tabs.add_child(_tab_button(Tab.VENUES, "VENUES"))
 	return tabs
 
 
@@ -148,21 +155,33 @@ func _style_tabs() -> void:
 func _page_count() -> int:
 	if _tab == Tab.GLOBAL:
 		return maxi(_global_pages, 1)
+	if _tab == Tab.VENUES:
+		return maxi(_venues_pages, 1)
 	return maxi(ceili(GameState.high_scores.size() / float(ROWS_PER_PAGE)), 1)
 
 
 func _page() -> int:
-	return _global_page if _tab == Tab.GLOBAL else _local_page
+	match _tab:
+		Tab.GLOBAL:
+			return _global_page
+		Tab.VENUES:
+			return _venues_page
+		_:
+			return _local_page
 
 
 func _turn_page(dir: int) -> void:
 	var next := wrapi(_page() + dir, 0, _page_count())
-	if _tab == Tab.GLOBAL:
-		_global_page = next
-		_load_global()
-	else:
-		_local_page = next
-		_render_local()
+	match _tab:
+		Tab.GLOBAL:
+			_global_page = next
+			_load_global()
+		Tab.VENUES:
+			_venues_page = next
+			_load_venues()
+		_:
+			_local_page = next
+			_render_local()
 
 
 func _update_pager() -> void:
@@ -175,10 +194,13 @@ func _update_pager() -> void:
 func _show_tab(tab: Tab) -> void:
 	_tab = tab
 	_style_tabs()
-	if tab == Tab.GLOBAL:
-		_load_global()
-	else:
-		_render_local()
+	match tab:
+		Tab.GLOBAL:
+			_load_global()
+		Tab.VENUES:
+			_load_venues()
+		_:
+			_render_local()
 
 
 func _clear_rows() -> void:
@@ -270,6 +292,60 @@ func _on_board_failed(reason: String) -> void:
 	if _tab != Tab.GLOBAL:
 		return
 	_message("Global leaderboard unavailable.\n(%s)" % reason)
+
+
+# ---------------------------------------------------------------- venues tab
+func _load_venues() -> void:
+	_update_pager()
+	_message("Loading…")
+	Leaderboard.fetch_venues(_venues_page)
+
+
+## Same late-response discipline as the global tab: anything answering a tab
+## that is no longer on screen is dropped.
+func _on_venues_loaded(data: Dictionary) -> void:
+	if _tab != Tab.VENUES:
+		return
+	_venues_pages = maxi(int(data.get("pageCount", 1)), 1)
+	_venues_page = clampi(int(data.get("page", _venues_page)), 0, _venues_pages - 1)
+	_update_pager()
+
+	var rows: Array = data.get("rows", [])
+	if rows.is_empty():
+		_message("No venues entered yet.")
+		return
+	_clear_rows()
+	var panel := VBoxContainer.new()
+	panel.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_theme_constant_override("separation", 0)
+	panel.add_child(_cell("MOST BATTLED", PANEL_W, HORIZONTAL_ALIGNMENT_CENTER,
+		TAB_ON, PANEL_HEADER_H, 8))
+	for r in rows:
+		panel.add_child(_venue_row(r))
+	var center := HBoxContainer.new()
+	center.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(panel)
+	_rows.add_child(center)
+
+
+func _on_venues_failed(reason: String) -> void:
+	if _tab != Tab.VENUES:
+		return
+	_message("Venue leaderboard unavailable.\n(%s)" % reason)
+
+
+## | rank | count | venue name | — one centered panel, no head sprite (venue
+## art is a whole building; at row height it would be an unreadable smudge).
+func _venue_row(r: Dictionary) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.add_child(_cell("%d." % int(r.get("rank", 0)), 28,
+		HORIZONTAL_ALIGNMENT_RIGHT, TEXT, GLOBAL_ROW_HEIGHT))
+	row.add_child(_cell("%d" % int(r.get("entries", 0)), 46,
+		HORIZONTAL_ALIGNMENT_RIGHT, YOU, GLOBAL_ROW_HEIGHT))
+	row.add_child(_cell(String(r.get("venue", "?")), 186,
+		HORIZONTAL_ALIGNMENT_LEFT, TEXT, GLOBAL_ROW_HEIGHT))
+	return row
 
 
 ## One half of the global tab: a small gold header over up to ROWS_PER_PAGE

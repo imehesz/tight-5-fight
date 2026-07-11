@@ -47,6 +47,16 @@ const SCHEMA = {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_beat_board ON beatdowns (game_id, character_name)`,
     `CREATE INDEX IF NOT EXISTS idx_beat_uuid  ON beatdowns (player_uuid, id)`,
+    `CREATE TABLE IF NOT EXISTS venue_visits (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id     TEXT NOT NULL,
+      venue_name  TEXT NOT NULL,
+      player_uuid TEXT NOT NULL,
+      count       INTEGER NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_venue_board ON venue_visits (game_id, venue_name)`,
+    `CREATE INDEX IF NOT EXISTS idx_venue_uuid  ON venue_visits (player_uuid, id)`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -82,6 +92,17 @@ const SCHEMA = {
       PRIMARY KEY (id),
       KEY idx_beat_board (game_id, character_name),
       KEY idx_beat_uuid (player_uuid, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS venue_visits (
+      id          INT         NOT NULL AUTO_INCREMENT,
+      game_id     VARCHAR(32) NOT NULL,
+      venue_name  VARCHAR(64) NOT NULL,
+      player_uuid CHAR(36)    NOT NULL,
+      count       INT         NOT NULL,
+      created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_venue_board (game_id, venue_name),
+      KEY idx_venue_uuid (player_uuid, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
@@ -180,6 +201,41 @@ async function recordBeatdowns({ gameId, playerUuid, counts }) {
   }
 }
 
+// ---------------------------------------------------------------- venues
+// Which doors this run's player walked through, one row per venue name (with
+// a count — the street cycles the venue list, so a deep run re-enters the
+// same name). Same attributable shape as beatdowns, for the same reason.
+async function recordVenueVisits({ gameId, playerUuid, counts }) {
+  for (const [name, count] of Object.entries(counts)) {
+    await run(
+      "INSERT INTO venue_visits (game_id, venue_name, player_uuid, count) VALUES (?, ?, ?, ?)",
+      [gameId, name, playerUuid, count]
+    );
+  }
+}
+
+// One page of the most-entered-venues board. Same stable ordering contract
+// as boardPage.
+async function venuePage(gameId, offset, limit) {
+  return all(
+    `SELECT venue_name, SUM(count) AS entries
+       FROM venue_visits
+      WHERE game_id = ?
+      GROUP BY venue_name
+      ORDER BY entries DESC, venue_name ASC
+      LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
+    [gameId]
+  );
+}
+
+async function venueSize(gameId) {
+  const row = await get(
+    "SELECT COUNT(DISTINCT venue_name) AS n FROM venue_visits WHERE game_id = ?",
+    [gameId]
+  );
+  return Number(row ? row.n : 0);
+}
+
 // ---------------------------------------------------------------- board
 // One page of the character-popularity board, most-played first. Ties break
 // on name so paging is stable (an unstable sort can drop or repeat a row
@@ -235,8 +291,11 @@ module.exports = {
   secondsSinceLastPlay,
   recordPlay,
   recordBeatdowns,
+  recordVenueVisits,
   boardPage,
   boardSize,
   beatPage,
   beatSize,
+  venuePage,
+  venueSize,
 };

@@ -12,6 +12,11 @@ extends Node
 signal board_loaded(data: Dictionary)
 signal board_failed(reason: String)
 
+## fetch_venues() resolves into exactly one of these. Separate signals so a
+## late character-board response can never be mistaken for a venue page.
+signal venues_loaded(data: Dictionary)
+signal venues_failed(reason: String)
+
 ## Production backend: Apache on games.imstandup.com proxies /tight5fight/api/
 ## to the node process (see server/README.md). The game is served from the same
 ## host (games.imstandup.com/tight5fight/<theme>), so this is a SAME-ORIGIN
@@ -82,6 +87,7 @@ func record_play() -> void:
 	# (and a freshly zeroed tally) and credit the wrong run.
 	var character := String(GameState.selected_character_data().get("CharacterName", ""))
 	var kos: Dictionary = GameState.run_kos.duplicate()
+	var venues: Dictionary = GameState.run_venues.duplicate()
 	var game_id := GameState.active_game
 	if character == "":
 		return
@@ -101,6 +107,10 @@ func record_play() -> void:
 		# so the payload (and the server's validation) stays the old shape.
 		if not kos.is_empty():
 			body["kos"] = kos
+		# Which doors this run walked through, for the VENUES board. Same
+		# omit-when-empty contract as kos.
+		if not venues.is_empty():
+			body["venues"] = venues
 		await _request(HTTPClient.METHOD_POST, "/play", body)
 	_recording = false
 
@@ -116,6 +126,19 @@ func fetch_board(page: int) -> void:
 		board_loaded.emit(res.get("data", {}))
 	else:
 		board_failed.emit(String(res.get("error", "unavailable")))
+
+
+## Fetch one page (0-based) of the global most-entered-venues board. Same
+## always-resolves contract as fetch_board().
+func fetch_venues(page: int) -> void:
+	var res := await _request(
+		HTTPClient.METHOD_GET,
+		"/venues?gameId=%s&page=%d" % [GameState.active_game.uri_encode(), maxi(page, 0)]
+	)
+	if bool(res.get("ok", false)):
+		venues_loaded.emit(res.get("data", {}))
+	else:
+		venues_failed.emit(String(res.get("error", "unavailable")))
 
 
 # ---------------------------------------------------------------- transport

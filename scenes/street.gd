@@ -10,6 +10,14 @@ const VENUE_SPACING_MIN := 1100.0
 const VENUE_SPACING_MAX := 1600.0
 const DOOR_HALF_WIDTH := 34.0
 const EXTERIOR_HEIGHT := 180.0
+## Neon ENTER sign floating above every enterable venue: resting height,
+## bob travel, and its tube/glow colors. It brightens when the player is
+## in range of the door, replacing the old proximity-only "^ ENTER" label.
+const SIGN_Y := GROUND_Y - 204.0
+const SIGN_BOB := 4.0
+const SIGN_NEON := Color(1.0, 0.35, 0.8)
+const SIGN_TEXT := Color(1.0, 0.72, 0.95)
+const SIGN_DIM := Color(0.62, 0.62, 0.7)
 const HECKLER_MAX := 4
 ## Street fighters (player + hecklers) sit between the old 1.0 street size
 ## and the venue's 1.3 — readable on phones without crowding the scroll.
@@ -24,7 +32,7 @@ var camera: Camera2D
 var hud: Hud
 
 var _tiles: Array = []
-var _doors: Array = []  # [{x, data, cleared, hint}]
+var _doors: Array = []  # [{x, data, cleared, sign}]
 var _next_venue_x := FIRST_VENUE_X
 var _venue_index := 0
 var _spawn_timer := 2.0
@@ -67,7 +75,7 @@ func _process(delta: float) -> void:
 	_maybe_spawn_heckler(delta)
 	_maybe_spawn_beer(delta)
 	_cull_stragglers()
-	_update_door_hints()
+	_update_door_signs()
 
 
 # ---------------------------------------------------------------- world
@@ -116,21 +124,57 @@ func _add_venue(vx: float, data: Dictionary, cleared: bool) -> void:
 	ext.z_index = -5
 	add_child(ext)
 
-	var hint := Label.new()
-	hint.text = "^ ENTER"
-	hint.position = Vector2(vx - 60.0, GROUND_Y - 196.0)
-	hint.custom_minimum_size = Vector2(120, 0)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 8)
-	hint.add_theme_color_override("font_outline_color", Color.BLACK)
-	hint.add_theme_constant_override("outline_size", 4)
-	hint.modulate = Color(1.0, 0.9, 0.4)
-	hint.visible = false
-	add_child(hint)
+	var sign := _make_enter_sign()
+	sign.position = Vector2(vx, SIGN_Y)
+	sign.visible = not cleared
+	add_child(sign)
 
 	if cleared:
 		_add_cancelled_tape(vx)
-	_doors.append({"x": vx, "data": data, "cleared": cleared, "hint": hint})
+	_doors.append({"x": vx, "data": data, "cleared": cleared, "sign": sign})
+
+
+## A little neon box sign: dark panel framed by a pink "tube" border, ENTER
+## glowing inside via a heavy same-hue outline. Origin is the sign's center,
+## so callers place it at the door's x and let _update_door_signs() bob it.
+func _make_enter_sign() -> Node2D:
+	var sign := Node2D.new()
+	sign.z_index = -4
+
+	var panel := Panel.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.05, 0.12, 0.92)
+	style.border_color = SIGN_NEON
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(5)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.size = Vector2(76, 24)
+	panel.position = Vector2(-38, -12)
+	sign.add_child(panel)
+
+	var txt := Label.new()
+	txt.text = "ENTER"
+	txt.set_anchors_preset(Control.PRESET_FULL_RECT)
+	txt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	txt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	txt.add_theme_font_size_override("font_size", 10)
+	txt.add_theme_color_override("font_color", SIGN_TEXT)
+	txt.add_theme_color_override("font_outline_color", SIGN_NEON)
+	txt.add_theme_constant_override("outline_size", 4)
+	panel.add_child(txt)
+
+	# Arrow under the box pointing down at the door: a pink tube triangle
+	# with the same hot core the lettering has. Children of the sign, so it
+	# bobs and dims/brightens with it.
+	var tube := Polygon2D.new()
+	tube.polygon = PackedVector2Array([Vector2(-9, 14), Vector2(9, 14), Vector2(0, 26)])
+	tube.color = SIGN_NEON
+	sign.add_child(tube)
+	var core := Polygon2D.new()
+	core.polygon = PackedVector2Array([Vector2(-5, 16), Vector2(5, 16), Vector2(0, 22)])
+	core.color = SIGN_TEXT
+	sign.add_child(core)
+	return sign
 
 
 func _add_cancelled_tape(vx: float) -> void:
@@ -155,10 +199,20 @@ func _add_cancelled_tape(vx: float) -> void:
 	add_child(tape)
 
 
-func _update_door_hints() -> void:
+## Bob every active venue's sign up and down (phase-offset by its x so
+## neighbours don't march in lockstep) and brighten the one whose door the
+## player is standing at — the proximity cue the old hint label used to give.
+func _update_door_signs() -> void:
+	var t := Time.get_ticks_msec() / 1000.0
 	for d in _doors:
-		d.hint.visible = not d.cleared and is_instance_valid(player) \
+		var sign: Node2D = d.sign
+		if d.cleared:
+			sign.visible = false
+			continue
+		sign.position.y = SIGN_Y + sin(t * 4.0 + float(d.x)) * SIGN_BOB
+		var near: bool = is_instance_valid(player) \
 				and absf(player.position.x - d.x) <= DOOR_HALF_WIDTH
+		sign.modulate = sign.modulate.lerp(Color.WHITE if near else SIGN_DIM, 0.2)
 
 
 # ---------------------------------------------------------------- spawns

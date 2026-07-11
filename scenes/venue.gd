@@ -41,7 +41,8 @@ func _ready() -> void:
 	_spawn_player()
 
 	if _boss_stage:
-		_survive_left = 18.0 + 2.0 * float(_level / GameState.BOSS_EVERY)
+		# 15s for the first boss, +2s per boss after (was 20s — too long).
+		_survive_left = 13.0 + 2.0 * float(_level / GameState.BOSS_EVERY)
 		_boss = Boss.new()
 		# 100px in from the live right edge (640-540 in the design layout).
 		_boss.position = Vector2(get_viewport().get_visible_rect().size.x - 100.0, GROUND_Y)
@@ -145,7 +146,7 @@ func _venue_cleared() -> void:
 	GameState.play_sfx("clear")
 	var bonus := CLEAR_BONUS_PER_LEVEL * _level
 	GameState.add_score(bonus)
-	hud.set_center_text("VENUE CLEARED!  +%d" % bonus)
+	hud.set_center_text("VENUE BATTLED!  +%d" % bonus)
 	await get_tree().create_timer(2.0).timeout
 	GameState.change_scene(GameState.SCENE_STREET)
 

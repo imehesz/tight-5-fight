@@ -42,21 +42,31 @@ function json(res, status, body) {
 }
 
 // ---------------------------------------------------------------- rosters
-// Which character names each game is allowed to report. Generated from the
-// game's characters.json by `npm run sync-rosters` (see sync_rosters.js) and
-// committed, because the server is deployed without the game's asset tree.
-// A game with no roster file falls back to shape-only validation, so adding
-// a comedian mid-season degrades to "slightly laxer", never to "broken".
-const rosters = new Map();
+// Which character and venue names each game is allowed to report. Generated
+// from the game's characters.json / venues.json by `npm run sync-rosters`
+// (see sync_rosters.js) and committed, because the server is deployed
+// without the game's asset tree. A game with no roster file falls back to
+// shape-only validation, so adding a comedian mid-season degrades to
+// "slightly laxer", never to "broken".
+//
+// File format is { characters: [...], venues: [...] }; a bare array (the
+// pre-venues format) still loads as characters-only, so a stale roster on
+// the VPS costs the venue board its validation, not the server its boot.
+const rosters = new Map(); // gameId -> { characters: Set|null, venues: Set|null }
 
 function loadRosters() {
   const dir = path.join(__dirname, "rosters");
   for (const gameId of config.games) {
     const file = path.join(dir, `${gameId}.json`);
     try {
-      const names = JSON.parse(fs.readFileSync(file, "utf8"));
-      rosters.set(gameId, new Set(names));
-      console.log(`roster ${gameId}: ${names.length} characters`);
+      const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+      const characters = Array.isArray(parsed) ? parsed : parsed.characters || [];
+      const venues = Array.isArray(parsed) ? null : parsed.venues || null;
+      rosters.set(gameId, {
+        characters: new Set(characters),
+        venues: venues ? new Set(venues) : null,
+      });
+      console.log(`roster ${gameId}: ${characters.length} characters, ${venues ? venues.length : "?"} venues`);
     } catch (e) {
       if (e.code !== "ENOENT") throw e;
       console.warn(`roster ${gameId}: MISSING (${file}) — names validated by shape only`);
@@ -64,13 +74,26 @@ function loadRosters() {
   }
 }
 
+// A conservative shape check for when no roster list exists, so nothing
+// wild reaches the database.
+function plausibleName(name) {
+  if (typeof name !== "string" || name.length === 0 || name.length > 64) return false;
+  return /^[\p{L}\p{N} .'’_-]+$/u.test(name);
+}
+
 // A name is acceptable if the roster knows it; with no roster, fall back to
-// a conservative shape check so nothing wild reaches the database.
+// the shape check.
 function validCharacter(gameId, name) {
   if (typeof name !== "string" || name.length === 0 || name.length > 64) return false;
   const roster = rosters.get(gameId);
-  if (roster) return roster.has(name);
-  return /^[\p{L}\p{N} .'’_-]+$/u.test(name);
+  if (roster) return roster.characters.has(name);
+  return plausibleName(name);
+}
+
+function validVenue(gameId, name) {
+  const roster = rosters.get(gameId);
+  if (roster && roster.venues) return roster.venues.has(name);
+  return plausibleName(name);
 }
 
 // The per-run KO tally that feeds the "most beat up" board. A run can KO the
@@ -94,6 +117,26 @@ function cleanKos(gameId, kos) {
   for (const [name, count] of entries) {
     if (!Number.isInteger(count) || count < 1 || count > MAX_KOS_PER_CHARACTER) return null;
     if (validCharacter(gameId, name)) clean[name] = count;
+  }
+  return clean;
+}
+
+// The per-run venue-entry tally that feeds the VENUES board. The street
+// cycles ~9 venues, so even a marathon run re-enters a name a handful of
+// times — 100 is far beyond any human playthrough.
+const MAX_ENTRIES_PER_VENUE = 100;
+
+// Validate the optional `venues` payload: {venueName: count}. Same contract
+// as cleanKos — hostile shape is null (fatal), unknown names are dropped.
+function cleanVenues(gameId, venues) {
+  if (venues === undefined || venues === null) return {};
+  if (typeof venues !== "object" || Array.isArray(venues)) return null;
+  const entries = Object.entries(venues);
+  if (entries.length > 64) return null;
+  const clean = {};
+  for (const [name, count] of entries) {
+    if (!Number.isInteger(count) || count < 1 || count > MAX_ENTRIES_PER_VENUE) return null;
+    if (validVenue(gameId, name)) clean[name] = count;
   }
   return clean;
 }
@@ -194,7 +237,7 @@ async function postPlay(req, res) {
     return json(res, 400, { error: e.message });
   }
 
-  const { gameId, character, uuid, kos } = body;
+  const { gameId, character, uuid, kos, venues } = body;
   if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
   if (typeof uuid !== "string" || !/^[0-9a-f-]{36}$/i.test(uuid)) {
     return json(res, 400, { error: "bad uuid" });
@@ -202,6 +245,8 @@ async function postPlay(req, res) {
   if (!validCharacter(gameId, character)) return json(res, 400, { error: "unknown character" });
   const koCounts = cleanKos(gameId, kos);
   if (koCounts === null) return json(res, 400, { error: "bad kos" });
+  const venueCounts = cleanVenues(gameId, venues);
+  if (venueCounts === null) return json(res, 400, { error: "bad venues" });
 
   // An unknown UUID means the caller never went through /player. That's the
   // check that makes the per-IP mint cap the real cost of scripted spam.
@@ -218,6 +263,9 @@ async function postPlay(req, res) {
   await db.recordPlay({ gameId, characterName: character, playerUuid: uuid });
   if (Object.keys(koCounts).length > 0) {
     await db.recordBeatdowns({ gameId, playerUuid: uuid, counts: koCounts });
+  }
+  if (Object.keys(venueCounts).length > 0) {
+    await db.recordVenueVisits({ gameId, playerUuid: uuid, counts: venueCounts });
   }
   chargeHit("play", ip);
   json(res, 200, { ok: true });
@@ -255,6 +303,28 @@ async function getLeaderboard(req, res, url) {
   json(res, 200, { page, pageCount, total, rows, beatTotal, beatRows });
 }
 
+// GET /venues?gameId=tight5&page=0
+//   -> { page, pageCount, total, rows: [{ rank, venue, entries }] }
+// The most-entered-venues board, its own endpoint so its pager doesn't
+// entangle with the character boards'. Same offset-derived rank.
+async function getVenues(req, res, url) {
+  const gameId = url.searchParams.get("gameId") || "";
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
+
+  const pageSize = config.pageSize;
+  const total = await db.venueSize(gameId);
+  const pageCount = Math.max(Math.ceil(total / pageSize), 1);
+  const page = Math.min(Math.max(Number(url.searchParams.get("page")) || 0, 0), pageCount - 1);
+
+  const offset = page * pageSize;
+  const rows = (await db.venuePage(gameId, offset, pageSize)).map((r, i) => ({
+    rank: offset + i + 1,
+    venue: r.venue_name,
+    entries: Number(r.entries),
+  }));
+  json(res, 200, { page, pageCount, total, rows });
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const route = url.pathname;
@@ -268,6 +338,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "/player") return await postPlayer(req, res);
     if (req.method === "POST" && route === "/play") return await postPlay(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
+    if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
     if (req.method === "GET" && route === "/health") return json(res, 200, { ok: true });
   } catch (e) {
     console.error(`${req.method} ${route} failed:`, e);
