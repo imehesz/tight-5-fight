@@ -1,10 +1,12 @@
 extends MenuBase
 ## Scoreboard, two tabs:
 ##   LOCAL  — this device's high scores (user://<game>_highscores.json).
-##   GLOBAL — how many times each character has been played, everywhere
-##            (server/server.js; see autoload/leaderboard.gd).
-## Both are paged 10 rows at a time. LOCAL is shown first and never needs the
-## network, so the screen is useful even with the server down.
+##   GLOBAL — two boards side by side (server/server.js; see
+##            autoload/leaderboard.gd): MOST PLAYED counts each character's
+##            recorded runs, MOST BEAT UP counts how many times each was
+##            KO'd as an enemy. One pager drives both panels.
+## Both tabs are paged 10 rows at a time. LOCAL is shown first and never
+## needs the network, so the screen is useful even with the server down.
 
 enum Tab { LOCAL, GLOBAL }
 
@@ -14,17 +16,19 @@ const ROWS_PER_PAGE := 10
 const ROW_HEIGHT := 14
 const ROW_FONT := 9
 
-## The global board shows a big rank and a big head. Both make its rows taller
-## than the local board's, and ten of them have to fit above the pager in a
-## 360px-tall viewport (aspect="expand" widens on phones, never heightens), so
-## the chrome around the row well below is deliberately tight.
-const RANK_FONT := 18            # 2x ROW_FONT
-const HEAD_SIZE := 21            # 1.5x ROW_HEIGHT
-const GLOBAL_ROW_HEIGHT := 21    # the head is the tallest thing in the row
-## Wide enough for a 3-digit rank ("100.") at RANK_FONT. Press Start 2P is a
-## wide monospace, ~1em per glyph, so this is 4 glyphs — not the 2 that today's
-## biggest roster (45 characters) actually needs.
-const RANK_WIDTH := 74
+## The global tab packs two half-width boards side by side, so its rows keep
+## the normal rank font and a small head. Ten rows plus the panel headers
+## still have to fit above the pager in a 360px-tall viewport (aspect="expand"
+## widens on phones, never heightens), so the chrome around the row well
+## below is deliberately tight.
+const HEAD_SIZE := 18
+const GLOBAL_ROW_HEIGHT := 18    # the head is the tallest thing in the row
+## Each panel's row is | rank 28 | count 46 | head | name 162 | with 6px
+## separations — exactly PANEL_W. Press Start 2P is a wide monospace, ~1em
+## per glyph at ROW_FONT, so 46px comfortably fits a 5-digit KO count.
+const PANEL_W := 272
+const PANEL_GAP := 8
+const PANEL_HEADER_H := 14
 
 const TAB_ON := Color(1.0, 0.85, 0.4)
 const TAB_OFF := Color(0.6, 0.6, 0.68)
@@ -67,9 +71,11 @@ func _ready() -> void:
 
 	# Fixed-height well: rows come and go, but the pager and BACK below must
 	# not jump around as pages fill up or the network is still thinking. Sized
-	# for the taller global rows, so switching tabs doesn't move them either.
+	# for the global tab (two panels wide, header + rows tall), so switching
+	# tabs doesn't move them either.
 	var well := Control.new()
-	well.custom_minimum_size = Vector2(420, ROWS_PER_PAGE * GLOBAL_ROW_HEIGHT)
+	well.custom_minimum_size = Vector2(PANEL_W * 2 + PANEL_GAP,
+			PANEL_HEADER_H + ROWS_PER_PAGE * GLOBAL_ROW_HEIGHT)
 	box.add_child(well)
 	_rows = VBoxContainer.new()
 	_rows.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -247,12 +253,17 @@ func _on_board_loaded(data: Dictionary) -> void:
 	_update_pager()
 
 	var rows: Array = data.get("rows", [])
-	if rows.is_empty():
+	var beat_rows: Array = data.get("beatRows", [])
+	if rows.is_empty() and beat_rows.is_empty():
 		_message("No plays recorded yet.")
 		return
 	_clear_rows()
-	for r in rows:
-		_rows.add_child(_global_row(r))
+	var split := HBoxContainer.new()
+	split.alignment = BoxContainer.ALIGNMENT_CENTER
+	split.add_theme_constant_override("separation", PANEL_GAP)
+	split.add_child(_board_panel("MOST PLAYED", rows, "plays"))
+	split.add_child(_board_panel("MOST BEAT UP", beat_rows, "kos"))
+	_rows.add_child(split)
 
 
 func _on_board_failed(reason: String) -> void:
@@ -261,19 +272,30 @@ func _on_board_failed(reason: String) -> void:
 	_message("Global leaderboard unavailable.\n(%s)" % reason)
 
 
-## | rank | plays | head | name |  — rank is 2x the body font, head 1.5x tall.
-func _global_row(r: Dictionary) -> HBoxContainer:
+## One half of the global tab: a small gold header over up to ROWS_PER_PAGE
+## rows. count_key names the number the server row carries for this board
+## ("plays" or "kos"). A panel past the end of its own board (the pager spans
+## the longer of the two) just says so.
+func _board_panel(title: String, rows: Array, count_key: String) -> VBoxContainer:
+	var panel := VBoxContainer.new()
+	panel.custom_minimum_size = Vector2(PANEL_W, 0)
+	panel.add_theme_constant_override("separation", 0)
+	panel.add_child(_cell(title, PANEL_W, HORIZONTAL_ALIGNMENT_CENTER, TAB_ON, PANEL_HEADER_H, 8))
+	if rows.is_empty():
+		panel.add_child(_cell("Nothing yet.", PANEL_W, HORIZONTAL_ALIGNMENT_CENTER, DIM, GLOBAL_ROW_HEIGHT))
+	for r in rows:
+		panel.add_child(_panel_row(r, count_key))
+	return panel
+
+
+## | rank | count | head | name | — see PANEL_W for the width budget.
+func _panel_row(r: Dictionary, count_key: String) -> HBoxContainer:
 	var character := String(r.get("character", "?"))
 	var row := HBoxContainer.new()
-	# The cells are narrower than the well, and a BoxContainer packs unexpanded
-	# children at its start — so without this the table hugs the left edge while
-	# the title and pager sit centred. Every row is the same width, so centring
-	# each one keeps the columns in lockstep.
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 6)
-	row.add_child(_cell("%d." % int(r.get("rank", 0)), RANK_WIDTH,
-		HORIZONTAL_ALIGNMENT_RIGHT, TEXT, GLOBAL_ROW_HEIGHT, RANK_FONT))
-	row.add_child(_cell("%d" % int(r.get("plays", 0)), 54,
+	row.add_child(_cell("%d." % int(r.get("rank", 0)), 28,
+		HORIZONTAL_ALIGNMENT_RIGHT, TEXT, GLOBAL_ROW_HEIGHT))
+	row.add_child(_cell("%d" % int(r.get(count_key, 0)), 46,
 		HORIZONTAL_ALIGNMENT_RIGHT, YOU, GLOBAL_ROW_HEIGHT))
 
 	var head := TextureRect.new()
@@ -283,5 +305,5 @@ func _global_row(r: Dictionary) -> HBoxContainer:
 	head.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(head)
 
-	row.add_child(_cell(character, 240, HORIZONTAL_ALIGNMENT_LEFT, TEXT, GLOBAL_ROW_HEIGHT))
+	row.add_child(_cell(character, 162, HORIZONTAL_ALIGNMENT_LEFT, TEXT, GLOBAL_ROW_HEIGHT))
 	return row

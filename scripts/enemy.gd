@@ -131,6 +131,7 @@ func take_hit(damage: float, from_x: float) -> void:
 func _die() -> void:
 	_bar_bg.visible = false
 	GameState.add_score(score_value)
+	GameState.count_ko(char_name)
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -90),
 			"+%d" % score_value, Color(0.6, 1.0, 0.6))
 	super()

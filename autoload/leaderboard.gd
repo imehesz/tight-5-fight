@@ -76,10 +76,12 @@ static func base_url() -> String:
 ## costs a real run's worth of time. Fire-and-forget: a refusal (offline, or
 ## the server's once-a-minute cooldown) is a normal outcome, not an error.
 func record_play() -> void:
-	# Read the character BEFORE the first await. Minting an id can take a
-	# round trip, and PLAY AGAIN can land in the meantime — resuming after
-	# that would read the newly chosen character and credit the wrong one.
+	# Read the character (and this run's KO tally) BEFORE the first await.
+	# Minting an id can take a round trip, and PLAY AGAIN can land in the
+	# meantime — resuming after that would read the newly chosen character
+	# (and a freshly zeroed tally) and credit the wrong run.
 	var character := String(GameState.selected_character_data().get("CharacterName", ""))
+	var kos: Dictionary = GameState.run_kos.duplicate()
 	var game_id := GameState.active_game
 	if character == "":
 		return
@@ -90,11 +92,16 @@ func record_play() -> void:
 		return
 	_recording = true
 	if await _ensure_uuid():
-		await _request(HTTPClient.METHOD_POST, "/play", {
+		var body := {
 			"gameId": game_id,
 			"character": character,
 			"uuid": _player_uuid,
-		})
+		}
+		# Who this run beat up, for the MOST BEAT UP board. Omitted when empty
+		# so the payload (and the server's validation) stays the old shape.
+		if not kos.is_empty():
+			body["kos"] = kos
+		await _request(HTTPClient.METHOD_POST, "/play", body)
 	_recording = false
 
 

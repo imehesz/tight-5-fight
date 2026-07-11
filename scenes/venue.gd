@@ -1,6 +1,6 @@
 extends Node2D
 ## The Venue Phase: a static bar interior. Normal venues pit the player
-## against N rival comedians (N = venues entered, max 3 at once). Every 5th
+## against N rival comedians (N = venues entered, max 3 at once). Every 3rd
 ## venue is a Boss Stage: survive the club owner's bottle barrage.
 
 const GROUND_Y := 310.0
@@ -155,7 +155,8 @@ func _boss_survived() -> void:
 		return
 	_finished = true
 	GameState.mark_pending_venue_cleared()
-	GameState.on_boss_defeated()  # unlocks beer & toughens the mob by 10%
+	# Unlocks beer, toughens the mob by 10%, and may raise lives to the cap.
+	var life_granted: bool = GameState.on_boss_defeated()
 	GameState.play_sfx("clear")
 	if is_instance_valid(_boss):
 		_boss.active = false
@@ -163,7 +164,7 @@ func _boss_survived() -> void:
 		p.queue_free()
 	var bonus := 2 * CLEAR_BONUS_PER_LEVEL * _level
 	GameState.add_score(bonus)
-	hud.set_center_text("YOU SURVIVED!  +%d" % bonus)
+	hud.set_center_text("YOU SURVIVED!  +%d%s" % [bonus, "  +1 LIFE" if life_granted else ""])
 	await get_tree().create_timer(2.0).timeout
 	GameState.change_scene(GameState.SCENE_STREET)
 

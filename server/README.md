@@ -41,9 +41,17 @@ The copy in this repo is a placeholder and is gitignored.
 | Method | Path                             | Purpose                          |
 | ------ | -------------------------------- | -------------------------------- |
 | POST   | `/player`                        | Mint an anonymous player uuid    |
-| POST   | `/play`                          | Bank one play (`{gameId, character, uuid}`) |
-| GET    | `/leaderboard?gameId=&page=`     | One page of the board            |
+| POST   | `/play`                          | Bank one play (`{gameId, character, uuid, kos?}`) |
+| GET    | `/leaderboard?gameId=&page=`     | One page of both boards          |
 | GET    | `/health`                        | Liveness                         |
+
+`/play` optionally carries `kos`, the run's KO tally (`{"Character Name":
+count, …}`) — who this run beat up, feeding the MOST BEAT UP board. Counts
+are capped per character per run; names the roster doesn't know are dropped,
+never fatal (same mid-season-roster grace as plays). `/leaderboard` returns
+the most-played board in `rows`/`total` and the most-beat-up board in
+`beatRows`/`beatTotal`; `pageCount` spans whichever board is longer, so one
+pager drives both panels in the game.
 
 The game page (imstandup.com) and this server (games.mehesz.net) are always
 different origins, so every response carries CORS headers. Nothing sensitive is

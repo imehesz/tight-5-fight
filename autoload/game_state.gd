@@ -35,12 +35,14 @@ const DEFAULT_BODY := {
 const SCORES_PATH := "user://%s_highscores.json"
 const SETTINGS_PATH := "user://%s_settings.json"
 
-const STARTING_LIVES := 3
 ## The local board keeps a deep history (paged 10 at a time on the
 ## scoreboard); only cracking the top few is worth a fanfare on game over.
 const MAX_HIGH_SCORES := 50
 const CELEBRATED_HIGH_SCORES := 10
-const BOSS_EVERY := 5
+## Every 3rd venue is a boss (was 5 — pulled in 2026-07-10 so a first-time
+## player meets the signature moment, and the beer unlock behind it, within
+## one casual session).
+const BOSS_EVERY := 3
 ## Beer bottles the player can carry (unlocked after the first boss). They
 ## are picked up on the street and thrown at hecklers; venues bar them at
 ## the door but the carried count is kept for when the player comes back out.
@@ -65,7 +67,7 @@ var characters: Array = []
 var venues: Array = []
 var selected_character := 0
 var score := 0
-var lives := STARTING_LIVES
+var lives := 1
 var venues_entered := 0
 ## Bosses cleared so far, and beer bottles currently carried (0..MAX_BOTTLES).
 var bosses_defeated := 0
@@ -77,6 +79,9 @@ var street_state: Dictionary = {}
 var pending_door := -1
 var high_scores: Array = []
 var last_run_rank := -1
+## Enemies KO'd this run, roster name -> count. Shipped with the play at game
+## over (Leaderboard.record_play) to feed the global MOST BEAT UP board.
+var run_kos: Dictionary = {}
 var music_volume := 0.8
 var sfx_volume := 0.8
 ## Player's chosen outfit color (index into CharacterFactory.OUTFITS). Worn on
@@ -219,14 +224,15 @@ func _music_tracks() -> Dictionary:
 func start_new_game(character_index: int) -> void:
 	set_selected_character(character_index)
 	score = 0
-	lives = STARTING_LIVES
 	venues_entered = 0
 	bosses_defeated = 0
+	lives = lives_cap()  # after bosses_defeated resets, so a run starts at 1
 	set_bottles(0)
 	pending_venue = {}
 	street_state = {}
 	pending_door = -1
 	last_run_rank = -1
+	run_kos = {}
 	change_scene(SCENE_STREET)
 
 
@@ -245,10 +251,28 @@ func beer_unlocked() -> bool:
 	return bosses_defeated > 0
 
 
+## Lives are earned, not given: a run opens with 1, surviving the first boss
+## raises the ceiling to 2, the third boss to 3 — and it stays 3 from there.
+## Death comes fast early (game over IS the show), depth is the reward.
+func lives_cap() -> int:
+	if bosses_defeated < 1:
+		return 1
+	if bosses_defeated < 3:
+		return 2
+	return 3
+
+
 ## Called by the venue when a boss is survived: banks the win so the beer
-## mechanic unlocks and every future enemy gets tougher.
-func on_boss_defeated() -> void:
+## mechanic unlocks and every future enemy gets tougher, and tops lives back
+## up to the (possibly just-raised) ceiling. Returns true when that granted
+## a life, so the venue can celebrate it on the HUD.
+func on_boss_defeated() -> bool:
 	bosses_defeated += 1
+	if lives < lives_cap():
+		lives = lives_cap()
+		lives_changed.emit(lives)
+		return true
+	return false
 
 
 ## Enemy health/damage multiplier: +10% per boss cleared (1.0, 1.1, 1.21…).
@@ -291,6 +315,13 @@ func mark_pending_venue_cleared() -> void:
 func add_score(points: int) -> void:
 	score += points
 	score_changed.emit(score)
+
+
+## Bank one KO for the beaten-up comedian. Enemy._die() calls this; a fighter
+## never configured from the roster has no name and is not counted.
+func count_ko(char_name: String) -> void:
+	if char_name != "":
+		run_kos[char_name] = int(run_kos.get(char_name, 0)) + 1
 
 
 ## Returns true when the run is over (no lives left).

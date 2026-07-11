@@ -4,7 +4,7 @@
 
 2D pixel-art side-scrolling beat-'em-up for mobile landscape, built in **Godot 4.4+**.
 Walk the street, beat up hecklers, storm comedy venues, and survive the club
-owner's bottle barrage every 5th venue. See `requirements.md` for the full design.
+owner's bottle barrage every 3rd venue. See `requirements.md` for the full design.
 
 ## Running it
 
@@ -23,9 +23,9 @@ visible and drive the same input actions (mouse clicks work on them too, via
   back if provoked); aggressive ones attack. Defeating anyone awards score.
 - **Venues:** press up at a door. Venue N spawns N rival comedians (max 3 at
   once), pulled from `characters.json` excluding your pick. Clearing awards a bonus.
-- **Boss (every 5th venue):** Big Lou can't be damaged — duck the head-high
+- **Boss (every 3rd venue):** Big Lou can't be damaged — duck the head-high
   bottles and sidestep the lobbed ones until the SURVIVE timer runs out.
-- 3 lives, health bar, local top-10 scoreboard stored on-device at
+- Lives are earned: start with 1, first boss grants a 2nd, third boss a 3rd. Health bar, local top-10 scoreboard stored on-device at
   `user://highscores.json` — each entry keeps score, highest venue level
   reached, character and date.
 

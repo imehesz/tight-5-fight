@@ -73,6 +73,31 @@ function validCharacter(gameId, name) {
   return /^[\p{L}\p{N} .'’_-]+$/u.test(name);
 }
 
+// The per-run KO tally that feeds the "most beat up" board. A run can KO the
+// same comedian many times, but 500 of one name in one run is beyond any
+// human playthrough — the cap bounds what a single (cooldown-priced) request
+// can add, same spirit as the play limits.
+const MAX_KOS_PER_CHARACTER = 500;
+
+// Validate the optional `kos` payload: {characterName: count}. Returns the
+// clean map, or null when the shape is hostile (wrong types, absurd counts,
+// too many keys) — the caller rejects those outright. Names the roster does
+// not know are DROPPED rather than fatal, mirroring how a mid-season roster
+// gap degrades plays: a stale roster should cost one comedian's tally, not
+// the whole run's.
+function cleanKos(gameId, kos) {
+  if (kos === undefined || kos === null) return {};
+  if (typeof kos !== "object" || Array.isArray(kos)) return null;
+  const entries = Object.entries(kos);
+  if (entries.length > 64) return null;
+  const clean = {};
+  for (const [name, count] of entries) {
+    if (!Number.isInteger(count) || count < 1 || count > MAX_KOS_PER_CHARACTER) return null;
+    if (validCharacter(gameId, name)) clean[name] = count;
+  }
+  return clean;
+}
+
 // ---------------------------------------------------------------- rate limits
 // Sliding-window counters, keyed by IP. Memory-only and therefore reset by a
 // restart — fine, because the durable per-UUID cooldown lives in the DB and
@@ -169,12 +194,14 @@ async function postPlay(req, res) {
     return json(res, 400, { error: e.message });
   }
 
-  const { gameId, character, uuid } = body;
+  const { gameId, character, uuid, kos } = body;
   if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
   if (typeof uuid !== "string" || !/^[0-9a-f-]{36}$/i.test(uuid)) {
     return json(res, 400, { error: "bad uuid" });
   }
   if (!validCharacter(gameId, character)) return json(res, 400, { error: "unknown character" });
+  const koCounts = cleanKos(gameId, kos);
+  if (koCounts === null) return json(res, 400, { error: "bad kos" });
 
   // An unknown UUID means the caller never went through /player. That's the
   // check that makes the per-IP mint cap the real cost of scripted spam.
@@ -189,22 +216,29 @@ async function postPlay(req, res) {
   }
 
   await db.recordPlay({ gameId, characterName: character, playerUuid: uuid });
+  if (Object.keys(koCounts).length > 0) {
+    await db.recordBeatdowns({ gameId, playerUuid: uuid, counts: koCounts });
+  }
   chargeHit("play", ip);
   json(res, 200, { ok: true });
 }
 
 // GET /leaderboard?gameId=tight5&page=0
-//   -> { page, pageCount, total, rows: [{ rank, character, plays }] }
-// Rank is derived from the offset because MySQL 5.5 has no window functions.
-// Ties therefore get distinct consecutive ranks, which is what the mock-up
-// in the game shows anyway.
+//   -> { page, pageCount, total, rows:     [{ rank, character, plays }],
+//                          beatTotal, beatRows: [{ rank, character, kos }] }
+// Two boards, one pager: rows ranks most-played, beatRows ranks most-beat-up,
+// and page/pageCount span whichever board is longer (the short one just runs
+// out of rows on the last pages). Rank is derived from the offset because
+// MySQL 5.5 has no window functions. Ties therefore get distinct consecutive
+// ranks, which is what the mock-up in the game shows anyway.
 async function getLeaderboard(req, res, url) {
   const gameId = url.searchParams.get("gameId") || "";
   if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
 
   const pageSize = config.pageSize;
   const total = await db.boardSize(gameId);
-  const pageCount = Math.max(Math.ceil(total / pageSize), 1);
+  const beatTotal = await db.beatSize(gameId);
+  const pageCount = Math.max(Math.ceil(Math.max(total, beatTotal) / pageSize), 1);
   const page = Math.min(Math.max(Number(url.searchParams.get("page")) || 0, 0), pageCount - 1);
 
   const offset = page * pageSize;
@@ -213,7 +247,12 @@ async function getLeaderboard(req, res, url) {
     character: r.character_name,
     plays: Number(r.plays),
   }));
-  json(res, 200, { page, pageCount, total, rows });
+  const beatRows = (await db.beatPage(gameId, offset, pageSize)).map((r, i) => ({
+    rank: offset + i + 1,
+    character: r.character_name,
+    kos: Number(r.kos),
+  }));
+  json(res, 200, { page, pageCount, total, rows, beatTotal, beatRows });
 }
 
 const server = http.createServer(async (req, res) => {

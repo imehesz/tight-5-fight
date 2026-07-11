@@ -37,6 +37,16 @@ const SCHEMA = {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_board ON plays (game_id, character_name)`,
     `CREATE INDEX IF NOT EXISTS idx_uuid  ON plays (player_uuid, id)`,
+    `CREATE TABLE IF NOT EXISTS beatdowns (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id        TEXT NOT NULL,
+      character_name TEXT NOT NULL,
+      player_uuid    TEXT NOT NULL,
+      count          INTEGER NOT NULL,
+      created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_beat_board ON beatdowns (game_id, character_name)`,
+    `CREATE INDEX IF NOT EXISTS idx_beat_uuid  ON beatdowns (player_uuid, id)`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -61,6 +71,17 @@ const SCHEMA = {
       PRIMARY KEY (id),
       KEY idx_board (game_id, character_name),
       KEY idx_uuid (player_uuid, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS beatdowns (
+      id             INT         NOT NULL AUTO_INCREMENT,
+      game_id        VARCHAR(32) NOT NULL,
+      character_name VARCHAR(64) NOT NULL,
+      player_uuid    CHAR(36)    NOT NULL,
+      count          INT         NOT NULL,
+      created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_beat_board (game_id, character_name),
+      KEY idx_beat_uuid (player_uuid, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
@@ -145,6 +166,20 @@ async function recordPlay({ gameId, characterName, playerUuid }) {
   );
 }
 
+// ---------------------------------------------------------------- beatdowns
+// Who this run's player knocked out, one row per beaten character (with a
+// count, since one run KOs the same comedian many times). Same shape as
+// plays for the same reason: attributable to a player_uuid, so a cheater's
+// rows can be deleted and the SUMs below simply heal.
+async function recordBeatdowns({ gameId, playerUuid, counts }) {
+  for (const [name, count] of Object.entries(counts)) {
+    await run(
+      "INSERT INTO beatdowns (game_id, character_name, player_uuid, count) VALUES (?, ?, ?, ?)",
+      [gameId, name, playerUuid, count]
+    );
+  }
+}
+
 // ---------------------------------------------------------------- board
 // One page of the character-popularity board, most-played first. Ties break
 // on name so paging is stable (an unstable sort can drop or repeat a row
@@ -171,12 +206,37 @@ async function boardSize(gameId) {
   return Number(row ? row.n : 0);
 }
 
+// One page of the most-beat-up board: total KOs suffered per character,
+// worst-beaten first. Same stable ordering contract as boardPage.
+async function beatPage(gameId, offset, limit) {
+  return all(
+    `SELECT character_name, SUM(count) AS kos
+       FROM beatdowns
+      WHERE game_id = ?
+      GROUP BY character_name
+      ORDER BY kos DESC, character_name ASC
+      LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
+    [gameId]
+  );
+}
+
+async function beatSize(gameId) {
+  const row = await get(
+    "SELECT COUNT(DISTINCT character_name) AS n FROM beatdowns WHERE game_id = ?",
+    [gameId]
+  );
+  return Number(row ? row.n : 0);
+}
+
 module.exports = {
   init,
   createPlayer,
   playerExists,
   secondsSinceLastPlay,
   recordPlay,
+  recordBeatdowns,
   boardPage,
   boardSize,
+  beatPage,
+  beatSize,
 };
