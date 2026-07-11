@@ -17,7 +17,9 @@ var hud: Hud
 
 var _level := 1
 var _boss_stage := false
-var _boss: Boss
+## One boss on the right through the first two boss fights; from the third
+## on, a second owner joins from the LEFT so bottles fly in from both sides.
+var _bosses: Array[Boss] = []
 var _to_spawn: Array = []
 var _alive := 0
 var _spawned := 0
@@ -35,20 +37,21 @@ func _ready() -> void:
 	_build_background(data)
 	hud = Hud.new()
 	add_child(hud)
-	var banner := "%s — VENUE %d" % [String(data.get("VenueName", "???")).to_upper(), _level]
+	# No venue name: the interior art has it painted on already.
+	var banner := "VENUE %d" % _level
 	hud.set_venue_text(banner + ("  !! BOSS !!" if _boss_stage else ""))
 	add_child(TouchControls.new())
 	_spawn_player()
 
 	if _boss_stage:
+		var ordinal := _level / GameState.BOSS_EVERY
 		# 15s for the first boss, +2s per boss after (was 20s — too long).
-		_survive_left = 13.0 + 2.0 * float(_level / GameState.BOSS_EVERY)
-		_boss = Boss.new()
+		_survive_left = 13.0 + 2.0 * float(ordinal)
 		# 100px in from the live right edge (640-540 in the design layout).
-		_boss.position = Vector2(get_viewport().get_visible_rect().size.x - 100.0, GROUND_Y)
-		_boss.target = player
-		_boss.throw_interval = maxf(1.5 - 0.08 * _level, 0.6)
-		add_child(_boss)
+		_spawn_boss(get_viewport().get_visible_rect().size.x - 100.0, 2.0)
+		if ordinal >= 3:
+			# Second thrower, offset timers so the pair don't fire in sync.
+			_spawn_boss(100.0, 3.2)
 	else:
 		_to_spawn = GameState.enemy_characters(_level)
 		for i in mini(MAX_CONCURRENT, _to_spawn.size()):
@@ -93,14 +96,33 @@ func _spawn_player() -> void:
 	player = Player.new()
 	player.configure(GameState.selected_character_data())
 	player.size_scale = FIGHTER_SCALE
-	player.position = Vector2(100, GROUND_Y)
+	# Double-boss stages have a thrower at x=100, so spawn (and respawn)
+	# mid-floor there instead of inside him.
+	var px := 100.0
+	if _boss_stage and _level / GameState.BOSS_EVERY >= 3:
+		px = get_viewport().get_visible_rect().size.x / 2.0
+	player.position = Vector2(px, GROUND_Y)
 	player.died.connect(_on_player_died)
 	add_child(player)
 	hud.bind_player(player)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		e.target = player
-	if is_instance_valid(_boss):
-		_boss.target = player
+	for b in _bosses:
+		if is_instance_valid(b):
+			b.target = player
+
+
+func _spawn_boss(x: float, first_throw: float) -> void:
+	var boss := Boss.new()
+	boss.position = Vector2(x, GROUND_Y)
+	boss.target = player
+	boss.throw_interval = maxf(1.5 - 0.08 * _level, 0.6)
+	# Stagger the opening throw (and taunt) per boss: Boss defaults both
+	# timers, so a same-frame pair would fire in lockstep all fight.
+	boss._throw_left = first_throw
+	boss._taunt_left = first_throw + 1.0
+	add_child(boss)
+	_bosses.append(boss)
 
 
 func _spawn_next_enemy() -> void:
@@ -156,16 +178,26 @@ func _boss_survived() -> void:
 		return
 	_finished = true
 	GameState.mark_pending_venue_cleared()
-	# Unlocks beer, toughens the mob by 10%, and may raise lives to the cap.
-	var life_granted: bool = GameState.on_boss_defeated()
+	# One defeat banked PER BOSS in the room — a double-boss stage counts 2
+	# (BOSSES tally, +10% mob toughness each, and up to one life each).
+	var lives_granted := 0
+	for b in _bosses:
+		if GameState.on_boss_defeated():
+			lives_granted += 1
 	GameState.play_sfx("clear")
-	if is_instance_valid(_boss):
-		_boss.active = false
+	for b in _bosses:
+		if is_instance_valid(b):
+			b.active = false
 	for p in get_tree().get_nodes_in_group("projectiles"):
 		p.queue_free()
 	var bonus := 2 * CLEAR_BONUS_PER_LEVEL * _level
 	GameState.add_score(bonus)
-	hud.set_center_text("YOU SURVIVED!  +%d%s" % [bonus, "  +1 LIFE" if life_granted else ""])
+	var life_note := ""
+	if lives_granted == 1:
+		life_note = "  +1 LIFE"
+	elif lives_granted > 1:
+		life_note = "  +%d LIVES" % lives_granted
+	hud.set_center_text("YOU SURVIVED!  +%d%s" % [bonus, life_note])
 	await get_tree().create_timer(2.0).timeout
 	GameState.change_scene(GameState.SCENE_STREET)
 

@@ -5,6 +5,7 @@ extends Node
 signal score_changed(new_score: int)
 signal lives_changed(new_lives: int)
 signal bottles_changed(new_count: int)
+signal bosses_changed(new_count: int)
 
 const SCENE_SPLASH := "res://scenes/splash.tscn"
 const SCENE_MAIN_MENU := "res://scenes/main_menu.tscn"
@@ -277,6 +278,7 @@ func lives_cap() -> int:
 ## was granted, so the venue can celebrate it on the HUD.
 func on_boss_defeated() -> bool:
 	bosses_defeated += 1
+	bosses_changed.emit(bosses_defeated)
 	if lives < lives_cap():
 		lives += 1
 		lives_changed.emit(lives)

@@ -13,7 +13,7 @@ config_version=5
 config/name="Tight 5 FIGHT!"
 run/main_scene="res://scenes/splash.tscn"
 config/features=PackedStringArray("4.4")
-boot_splash/image="uid://c2d803s5wgyyt"
+boot_splash/image="uid://c1jxih1omtwo3"
 config/icon="res://shared/assets/icon.png"
 
 [autoload]

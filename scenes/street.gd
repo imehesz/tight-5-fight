@@ -240,8 +240,11 @@ func _maybe_spawn_heckler(delta: float) -> void:
 	var e := Enemy.new()
 	e.configure(GameState.enemy_characters(1)[0])
 	e.size_scale = FIGHTER_SCALE
-	e.aggressive = randf() < 0.4
-	e.move_speed = randf_range(60.0, 95.0)
+	# Once the first boss is down the street turns on you: more hecklers
+	# start fights (40% -> 60%) and they walk 10% faster.
+	var post_boss := GameState.bosses_defeated > 0
+	e.aggressive = randf() < (0.6 if post_boss else 0.4)
+	e.move_speed = randf_range(60.0, 95.0) * (1.1 if post_boss else 1.0)
 	e.score_value = 100
 	# Each boss cleared toughens the mob by 10% (health + damage).
 	var mult := GameState.enemy_strength_mult()
