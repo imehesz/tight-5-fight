@@ -1,0 +1,9 @@
+{
+  "venues": [
+    { 
+      "VenueName": "Waffle House",
+      "ExteriorSpritePath": "assets/venues/waffle-house_ext.png",
+      "InteriorSpritePath": "assets/venues/waffle-house_int.png" 
+    }
+  ]
+}
