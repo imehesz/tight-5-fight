@@ -9,6 +9,14 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "Billy Meyers III.",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/billy-meyers.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "Connor Bates",
       "HeadScale": 1,
       "HeadOffsetY": 2,
@@ -25,11 +33,35 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Jasmine Jewel",
+      "CharacterName": "Cousin Andy",
       "HeadScale": 1,
       "HeadOffsetY": 0,
-      "HeadSpritePath": "assets/heads/jasmine-jewel.png",
+      "HeadSpritePath": "assets/heads/cousin-andy.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Danny Esposito",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/danny-esposito.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Helen Joy",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/helen-joy.png",
       "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Joe Lovece",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/joe-lovece.png",
+      "BodyType": "M",
       "SkinColor": "#e9c098"
     },
     {
@@ -41,7 +73,23 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Patric Luby",
+      "CharacterName": "Michelle Keith",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/michelle-keith.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Minas Fakraijan",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/minas-fakrajian.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Patrick Luby",
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/patrick-luby.png",
@@ -57,10 +105,26 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "Roy Shepherd",
+      "HeadScale": 1.2,
+      "HeadOffsetY": 8,
+      "HeadSpritePath": "assets/heads/roy-shepherd.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "Sareth Nay",
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/sareth-nay.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Sean Murphy",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/sean-murphy.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
