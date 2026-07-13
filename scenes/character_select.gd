@@ -13,6 +13,7 @@ const PREVIEW_SCALE := Fighter.BODY_SCALE * 1.5
 var _page := 0
 var _selected := -1
 var _grid: GridContainer
+var _pager: Label
 var _dancer: Dancer
 var _preview_name: Label
 var _fight_btn: Button
@@ -92,7 +93,9 @@ func _ready() -> void:
 	if GameState.characters.is_empty():
 		add_text(box, "No characters found in data/characters.json!")
 
-	add_spacer(box, 10)
+	add_spacer(box, 8)
+	if GameState.characters.size() > PAGE_SIZE:
+		box.add_child(_build_pager())
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 12)
@@ -184,6 +187,21 @@ func _exit_tree() -> void:
 		_orbit.free()
 
 
+## Same "PAGE x / y" treatment as the leaderboard's pager. Built after the
+## first _fill_page() runs, so it seeds its own text.
+func _build_pager() -> HBoxContainer:
+	var pager := HBoxContainer.new()
+	pager.alignment = BoxContainer.ALIGNMENT_CENTER
+	_pager = Label.new()
+	_pager.custom_minimum_size = Vector2(110, 0)
+	_pager.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pager.add_theme_font_size_override("font_size", 8)
+	_pager.add_theme_color_override("font_color", Color(0.6, 0.6, 0.68))
+	_pager.text = "PAGE %d / %d" % [_page + 1, _page_count()]
+	pager.add_child(_pager)
+	return pager
+
+
 func _page_count() -> int:
 	return maxi(ceili(GameState.characters.size() / float(PAGE_SIZE)), 1)
 
@@ -201,6 +219,8 @@ func _fill_page() -> void:
 	var start := _page * PAGE_SIZE
 	for i in range(start, mini(start + PAGE_SIZE, GameState.characters.size())):
 		_grid.add_child(_character_card(i, GameState.characters[i]))
+	if _pager:
+		_pager.text = "PAGE %d / %d" % [_page + 1, _page_count()]
 	_update_highlights()
 
 

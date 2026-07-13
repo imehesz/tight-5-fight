@@ -38,6 +38,9 @@ var head_path := ""
 var head_offset_x := 0.0
 var head_offset_y := 0.0
 var head_scale := 1.0
+## JSON "inWheelchair": legs are erased from the body frames and a chair
+## sprite (behind the body) rides along. Kick plays the punch animation.
+var in_wheelchair := false
 var max_health := 100.0
 var health := 100.0
 var move_speed := 130.0
@@ -52,6 +55,8 @@ var attack_mask := 4  # hurtbox layers our attacks connect with
 
 var body_sprite: AnimatedSprite2D
 var head_sprite: Sprite2D
+var wheel_sprite: Sprite2D
+var _wheelie_tex: Array[Texture2D] = []
 var hurtbox: Area2D
 var hitbox: Area2D
 var _hurt_shape: CollisionShape2D
@@ -69,8 +74,21 @@ func _ready() -> void:
 
 
 func _build_visuals() -> void:
+	# Chair first, so it draws behind the body (seat back behind the torso).
+	if in_wheelchair:
+		_wheelie_tex = CharacterFactory.wheelie_textures()
+	if not _wheelie_tex.is_empty():
+		wheel_sprite = Sprite2D.new()
+		wheel_sprite.texture = _wheelie_tex[0]
+		var ws := CharacterFactory.WHEELIE_BASE_PX \
+				/ maxf(wheel_sprite.texture.get_width(), 1.0)
+		wheel_sprite.scale = Vector2(ws, ws)
+		wheel_sprite.position = CharacterFactory.WHEELIE_POS
+		add_child(wheel_sprite)
+
 	body_sprite = AnimatedSprite2D.new()
-	body_sprite.sprite_frames = CharacterFactory.body_frames(body_type, skin_color, outfit)
+	body_sprite.sprite_frames = CharacterFactory.body_frames(
+			body_type, skin_color, outfit, in_wheelchair)
 	body_sprite.offset = Vector2(0, -CharacterFactory.FRAME_H / 2.0)
 	body_sprite.animation_finished.connect(_on_animation_finished)
 	body_sprite.frame_changed.connect(_on_frame_changed)
@@ -131,6 +149,12 @@ func _process(_delta: float) -> void:
 	head_sprite.position = Vector2((neck.x + head_offset_x) * facing,
 			neck.y - lift + head_offset_y)
 	hitbox.position.x = 18 * facing
+	if wheel_sprite:
+		wheel_sprite.flip_h = facing < 0
+		wheel_sprite.position.x = CharacterFactory.WHEELIE_POS.x * facing
+		# Wheels roll with the walk cycle; parked on frame 1 otherwise.
+		var wf := body_sprite.frame % 2 if state == FState.WALK else 0
+		wheel_sprite.texture = _wheelie_tex[wf]
 
 
 ## Apply a character entry from characters.json. Call before add_child().
@@ -143,6 +167,7 @@ func configure(cfg: Dictionary) -> void:
 	head_offset_x = float(cfg.get("HeadOffsetX", 0))
 	head_offset_y = float(cfg.get("HeadOffsetY", 0))
 	head_scale = maxf(float(cfg.get("HeadScale", 1.0)), 0.1)
+	in_wheelchair = bool(cfg.get("inWheelchair", false))
 
 
 # ---------------------------------------------------------------- actions

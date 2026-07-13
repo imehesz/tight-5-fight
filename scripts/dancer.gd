@@ -9,6 +9,8 @@ const DANCE_ANIMS := ["walk", "hit"]
 
 var _body: AnimatedSprite2D
 var _head: Sprite2D
+var _wheel: Sprite2D
+var _wheel_tex: Array[Texture2D] = []
 var _head_offset := Vector2.ZERO
 var _timer: Timer
 
@@ -28,6 +30,21 @@ func set_character(cfg: Dictionary) -> void:
 	if _body:
 		_body.queue_free()
 		_head.queue_free()
+	if _wheel:
+		_wheel.queue_free()
+		_wheel = null
+	var chaired: bool = bool(cfg.get("inWheelchair", false))
+	if chaired:
+		_wheel_tex = CharacterFactory.wheelie_textures()
+	if chaired and not _wheel_tex.is_empty():
+		# Added before the body so the chair draws behind it.
+		_wheel = Sprite2D.new()
+		_wheel.texture = _wheel_tex[0]
+		var ws := CharacterFactory.WHEELIE_BASE_PX \
+				/ maxf(_wheel.texture.get_width(), 1.0)
+		_wheel.scale = Vector2(ws, ws)
+		_wheel.position = CharacterFactory.WHEELIE_POS
+		add_child(_wheel)
 	_body = AnimatedSprite2D.new()
 	# Dancers only ever preview the player's own comedian, so they wear the
 	# outfit picked in settings.
@@ -35,8 +52,9 @@ func set_character(cfg: Dictionary) -> void:
 			String(cfg.get("BodyType", "M")),
 			Color.from_string(String(cfg.get("SkinColor", "")),
 					CharacterFactory.DEFAULT_SKIN),
-			GameState.outfit)
+			GameState.outfit, chaired)
 	_body.offset = Vector2(0, -CharacterFactory.FRAME_H / 2.0)
+	_body.frame_changed.connect(_update_wheel)
 	add_child(_body)
 
 	_head = Sprite2D.new()
@@ -58,3 +76,8 @@ func _dance_step() -> void:
 	var lift := _head.texture.get_height() * _head.scale.y / 2.0 - 4.0
 	_head.position = Vector2(neck.x + _head_offset.x, neck.y - lift + _head_offset.y)
 	_timer.start(randf_range(0.4, 0.9))
+
+
+func _update_wheel() -> void:
+	if _wheel:
+		_wheel.texture = _wheel_tex[_body.frame % 2 if _body.animation == "walk" else 0]

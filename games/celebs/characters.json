@@ -57,6 +57,14 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterName": "Bert Kreischer",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/burtkreischer.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "Beth Stelling",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -69,14 +77,6 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/brianregan.png",
-      "BodyType": "M",
-      "SkinColor": "#e9c098"
-    },
-    {
-      "CharacterName": "Bert Kreischer",
-      "HeadScale": 1,
-      "HeadOffsetY": 0,
-      "HeadSpritePath": "assets/heads/burtkreischer.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
@@ -121,20 +121,20 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Eddie Pepitone",
-      "HeadScale": 1,
-      "HeadOffsetY": 0,
-      "HeadSpritePath": "assets/heads/eddiepepitone.png",
-      "BodyType": "M",
-      "SkinColor": "#e9c098"
-    },
-    {
       "CharacterName": "Eddie Murphy",
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/eddymurphy.png",
       "BodyType": "M",
       "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterName": "Eddie Pepitone",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/eddiepepitone.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
     },
     {
       "CharacterName": "Emo Philips",
@@ -185,18 +185,18 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Joel Byars",
-      "HeadScale": 1,
-      "HeadOffsetY": 0,
-      "HeadSpritePath": "assets/heads/joelbyars.png",
-      "BodyType": "M",
-      "SkinColor": "#e9c098"
-    },
-    {
       "CharacterName": "Joe Rogan",
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/joerogan.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Joel Byars",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/joelbyars.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
@@ -265,20 +265,20 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Rodney Dangerfield",
-      "HeadScale": 1,
-      "HeadOffsetY": 0,
-      "HeadSpritePath": "assets/heads/rodneydangerfield.png",
-      "BodyType": "M",
-      "SkinColor": "#e9c098"
-    },
-    {
       "CharacterName": "Richard Pryor",
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/rychardpryor.png",
       "BodyType": "M",
       "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterName": "Rodney Dangerfield",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/rodneydangerfield.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
     },
     {
       "CharacterName": "Sam Morril",

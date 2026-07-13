@@ -45,6 +45,18 @@ const OUTFITS := [
 ]
 ## Passed as `outfit` to wear whatever the sheet was drawn with. NPCs use it.
 const OUTFIT_BAKED := -1
+## Wheelchair overlay for characters with "inWheelchair" in characters.json:
+## legs are erased from their body frames and this chair (drawn behind the
+## body) fills the space. Two frames; [1] alternates in while walking.
+## Art can be any size — it is normalized to display WHEELIE_BASE_PX wide,
+## like heads. WHEELIE_POS centers the chair art on the fighter (feet origin).
+const WHEELIE_PATHS := [
+	"res://shared/assets/bodies/wheelie_1.png",
+	"res://shared/assets/bodies/wheelie_2.png",
+]
+const WHEELIE_BASE_PX := 51.0
+## x is relative to facing: negative = behind the character (mirrors on flip).
+const WHEELIE_POS := Vector2(-2, -21)
 const FRAME_W := 32
 const FRAME_H := 48
 const ANIMS := [
@@ -73,27 +85,34 @@ static var _frames_cache := {}
 
 
 static func body_frames(body_type: String, skin: Color = DEFAULT_SKIN,
-		outfit := OUTFIT_BAKED) -> SpriteFrames:
+		outfit := OUTFIT_BAKED, wheelchair := false) -> SpriteFrames:
 	var body := body_type if body_type in BODY_TYPES else "M"
 	var fit := outfit_index(outfit)
 	# Asking for the colors already in the sheet is the same as asking for the
 	# sheet: skip the swap and share the NPCs' cached frames.
 	if fit != OUTFIT_BAKED and _is_baked_outfit(body, fit):
 		fit = OUTFIT_BAKED
-	var key := body + "|" + skin.to_html(false) + "|" + str(fit)
+	var key := body + "|" + skin.to_html(false) + "|" + str(fit) \
+			+ ("|w" if wheelchair else "")
 	if _frames_cache.has(key):
 		return _frames_cache[key]
-	var tex := _body_texture(body, skin, fit)
+	var tex := _body_texture(body, skin, fit, wheelchair)
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
 	for a in ANIMS:
+		var row := int(a.row)
+		# A wheelchair comedian has no leg art to kick with: sample the kick
+		# from the punch row instead, so KICK reads as a second arm strike
+		# (chair-ram). Same frame count, and the kick row is never displayed.
+		if wheelchair and a.name == "kick":
+			row = 2  # punch row
 		sf.add_animation(a.name)
 		sf.set_animation_speed(a.name, a.fps)
 		sf.set_animation_loop(a.name, a.loop)
 		for f in int(a.frames):
 			var at := AtlasTexture.new()
 			at.atlas = tex
-			at.region = Rect2(f * FRAME_W, int(a.row) * FRAME_H, FRAME_W, FRAME_H)
+			at.region = Rect2(f * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H)
 			sf.add_frame(a.name, at)
 	_frames_cache[key] = sf
 	return sf
@@ -116,9 +135,10 @@ static func outfit_color(outfit: int) -> Color:
 	return OUTFITS[clampi(outfit, 0, OUTFITS.size() - 1)]["top"]
 
 
-static func _body_texture(body: String, skin: Color, outfit: int) -> Texture2D:
+static func _body_texture(body: String, skin: Color, outfit: int,
+		wheelchair := false) -> Texture2D:
 	var tex: Texture2D = load(GameState.body_path(body))
-	if skin.is_equal_approx(DEFAULT_SKIN) and outfit == OUTFIT_BAKED:
+	if not wheelchair and skin.is_equal_approx(DEFAULT_SKIN) and outfit == OUTFIT_BAKED:
 		return tex
 	var img := tex.get_image()
 	if img.is_compressed():
@@ -140,7 +160,35 @@ static func _body_texture(body: String, skin: Color, outfit: int) -> Texture2D:
 					var t: Color = s["to"]
 					img.set_pixel(x, y, Color(t.r, t.g, t.b, c.a))
 					break
+	if wheelchair:
+		_erase_legs(img, body)
 	return ImageTexture.create_from_image(img)
+
+
+## Clear leg pixels for wheelchair characters; the chair sprite fills the
+## space. Cut lines come from tools/gen_assets.py geometry: legs start at
+## y29 (M) / y32 (F), and walk's scissor lines poke ~1px above that, so the
+## cut sits one row higher. The kick row is left alone — body_frames() never
+## samples it for wheelchair characters (kick shows the punch row instead).
+static func _erase_legs(img: Image, body: String) -> void:
+	var cut := 31 if body == "F" else 28
+	var clear := Color(0, 0, 0, 0)
+	for a in ANIMS:
+		var top := int(a.row) * FRAME_H
+		for y in range(top, top + FRAME_H):
+			var yl := y - top
+			for x in img.get_width():
+				var wipe := false
+				match a.name:
+					"idle", "walk", "punch", "hit":
+						wipe = yl >= cut
+					"duck":
+						wipe = yl >= 34  # seated lap + shoes
+					"defeated":
+						# Lying pose: legs stick out right of the torso.
+						wipe = (x % FRAME_W) >= 23 and yl >= 39
+				if wipe:
+					img.set_pixel(x, y, clear)
 
 
 static func _matches(c: Color, target: Color) -> bool:
@@ -161,3 +209,14 @@ static func head_texture(path: String) -> Texture2D:
 
 static func head_offset(anim: String) -> Vector2:
 	return HEAD_OFFSETS.get(anim, Vector2(0, -39))
+
+
+## Both wheelchair frames, or [] if either is missing — callers skip the
+## chair sprite entirely rather than risk indexing a half-loaded pair.
+static func wheelie_textures() -> Array[Texture2D]:
+	var out: Array[Texture2D] = []
+	for p in WHEELIE_PATHS:
+		if not ResourceLoader.exists(p):
+			return []
+		out.append(load(p) as Texture2D)
+	return out
