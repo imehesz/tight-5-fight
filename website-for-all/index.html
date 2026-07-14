@@ -199,6 +199,89 @@
     animation: flicker 4.5s infinite;
   }
 
+  /* ---------- testimonials ---------- */
+  .quotes-wrap {
+    margin-top: 40px;
+    width: 100%;
+    max-width: 900px;
+  }
+  .quotes-title {
+    font-size: clamp(14px, 4vw, 20px);
+    color: var(--gold);
+    text-shadow: 2px 2px 0 #000, 0 0 10px #ffd96655;
+  }
+  .quotes-sub {
+    margin-top: 10px;
+    font-size: clamp(8px, 2.2vw, 10px);
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+  .quotes-bar {
+    margin-top: 20px;
+    height: 5px;
+    border-radius: 3px;
+    background: #7326bf33;
+    overflow: hidden;
+  }
+  .quotes-bar-fill {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--pink));
+    box-shadow: 0 0 8px #7326bfaa;
+  }
+  .quotes-bar-fill.paused {
+    background: var(--gold);
+    box-shadow: 0 0 8px #ffd966aa;
+  }
+  .quotes {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    opacity: 1;
+    transition: opacity .9s ease;
+  }
+  .quotes.fading { opacity: 0; }
+  @media (max-width: 640px) {
+    .quotes { grid-template-columns: 1fr; }
+  }
+  .quote {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 14px 16px;
+    background-color: var(--panel);
+    border: 3px solid var(--purple);
+    border-radius: 10px;
+    box-shadow: 0 0 14px #7326bf44, inset 0 0 30px #0007;
+    text-align: left;
+  }
+  .quote-stars {
+    font-size: clamp(11px, 3vw, 14px);
+    letter-spacing: 2px;
+  }
+  .quote-stars .off { opacity: .25; filter: grayscale(1); }
+  .quote-text {
+    flex: 1;
+    font-size: clamp(9px, 2.3vw, 11px);
+    line-height: 1.9;
+    color: var(--paper);
+    text-shadow: 1px 1px 0 #000;
+    overflow-wrap: anywhere;
+  }
+  .quote-text b { color: var(--gold); }
+  .quote-text i { color: var(--dim); }
+  .quote-name {
+    font-size: clamp(8px, 2.2vw, 10px);
+    color: var(--pink);
+    text-shadow: 1px 1px 0 #000;
+  }
+  .quote-name::before { content: "— "; }
+  @media (prefers-reduced-motion: reduce) {
+    .quotes { transition: none; }
+    .quotes-bar { display: none; }
+  }
+
   /* ---------- footer ---------- */
   footer {
     margin-top: 34px;
@@ -309,6 +392,174 @@
   ============================================================================== -->
 
 </main>
+
+<p>
+  <br><br><br>
+</p>
+
+<!-- ==================== TESTIMONIALS ====================
+     Quotes live in testimonials.json next to this file — edit that, not this.
+     Shows 3 random quotes in a row, swaps to 3 new ones every 10 seconds;
+     the purple line under the subtitle counts down the current batch.
+     Hovering the section (or tapping it on touch screens) PAUSES the
+     rotation — the line turns gold while paused; leaving / tapping
+     elsewhere resumes from where it left off.
+     NOTE: loaded with fetch(), so when testing locally serve the folder
+     (python3 -m http.server) instead of opening the file directly.
+-->
+<section class="quotes-wrap" id="quotes-wrap" hidden>
+  <h2 class="quotes-title">THE CROWD REACTS</h2>
+  <p class="quotes-sub">100% REAL QUOTES FROM 100% REAL COMEDIANS</p>
+  <div class="quotes-bar"><div class="quotes-bar-fill" id="quotes-bar-fill"></div></div>
+  <div class="quotes" id="quotes"></div>
+</section>
+
+<script>
+(function () {
+  var BATCH = 3, ROTATE_MS = 10000, FADE_MS = 900;
+  var wrap = document.getElementById('quotes-wrap');
+  var grid = document.getElementById('quotes');
+  var bar = document.getElementById('quotes-bar-fill');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* countdown line helpers: snap to 0 / glide to full / freeze in place */
+  function barReset() {
+    if (reduceMotion) return;
+    bar.style.transition = 'none';
+    bar.style.width = '0';
+    void bar.offsetWidth; /* force reflow so the reset lands before the glide */
+  }
+  function barRun(ms) {
+    if (reduceMotion) return;
+    void bar.offsetWidth;
+    bar.style.transition = 'width ' + ms + 'ms linear';
+    bar.style.width = '100%';
+  }
+  function barFreeze() {
+    if (reduceMotion) return;
+    var w = getComputedStyle(bar).width; /* live mid-glide width */
+    bar.style.transition = 'none';
+    bar.style.width = w;
+  }
+
+  /* tiny markdown: escapes HTML, then **bold** and *italic* */
+  function md(text) {
+    return String(text)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/\*([^*]+)\*/g, '<i>$1</i>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function starRow(stars) {
+    var n = Math.max(0, Math.min(5, parseInt(stars, 10) || 0));
+    var html = '';
+    for (var i = 0; i < 5; i++) {
+      html += i < n ? '⭐' : '<span class="off">⭐</span>';
+    }
+    return html;
+  }
+
+  function render(batch) {
+    grid.innerHTML = batch.map(function (t) {
+      return '<figure class="quote">' +
+        '<div class="quote-stars">' + starRow(t.stars) + '</div>' +
+        '<blockquote class="quote-text">' + md(t.text) + '</blockquote>' +
+        '<figcaption class="quote-name">' + md(t.name || 'Anonymous') + '</figcaption>' +
+        '</figure>';
+    }).join('');
+  }
+
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  fetch('testimonials.json')
+    .then(function (r) { return r.json(); })
+    .then(function (all) {
+      if (!all || !all.length) return;
+      wrap.hidden = false;
+
+      var queue = [];
+      function nextBatch() {
+        if (queue.length < BATCH) queue = shuffle(all.slice());
+        return queue.splice(0, BATCH);
+      }
+
+      render(nextBatch());
+      if (all.length <= BATCH) return; /* nothing to rotate */
+
+      /* pausable rotation: hover (desktop) or tap (touch) freezes the
+         countdown; leaving / tapping elsewhere resumes what was left */
+      var swapTimer = null, phaseEnd = 0, remainingMs = ROTATE_MS;
+      var paused = false, wantPause = false, inFade = false;
+
+      function startPhase(ms) {
+        remainingMs = ms;
+        phaseEnd = Date.now() + ms;
+        swapTimer = setTimeout(doFade, ms);
+        barRun(ms);
+        if (wantPause) pause(); /* pointer parked here through the fade */
+      }
+
+      function doFade() {
+        if (reduceMotion) { render(nextBatch()); startPhase(ROTATE_MS); return; }
+        inFade = true;
+        grid.classList.add('fading');
+        setTimeout(function () {
+          render(nextBatch());
+          grid.classList.remove('fading');
+          inFade = false;
+          barReset();
+          startPhase(ROTATE_MS);
+        }, FADE_MS);
+      }
+
+      function pause() {
+        if (paused || inFade) return; /* mid-fade: startPhase re-checks */
+        paused = true;
+        clearTimeout(swapTimer);
+        remainingMs = Math.max(0, phaseEnd - Date.now());
+        barFreeze();
+        bar.classList.add('paused');
+      }
+
+      function resume() {
+        if (!paused) return;
+        paused = false;
+        bar.classList.remove('paused');
+        remainingMs = Math.max(remainingMs, 1500); /* never resume into an instant swap */
+        phaseEnd = Date.now() + remainingMs;
+        swapTimer = setTimeout(doFade, remainingMs);
+        barRun(remainingMs);
+      }
+
+      function setWant(v) {
+        wantPause = v;
+        if (v) pause(); else resume();
+      }
+
+      wrap.addEventListener('mouseenter', function () { setWant(true); });
+      wrap.addEventListener('mouseleave', function () { setWant(false); });
+      /* touch: a tap inside the section pauses, a tap anywhere else resumes */
+      document.addEventListener('touchstart', function (e) {
+        setWant(wrap.contains(e.target));
+      }, { passive: true });
+
+      barReset();
+      startPhase(ROTATE_MS);
+    })
+    .catch(function () { /* no quotes, no section */ });
+})();
+</script>
+
+<p>
+<br><br><br>
+</p>
 
 <footer>
   <a class="coffee" href="https://buymeacoffee.com/imehesz" target="_blank" rel="noopener">☕ BUY ME A COFFEE</a>
