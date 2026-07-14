@@ -12,6 +12,15 @@
     "streetTile": "assets/backgrounds/street_tile.png"
   },
 
+  "planeBanners": [
+    "WELCOME to JACKSONVILLE!",
+    "THIS AIN'T GEORGIA!",
+    "DUUUVAL!",
+    "GO JAGS!",
+    "THERE IS COMEDY HERE!",
+    "WHY THE AIRPORT IS IN ANOTHER CITY!"
+  ],
+
   "boss": {
     "headSprite": "assets/misc/boss_head.png"
   },

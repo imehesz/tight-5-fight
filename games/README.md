@@ -51,6 +51,7 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 | `projectileSprite` | optional | invisible projectile |
 | `audio.musicMain` / `.musicVenue` | optional | no music (paths are **extensionless**) |
 | `overrides.bodyMale` / `.bodyFemale` | optional | `shared/assets/bodies/body_{male,female}.png` |
+| `planeBanners` (array of sentences) | optional | no banner-plane flybys on the street |
 
 ---
 

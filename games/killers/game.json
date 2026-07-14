@@ -19,6 +19,12 @@
 
   "projectileSprite": "assets/misc/bottle.png",
 
+  "planeBanners": [
+    "WELCOME to AUSTIN!",
+    "DID YOU SEE TONY?",
+    "I WAS ON ROGAN'S PODCAST!"
+  ],
+
   "boss": {
     "headSprite": "assets/misc/boss_head.png"
   }

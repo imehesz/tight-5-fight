@@ -18,7 +18,16 @@
   },
 
   "projectileSprite": "assets/misc/bottle.png",
-
+  
+  "planeBanners": [
+    "I MISS THE NOG!",
+    "WELCOME TO DIRTONA!",
+    "IS IT BIKEWEEK YET?",
+    "BIKES!!",
+    "SAVE A HORSE RIDE A MOTORCYCLE!",
+    "COCAINE IS A HELLUVA DRUG!"
+  ],
+  
   "boss": {
     "headSprite": "assets/misc/boss_head.png"
   }

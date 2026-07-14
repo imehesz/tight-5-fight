@@ -26,6 +26,11 @@ const FIGHTER_SCALE := 1.25
 ## on the visible street at once so they read as a treat, not litter.
 const BEER_GROUND_Y := 300.0
 const BEER_MAX_ON_SCREEN := 2
+## Banner-plane flybys (games with planeBanners in their manifest only): the
+## first shows up early so it's easy to spot, then they stay an occasional treat.
+const PLANE_FIRST_WAIT_MAX := 12.0
+const PLANE_WAIT_MIN := 18.0
+const PLANE_WAIT_MAX := 40.0
 
 var player: Player
 var camera: Camera2D
@@ -37,6 +42,8 @@ var _next_venue_x := FIRST_VENUE_X
 var _venue_index := 0
 var _spawn_timer := 2.0
 var _beer_timer := 3.0
+var _plane_timer := randf_range(4.0, PLANE_FIRST_WAIT_MAX)
+var _plane: PlaneFlyby
 var _busy := false
 
 
@@ -74,6 +81,7 @@ func _process(delta: float) -> void:
 	_maybe_spawn_venue()
 	_maybe_spawn_heckler(delta)
 	_maybe_spawn_beer(delta)
+	_maybe_spawn_plane(delta)
 	_cull_stragglers()
 	_update_door_signs()
 
@@ -268,6 +276,25 @@ func _maybe_spawn_beer(delta: float) -> void:
 	var pickup := BeerPickup.new()
 	pickup.position = Vector2(camera.position.x + randf_range(300.0, 440.0), BEER_GROUND_Y)
 	add_child(pickup)
+
+
+## One plane at a time, in world space (so player movement never alters its
+## flight) and freed with the street: plane + engine drone vanish on entering
+## a venue.
+func _maybe_spawn_plane(delta: float) -> void:
+	if is_instance_valid(_plane):
+		return
+	_plane_timer -= delta
+	if _plane_timer > 0.0:
+		return
+	_plane_timer = randf_range(PLANE_WAIT_MIN, PLANE_WAIT_MAX)
+	var banners: Array = GameState.plane_banners()
+	if banners.is_empty():
+		return
+	_plane = PlaneFlyby.new()
+	_plane.banner_text = String(banners.pick_random())
+	_plane.camera = camera
+	add_child(_plane)
 
 
 func _cull_stragglers() -> void:

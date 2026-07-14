@@ -204,6 +204,12 @@ func projectile_path() -> String:
 	return game_path(String(p)) if p != null and String(p) != "" else ""
 
 
+## Sentences the street's banner plane can tow; empty (the default) means the
+## game has no flybys at all.
+func plane_banners() -> Array:
+	return manifest.get("planeBanners", [])
+
+
 ## Body sheet for M/F, honouring a manifest override, else the shared default.
 func body_path(body_type: String) -> String:
 	var ov: Dictionary = manifest.get("overrides", {})
