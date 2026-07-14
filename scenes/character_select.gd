@@ -9,6 +9,10 @@ const PAGE_SIZE := 9
 const PREVIEW_SIZE := Vector2(150, 170)
 ## 1.5x the in-game fighter size.
 const PREVIEW_SCALE := Fighter.BODY_SCALE * 1.5
+## Pop-in zoom on selection: born this fraction of full size, grown back
+## over ZOOM_TIME seconds.
+const ZOOM_START := 0.1
+const ZOOM_TIME := 0.3
 
 var _page := 0
 var _selected := -1
@@ -18,6 +22,7 @@ var _dancer: Dancer
 var _preview_name: Label
 var _fight_btn: Button
 var _orbit: SelectionOrbit
+var _zoom: Tween
 
 
 ## A shiny golden dot with a fading trail circling the selected head.
@@ -159,9 +164,21 @@ func _select(index: int) -> void:
 	GameState.set_selected_character(index)
 	var cfg: Dictionary = GameState.characters[index]
 	_dancer.set_character(cfg)
+	_pop_preview()
 	_preview_name.text = String(cfg.get("CharacterName", "?"))
 	_fight_btn.disabled = false
 	_update_highlights()
+
+
+## The freshly picked comedian pops in: born tiny at their feet, zooming
+## up to full preview size with a little overshoot bounce at the end.
+func _pop_preview() -> void:
+	if _zoom:
+		_zoom.kill()
+	_dancer.scale = Vector2.ONE * PREVIEW_SCALE * ZOOM_START
+	_zoom = create_tween()
+	_zoom.tween_property(_dancer, "scale", Vector2.ONE * PREVIEW_SCALE, ZOOM_TIME) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _update_highlights() -> void:

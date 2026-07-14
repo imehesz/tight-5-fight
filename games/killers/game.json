@@ -1,0 +1,25 @@
+{
+  "id": "killers",
+  "title": "Tight 5 FIGHT! — Killers Edition",
+  "menuTitle": "TIGHT 5 FIGHT!",
+
+  "characters": "characters.json",
+  "venues": "venues.json",
+
+  "backgrounds": {
+    "splash":     "assets/backgrounds/splash.png",
+    "menu":       "assets/backgrounds/menu_bg.png",
+    "streetTile": "assets/backgrounds/street_tile.png"
+  },
+
+  "audio": {
+    "musicMain":  "assets/audio/song",
+    "musicVenue": "assets/audio/song_venue"
+  },
+
+  "projectileSprite": "assets/misc/bottle.png",
+
+  "boss": {
+    "headSprite": "assets/misc/boss_head.png"
+  }
+}

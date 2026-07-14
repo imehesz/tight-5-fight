@@ -73,11 +73,11 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Michelle Keith",
+      "CharacterName": "Rob Ford",
       "HeadScale": 1,
-      "HeadOffsetY": 2,
-      "HeadSpritePath": "assets/heads/michelle-keith.png",
-      "BodyType": "F",
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/rob-ford.png",
+      "BodyType": "M",
       "SkinColor": "#e9c098"
     },
     {
