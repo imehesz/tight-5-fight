@@ -1,0 +1,233 @@
+<!doctype html>
+<!--
+  TIGHT 5 FIGHT! — owner stats page. Deploys with index.html (same rsync).
+
+  Opens as https://games.imstandup.com/admin.html?pwd=SECRET — anything else
+  (no pwd, wrong pwd) bounces straight back to index.html. The pwd is NOT in
+  this file: it is forwarded to the API's /stats endpoint, which holds the
+  real value (server/config.js adminPwd) and answers 403 on a mismatch.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIGHT 5 FIGHT! — STATS</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night:   #0b0716;
+    --street:  #141022;
+    --panel:   #1a1130;
+    --pink:    #ff59cc;
+    --purple:  #7326bf;
+    --gold:    #ffd966;
+    --paper:   #f5eee4;
+    --dim:     #b9a8d6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { max-width: 100%; }
+  body {
+    font-family: "Press Start 2P", "Courier New", monospace;
+    color: var(--paper);
+    background: linear-gradient(180deg, var(--night) 0%, var(--night) 45%, #170d2b 78%, var(--street) 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 40px;
+    text-align: center;
+  }
+  h1 {
+    font-size: clamp(18px, 5.5vw, 32px);
+    line-height: 1.3;
+    color: var(--pink);
+    text-shadow: 0 0 6px var(--pink), 0 0 18px var(--pink), 3px 3px 0 #3a0f33;
+  }
+  .stamp {
+    margin-top: 12px;
+    font-size: clamp(8px, 2.2vw, 10px);
+    color: var(--dim);
+  }
+  #status {
+    margin-top: 40px;
+    font-size: clamp(10px, 2.6vw, 13px);
+    color: var(--gold);
+  }
+
+  .games {
+    margin: 26px auto 0;
+    width: 100%;
+    max-width: 960px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .game {
+    background: var(--panel);
+    border: 3px solid var(--purple);
+    border-radius: 10px;
+    box-shadow: 0 0 14px #7326bf66, inset 0 0 30px #0007;
+    padding: 18px 14px 22px;
+  }
+  .game h2 {
+    font-size: clamp(18px, 4.5vw, 24px);
+    color: var(--gold);
+    text-shadow: 2px 2px 0 #000, 0 0 10px #ffd96655;
+  }
+  .game h2 small {
+    display: block;
+    margin-top: 6px;
+    font-size: clamp(8px, 2vw, 9px);
+    color: var(--dim);
+  }
+  .boards {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .board { overflow-x: auto; }
+  .board h3 {
+    font-size: clamp(10px, 2.6vw, 12px);
+    color: var(--pink);
+    text-shadow: 2px 2px 0 #000;
+    margin-bottom: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: clamp(9px, 2.3vw, 11px);
+  }
+  th, td {
+    padding: 8px 6px;
+    border-bottom: 1px solid #7326bf55;
+    text-shadow: 1px 1px 0 #000;
+  }
+  th { color: var(--dim); font-weight: normal; text-align: left; }
+  td { text-align: left; color: var(--paper); }
+  th.num, td.num { text-align: right; }
+  td.num { color: var(--gold); }
+  tr:last-child th, tr:last-child td { border-bottom: none; }
+  .empty { color: var(--dim); font-size: clamp(9px, 2.3vw, 10px); }
+
+  .back {
+    margin-top: 34px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 22px;
+    font-size: clamp(10px, 2.6vw, 12px);
+    color: #fff;
+    background: linear-gradient(180deg, var(--pink), #c1279a);
+    border: 2px solid #ffb3e6;
+    border-radius: 8px;
+    box-shadow: 0 0 12px #ff59cc99, 0 4px 0 #7a1560;
+    text-decoration: none;
+    text-shadow: 2px 2px 0 #0008;
+  }
+</style>
+</head>
+<body>
+
+<h1>TIGHT 5 FIGHT!<br>STATS</h1>
+<p class="stamp" id="stamp"></p>
+<p id="status">LOADING…</p>
+<main class="games" id="games"></main>
+<a class="back" href="index.html">◀ BACK TO THE MARQUEE</a>
+
+<script>
+(function () {
+  "use strict";
+
+  var pwd = new URLSearchParams(location.search).get("pwd");
+  if (!pwd) { location.replace("index.html"); return; }
+
+  // Same host logic as the game's leaderboard.gd: on the real domain go
+  // through Apache's /tight5fight/api proxy; anywhere else talk to a local
+  // dev server directly.
+  function apiBase() {
+    var h = location.hostname;
+    if (h.endsWith("imstandup.com") || h.endsWith("mehesz.net")) {
+      return location.protocol + "//games.imstandup.com/tight5fight/api";
+    }
+    if (h && h !== "localhost" && h !== "127.0.0.1") return "http://" + h + ":8770";
+    return "http://127.0.0.1:8770";
+  }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  // rows: [[label, value], ...] with a header pair first.
+  function board(title, header, rows) {
+    var box = el("div", "board");
+    box.appendChild(el("h3", null, title));
+    if (rows.length === 0) {
+      box.appendChild(el("p", "empty", "no data yet"));
+      return box;
+    }
+    var table = el("table");
+    var tr = el("tr");
+    tr.appendChild(el("th", null, header[0]));
+    tr.appendChild(el("th", "num", header[1]));
+    table.appendChild(tr);
+    rows.forEach(function (r) {
+      var row = el("tr");
+      row.appendChild(el("td", null, r[0]));
+      row.appendChild(el("td", "num", String(r[1])));
+      table.appendChild(row);
+    });
+    box.appendChild(table);
+    return box;
+  }
+
+  fetch(apiBase() + "/stats?pwd=" + encodeURIComponent(pwd))
+    .then(function (resp) {
+      if (resp.status === 403) { location.replace("index.html"); throw new Error("403"); }
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      return resp.json();
+    })
+    .then(function (data) {
+      document.getElementById("status").remove();
+      document.getElementById("stamp").textContent =
+        "GENERATED " + new Date(data.generatedAt).toLocaleString();
+      var main = document.getElementById("games");
+      data.games.forEach(function (g) {
+        var v = g.volume;
+        var section = el("section", "game");
+        var h2 = el("h2", null, g.label);
+        h2.appendChild(el("small", null, "game id: " + g.gameId));
+        section.appendChild(h2);
+        var boards = el("div", "boards");
+        boards.appendChild(board("PLAYS", ["window", "runs / players"], [
+          ["today",        v.today.plays   + " / " + v.today.players],
+          ["last 7 days",  v.week.plays    + " / " + v.week.players],
+          ["last 30 days", v.month.plays   + " / " + v.month.players],
+          ["all time",     v.allTime.plays + " / " + v.allTime.players],
+        ]));
+        boards.appendChild(board("TOP 5 MOST PLAYED", ["comedian", "plays"],
+          g.topPlayed.map(function (r) { return [r.character, r.plays]; })));
+        boards.appendChild(board("TOP 5 MOST BEAT UP", ["comedian", "KOs"],
+          g.topBeat.map(function (r) { return [r.character, r.kos]; })));
+        boards.appendChild(board("TOP 5 VENUES", ["venue", "entries"],
+          g.topVenues.map(function (r) { return [r.venue, r.entries]; })));
+        section.appendChild(boards);
+        main.appendChild(section);
+      });
+    })
+    .catch(function (e) {
+      if (e.message === "403") return;
+      var status = document.getElementById("status");
+      if (status) status.textContent = "COULD NOT REACH THE STATS SERVER (" + e.message + ")";
+    });
+})();
+</script>
+
+</body>
+</html>

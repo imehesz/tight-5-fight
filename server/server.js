@@ -325,6 +325,45 @@ async function getVenues(req, res, url) {
   json(res, 200, { page, pageCount, total, rows });
 }
 
+// GET /stats?pwd=...
+//   -> { generatedAt, games: [{ gameId, label, volume, topPlayed, topBeat,
+//                                topVenues }] }
+// Read-only aggregates for website-for-all/admin.html: play volume per
+// recency window plus the top-5 slice of each board, one block per game.
+// Guarded by the shared secret in config.adminPwd — admin.html forwards the
+// pwd= it was opened with and bounces to index.html on a 403, so the real
+// value never appears in the public page source. The secret is set only in
+// the gitignored config.dev.js / config.prod.js (config.js is public);
+// unset means the endpoint is disabled, not open.
+const GAME_LABELS = { tight5: "JAX" }; // historical id — JAX shipped first, as plain "tight5"
+
+async function getStats(req, res, url) {
+  if (!config.adminPwd || url.searchParams.get("pwd") !== config.adminPwd) {
+    return json(res, 403, { error: "forbidden" });
+  }
+  const games = [];
+  for (const gameId of config.games) {
+    games.push({
+      gameId,
+      label: GAME_LABELS[gameId] || gameId.toUpperCase(),
+      volume: await db.playVolume(gameId),
+      topPlayed: (await db.boardPage(gameId, 0, 5)).map((r) => ({
+        character: r.character_name,
+        plays: Number(r.plays),
+      })),
+      topBeat: (await db.beatPage(gameId, 0, 5)).map((r) => ({
+        character: r.character_name,
+        kos: Number(r.kos),
+      })),
+      topVenues: (await db.venuePage(gameId, 0, 5)).map((r) => ({
+        venue: r.venue_name,
+        entries: Number(r.entries),
+      })),
+    });
+  }
+  json(res, 200, { generatedAt: new Date().toISOString(), games });
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const route = url.pathname;
@@ -339,6 +378,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "/play") return await postPlay(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
+    if (req.method === "GET" && route === "/stats") return await getStats(req, res, url);
     if (req.method === "GET" && route === "/health") return json(res, 200, { ok: true });
   } catch (e) {
     console.error(`${req.method} ${route} failed:`, e);

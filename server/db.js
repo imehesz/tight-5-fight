@@ -236,6 +236,43 @@ async function venueSize(gameId) {
   return Number(row ? row.n : 0);
 }
 
+// ---------------------------------------------------------------- stats
+// Play volume for admin.html: total plays and distinct players, per recency
+// window and all-time. The window expressions are inlined per dialect and
+// contain no user input. "today" is since local midnight on MySQL (CURDATE)
+// but since UTC midnight on SQLite — dev-only, so the drift doesn't matter.
+const SINCE = {
+  sqlite: {
+    today: "datetime('now','start of day')",
+    week: "datetime('now','-7 days')",
+    month: "datetime('now','-30 days')",
+  },
+  mysql: {
+    today: "CURDATE()",
+    week: "NOW() - INTERVAL 7 DAY",
+    month: "NOW() - INTERVAL 30 DAY",
+  },
+};
+
+async function playVolume(gameId) {
+  const out = {};
+  for (const window of ["today", "week", "month"]) {
+    const row = await get(
+      `SELECT COUNT(*) AS plays, COUNT(DISTINCT player_uuid) AS players
+         FROM plays
+        WHERE game_id = ? AND created_at >= ${SINCE[DRIVER][window]}`,
+      [gameId]
+    );
+    out[window] = { plays: Number(row.plays), players: Number(row.players) };
+  }
+  const row = await get(
+    "SELECT COUNT(*) AS plays, COUNT(DISTINCT player_uuid) AS players FROM plays WHERE game_id = ?",
+    [gameId]
+  );
+  out.allTime = { plays: Number(row.plays), players: Number(row.players) };
+  return out;
+}
+
 // ---------------------------------------------------------------- board
 // One page of the character-popularity board, most-played first. Ties break
 // on name so paging is stable (an unstable sort can drop or repeat a row
@@ -298,4 +335,5 @@ module.exports = {
   beatSize,
   venuePage,
   venueSize,
+  playVolume,
 };

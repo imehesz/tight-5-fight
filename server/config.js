@@ -16,10 +16,16 @@ const base = {
   // Games allowed to write to the leaderboard. A gameId outside this list
   // is rejected before it reaches SQL, so a typo can't quietly start a
   // parallel board that nobody ever looks at.
-  games: ["tight5", "celebs"],
+  games: ["tight5", "celebs", "daytona"],
 
   // Rows per leaderboard page. Must match PAGE_SIZE in scenes/scoreboard.gd.
   pageSize: 10,
+
+  // Shared secret for the read-only /stats endpoint behind admin.html. The
+  // page forwards its pwd= query param. This file is public, so the real
+  // value lives ONLY in the gitignored config.dev.js / config.prod.js;
+  // while it is null here, /stats answers 403 to everything.
+  adminPwd: null,
 
   limits: {
     // A player may bank at most one play per this many seconds. Enforced
