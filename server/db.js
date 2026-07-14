@@ -273,6 +273,24 @@ async function playVolume(gameId) {
   return out;
 }
 
+// Whole-ecosystem headline numbers, every game combined. plays counts rows
+// (one per FINISHED run); beatdowns/venue_visits carry per-run counts, so
+// their totals are SUM(count), not row counts. Scalar subqueries keep it one
+// round-trip and MySQL 5.5-safe.
+async function ecosystemTotals() {
+  const row = await get(
+    `SELECT
+       (SELECT COUNT(*)                FROM plays)        AS runs,
+       (SELECT COALESCE(SUM(count),0)  FROM beatdowns)    AS npcs,
+       (SELECT COALESCE(SUM(count),0)  FROM venue_visits) AS venues`
+  );
+  return {
+    runs: Number(row.runs),
+    npcsBeaten: Number(row.npcs),
+    venueFights: Number(row.venues),
+  };
+}
+
 // ---------------------------------------------------------------- board
 // One page of the character-popularity board, most-played first. Ties break
 // on name so paging is stable (an unstable sort can drop or repeat a row
@@ -336,4 +354,5 @@ module.exports = {
   venuePage,
   venueSize,
   playVolume,
+  ecosystemTotals,
 };

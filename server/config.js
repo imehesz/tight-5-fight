@@ -16,7 +16,7 @@ const base = {
   // Games allowed to write to the leaderboard. A gameId outside this list
   // is rejected before it reaches SQL, so a typo can't quietly start a
   // parallel board that nobody ever looks at.
-  games: ["tight5", "celebs", "daytona"],
+  games: ["tight5", "celebs", "daytona", "killers"],
 
   // Rows per leaderboard page. Must match PAGE_SIZE in scenes/scoreboard.gd.
   pageSize: 10,

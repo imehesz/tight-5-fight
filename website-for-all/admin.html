@@ -57,6 +57,40 @@
     color: var(--gold);
   }
 
+  /* Ecosystem totals: the shareable headline row. Same tile grammar as the
+     game panels (dim label over a big gold figure), one tile per number. */
+  .totals {
+    margin: 26px auto 0;
+    width: 100%;
+    max-width: 960px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 16px;
+  }
+  .tile {
+    background: var(--panel);
+    border: 3px solid var(--pink);
+    border-radius: 10px;
+    box-shadow: 0 0 14px #ff59cc55, inset 0 0 30px #0007;
+    padding: 20px 12px 22px;
+  }
+  .tile .label {
+    font-size: clamp(9px, 2.3vw, 11px);
+    color: var(--dim);
+    text-shadow: 1px 1px 0 #000;
+  }
+  .tile .value {
+    margin-top: 14px;
+    font-size: clamp(18px, 4.5vw, 30px);
+    color: var(--gold);
+    text-shadow: 3px 3px 0 #000, 0 0 14px #ffd96688;
+  }
+  .totals-caption {
+    grid-column: 1 / -1;
+    font-size: clamp(8px, 2vw, 9px);
+    color: var(--dim);
+  }
+
   .games {
     margin: 26px auto 0;
     width: 100%;
@@ -135,6 +169,7 @@
 <h1>TIGHT 5 FIGHT!<br>STATS</h1>
 <p class="stamp" id="stamp"></p>
 <p id="status">LOADING…</p>
+<section class="totals" id="totals"></section>
 <main class="games" id="games"></main>
 <a class="back" href="index.html">◀ BACK TO THE MARQUEE</a>
 
@@ -197,6 +232,28 @@
       document.getElementById("status").remove();
       document.getElementById("stamp").textContent =
         "GENERATED " + new Date(data.generatedAt).toLocaleString();
+
+      // Ecosystem headline row (guarded: a backend older than this page
+      // simply has no totals block, and the row stays empty).
+      if (data.totals) {
+        var totalsEl = document.getElementById("totals");
+        [
+          ["RUNS FINISHED", data.totals.runs],
+          ["NPCs BEAT UP", data.totals.npcsBeaten],
+          ["VENUE FIGHTS", data.totals.venueFights],
+          ["ALL COMEDIANS", data.totals.comedians],
+          ["ALL VENUES", data.totals.venues],
+        ].forEach(function (t) {
+          if (t[1] == null) return; // field absent on an older backend
+          var tile = el("div", "tile");
+          tile.appendChild(el("div", "label", t[0]));
+          tile.appendChild(el("div", "value", Number(t[1]).toLocaleString("en-US")));
+          totalsEl.appendChild(tile);
+        });
+        totalsEl.appendChild(el("p", "totals-caption",
+          "ALL GAMES COMBINED · ALL TIME"));
+      }
+
       var main = document.getElementById("games");
       data.games.forEach(function (g) {
         var v = g.volume;

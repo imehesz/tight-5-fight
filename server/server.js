@@ -326,8 +326,12 @@ async function getVenues(req, res, url) {
 }
 
 // GET /stats?pwd=...
-//   -> { generatedAt, games: [{ gameId, label, volume, topPlayed, topBeat,
-//                                topVenues }] }
+//   -> { generatedAt,
+//        totals: { runs, npcsBeaten, venueFights,     // all games combined
+//                  comedians, venues },               // roster slots summed
+//                                                     // (Tony is in 2 editions
+//                                                     //  and counts twice)
+//        games: [{ gameId, label, volume, topPlayed, topBeat, topVenues }] }
 // Read-only aggregates for website-for-all/admin.html: play volume per
 // recency window plus the top-5 slice of each board, one block per game.
 // Guarded by the shared secret in config.adminPwd — admin.html forwards the
@@ -340,6 +344,13 @@ const GAME_LABELS = { tight5: "JAX" }; // historical id — JAX shipped first, a
 async function getStats(req, res, url) {
   if (!config.adminPwd || url.searchParams.get("pwd") !== config.adminPwd) {
     return json(res, 403, { error: "forbidden" });
+  }
+  const totals = await db.ecosystemTotals();
+  totals.comedians = 0;
+  totals.venues = 0;
+  for (const r of rosters.values()) {
+    totals.comedians += r.characters ? r.characters.size : 0;
+    totals.venues += r.venues ? r.venues.size : 0;
   }
   const games = [];
   for (const gameId of config.games) {
@@ -361,7 +372,7 @@ async function getStats(req, res, url) {
       })),
     });
   }
-  json(res, 200, { generatedAt: new Date().toISOString(), games });
+  json(res, 200, { generatedAt: new Date().toISOString(), totals, games });
 }
 
 const server = http.createServer(async (req, res) => {
