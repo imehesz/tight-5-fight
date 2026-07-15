@@ -16,6 +16,7 @@ var _health_fill: ColorRect
 var _lives_label: Label
 var _bosses_label: Label
 var _score_label: Label
+var _streak_label: Label
 var _venue_label: Label
 var _center_label: Label
 var _portrait: TextureRect
@@ -77,6 +78,15 @@ func _ready() -> void:
 	_score_label.offset_left = -174.0
 	_score_label.offset_right = -10.0
 	_score_label.offset_top = 8.0
+	# KO streak chip right under the score, pinned to the LIVE right edge the
+	# same way. Shown only while a streak is alive (see _process).
+	_streak_label = _label(Vector2(0, 26), 8, 164, HORIZONTAL_ALIGNMENT_RIGHT)
+	_streak_label.modulate = Color(1.0, 0.85, 0.4)
+	_streak_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_streak_label.offset_left = -174.0
+	_streak_label.offset_right = -10.0
+	_streak_label.offset_top = 26.0
+	_streak_label.visible = false
 	# Banner and announcements center on the LIVE viewport, not design 320 —
 	# a design-centered box sits visibly left of center on wide phones.
 	_venue_label = _label(Vector2(0, 8), 8, 300, HORIZONTAL_ALIGNMENT_CENTER)
@@ -94,9 +104,17 @@ func _ready() -> void:
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.lives_changed.connect(_on_lives_changed)
 	GameState.bosses_changed.connect(_on_bosses_changed)
+	GameState.streak_changed.connect(_on_streak_changed)
 	_on_score_changed(GameState.score)
 	_on_lives_changed(GameState.lives)
 	_on_bosses_changed(GameState.bosses_defeated)
+	_on_streak_changed(GameState.streak, GameState.streak_mult())
+
+
+## The streak window can lapse with no KO to signal it, so visibility is
+## polled here rather than driven by streak_changed alone.
+func _process(_delta: float) -> void:
+	_streak_label.visible = GameState.streak_active()
 
 
 func bind_player(p: Fighter) -> void:
@@ -145,6 +163,10 @@ func _on_lives_changed(l: int) -> void:
 
 func _on_bosses_changed(n: int) -> void:
 	_bosses_label.text = "BOSSES: %d" % n
+
+
+func _on_streak_changed(_count: int, mult: int) -> void:
+	_streak_label.text = "STREAK x%d" % mult
 
 
 func _label(pos: Vector2, font_size: int, width := 0.0,

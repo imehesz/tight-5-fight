@@ -9,16 +9,16 @@ const FONT_SIZE := 8
 
 
 static func spawn(host: Node, pos: Vector2, text_value: String,
-		color := Color.WHITE, bubble := false) -> void:
+		color := Color.WHITE, bubble := false, font_size := FONT_SIZE) -> void:
 	if not is_instance_valid(host) or not host.is_inside_tree():
 		return
 	var lbl := FloatingText.new()
 	lbl.text = text_value
 	lbl.z_index = 50
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", FONT_SIZE)
+	lbl.add_theme_font_size_override("font_size", font_size)
 	# Press Start 2P is monospace: width == chars * size.
-	var width := text_value.length() * FONT_SIZE
+	var width := text_value.length() * font_size
 	if bubble:
 		lbl.add_theme_color_override("font_color", Color(0.05, 0.05, 0.08))
 		var sb := StyleBoxFlat.new()

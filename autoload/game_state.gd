@@ -6,6 +6,7 @@ signal score_changed(new_score: int)
 signal lives_changed(new_lives: int)
 signal bottles_changed(new_count: int)
 signal bosses_changed(new_count: int)
+signal streak_changed(count: int, mult: int)
 ## Combat juice: gameplay scenes listen and bump their camera/root by this
 ## many pixels (see street.gd / venue.gd). Scenes own their cameras, so shake
 ## is requested through the singleton rather than reaching into the scene.
@@ -54,6 +55,11 @@ const BOSS_EVERY := 3
 const MAX_BOTTLES := 3
 ## Each boss cleared makes every future enemy 10% stronger (health + damage).
 const STRENGTH_PER_BOSS := 0.10
+## KO streak: consecutive KOs within STREAK_WINDOW_MS of each other multiply
+## KO score, up to x STREAK_MAX_MULT. Taking a hit resets it. Applies ONLY to
+## KO score — venue clear and boss survival bonuses stay on plain add_score().
+const STREAK_WINDOW_MS := 5000
+const STREAK_MAX_MULT := 5
 
 ## Looping background tracks come from the active game's manifest (main +
 ## venue). SFX are shared engine chrome. See _music_tracks()/_setup_audio().
@@ -91,6 +97,11 @@ var run_kos: Dictionary = {}
 ## feed the global VENUES board. The same name can recur: the street cycles
 ## the venue list, so a deep run walks past The Giggle Shack more than once.
 var run_venues: Dictionary = {}
+## Current KO streak and the tick (Time.get_ticks_msec, unaffected by
+## hitstop's Engine.time_scale) the window closes at; expired lazily in
+## bank_ko_score()/streak_active(), so no timer to manage.
+var streak := 0
+var _streak_deadline_ms := 0
 var music_volume := 0.8
 var sfx_volume := 0.8
 ## Player's chosen outfit color (index into CharacterFactory.OUTFITS). Worn on
@@ -249,6 +260,7 @@ func start_new_game(character_index: int) -> void:
 	last_run_rank = -1
 	run_kos = {}
 	run_venues = {}
+	reset_streak()  # a new run never inherits a streak
 	change_scene(SCENE_STREET)
 
 
@@ -336,6 +348,37 @@ func mark_pending_venue_cleared() -> void:
 func add_score(points: int) -> void:
 	score += points
 	score_changed.emit(score)
+
+
+# ---------------------------------------------------------------- KO streak
+func streak_mult() -> int:
+	return clampi(streak, 1, STREAK_MAX_MULT)
+
+
+## True while a streak worth showing is alive (used by the HUD chip).
+func streak_active() -> bool:
+	return streak >= 2 and Time.get_ticks_msec() <= _streak_deadline_ms
+
+
+## Bank one KO: lazily expire the window, grow the streak, pay the
+## multiplied score. Returns the multiplier used so the caller can celebrate.
+func bank_ko_score(base_points: int) -> int:
+	var now := Time.get_ticks_msec()
+	if now > _streak_deadline_ms:
+		streak = 0
+	streak += 1
+	_streak_deadline_ms = now + STREAK_WINDOW_MS
+	var mult := streak_mult()
+	add_score(base_points * mult)
+	streak_changed.emit(streak, mult)
+	return mult
+
+
+func reset_streak() -> void:
+	if streak == 0:
+		return
+	streak = 0
+	streak_changed.emit(0, 1)
 
 
 ## Bank one KO for the beaten-up comedian. Enemy._die() calls this; a fighter

@@ -13,6 +13,14 @@ const INSULTS := [
 	"Is THIS the show?",
 ]
 
+## Streak celebration lines, indexed by multiplier (0/1 unused). The
+## multiplier is capped at x5 (GameState.STREAK_MAX_MULT), so no overrun —
+## and "TIGHT FIVE!" repeats on every further KO in the window, intended.
+const STREAK_SHOUTS := ["", "", "ON A ROLL! x2", "CRUSHING IT! x3",
+		"KILLING IT! x4", "TIGHT FIVE! x5"]
+## 1.5x the default floating-text size — the celebration should pop.
+const STREAK_SHOUT_FONT := 12
+
 var aggressive := true
 var provoked := false
 var target: Node2D
@@ -136,10 +144,16 @@ func take_hit(damage: float, from_x: float) -> void:
 
 func _die() -> void:
 	_bar_bg.visible = false
-	GameState.add_score(score_value)
+	var mult := GameState.bank_ko_score(score_value)
 	GameState.count_ko(char_name)
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -90),
-			"+%d" % score_value, Color(0.6, 1.0, 0.6))
+			"+%d" % (score_value * mult), Color(0.6, 1.0, 0.6))
+	if mult > 1:
+		# 34px above the +N popup: the 12px shout plus its thick outline needs
+		# more clearance than the default 8px texts do (both rise in lockstep,
+		# so the gap holds for the whole float).
+		FloatingText.spawn(get_parent(), global_position + Vector2(0, -124),
+				STREAK_SHOUTS[mult], Color(1.0, 0.85, 0.4), false, STREAK_SHOUT_FONT)
 	super()
 	# KO launch: fly backward away from the killer, arc up then back down to
 	# the ground line this enemy stood on, tipping over while airborne. Safe to

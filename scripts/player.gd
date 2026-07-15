@@ -18,6 +18,14 @@ func _init() -> void:
 	outfit = GameState.outfit
 
 
+## THE "player got hit" hook — Phase 2's crowd boo goes in here too, don't
+## add a second override. Any damage (melee or bottle) breaks the KO streak;
+## death passes through here as well, so no separate death hook is needed.
+func take_hit(damage: float, from_x: float) -> void:
+	GameState.reset_streak()
+	super(damage, from_x)
+
+
 func _physics_process(delta: float) -> void:
 	if state == FState.DEAD:
 		return

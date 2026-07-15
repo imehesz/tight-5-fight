@@ -571,7 +571,7 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Mr. Anonymous",
+      "CharacterName": "Mr. Open Micer",
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/mr-anonymous.png",
@@ -579,7 +579,7 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Ms. Anonymous",
+      "CharacterName": "Ms. Open Micer",
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/ms-anonymous.png",
