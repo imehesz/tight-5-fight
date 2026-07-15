@@ -58,6 +58,8 @@ func _ready() -> void:
 	add_child(hud)
 	hud.set_venue_text("THE STREET")
 	add_child(TouchControls.new())
+	# Auto-disconnected when this scene is freed; no manual cleanup needed.
+	GameState.shake_requested.connect(_on_shake)
 
 	var saved: Dictionary = GameState.street_state
 	if saved.has("doors"):
@@ -304,6 +306,17 @@ func _cull_stragglers() -> void:
 	for b in get_tree().get_nodes_in_group("beer_pickups"):
 		if b.position.x < camera.position.x - 700.0:
 			b.queue_free()
+
+
+## Screen shake: MUST tween camera.offset, never camera.position — _process
+## overwrites position with the camera-follow code every frame. If a second
+## shake arrives mid-shake the new tween simply wins; both end at ZERO.
+func _on_shake(px: float) -> void:
+	var tw := create_tween()
+	for i in 4:
+		tw.tween_property(camera, "offset",
+				Vector2(randf_range(-px, px), randf_range(-px, px)), 0.04)
+	tw.tween_property(camera, "offset", Vector2.ZERO, 0.04)
 
 
 # ---------------------------------------------------------------- events

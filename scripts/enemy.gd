@@ -22,6 +22,12 @@ var attack_range := 42.0
 
 const BAR_W := 26.0
 
+## KO launch: how far back and how high a defeated heckler flies (px),
+## plus the tumble angle while airborne.
+const LAUNCH_DIST := 90.0
+const LAUNCH_RISE := 46.0
+const LAUNCH_TILT := 85.0
+
 var _cooldown_left := 1.0
 var _wander_dir := 0.0
 var _wander_left := 0.0
@@ -135,7 +141,21 @@ func _die() -> void:
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -90),
 			"+%d" % score_value, Color(0.6, 1.0, 0.6))
 	super()
-	var tw := create_tween()
-	tw.tween_interval(1.0)
-	tw.tween_property(self, "modulate:a", 0.0, 0.6)
-	tw.tween_callback(queue_free)
+	# KO launch: fly backward away from the killer, arc up then back down to
+	# the ground line this enemy stood on, tipping over while airborne. Safe to
+	# tween: _physics_process early-returns in DEAD, so nothing fights for
+	# control of position. The "defeated" animation keeps playing in flight.
+	var fly := create_tween()
+	fly.set_parallel(true)
+	fly.tween_property(self, "position:x", position.x + last_hit_dir * LAUNCH_DIST, 0.55) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	fly.tween_property(self, "rotation_degrees", last_hit_dir * LAUNCH_TILT, 0.4)
+	var arc := create_tween()
+	arc.tween_property(self, "position:y", position.y - LAUNCH_RISE, 0.22) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	arc.tween_property(self, "position:y", position.y, 0.33) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	var fade := create_tween()
+	fade.tween_interval(1.0)
+	fade.tween_property(self, "modulate:a", 0.0, 0.6)
+	fade.tween_callback(queue_free)

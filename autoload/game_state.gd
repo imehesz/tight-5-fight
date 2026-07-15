@@ -6,6 +6,10 @@ signal score_changed(new_score: int)
 signal lives_changed(new_lives: int)
 signal bottles_changed(new_count: int)
 signal bosses_changed(new_count: int)
+## Combat juice: gameplay scenes listen and bump their camera/root by this
+## many pixels (see street.gd / venue.gd). Scenes own their cameras, so shake
+## is requested through the singleton rather than reaching into the scene.
+signal shake_requested(pixels: float)
 
 const SCENE_SPLASH := "res://scenes/splash.tscn"
 const SCENE_MAIN_MENU := "res://scenes/main_menu.tscn"
@@ -360,6 +364,35 @@ func finish_run() -> void:
 func change_scene(path: String) -> void:
 	play_music("venue" if path == SCENE_VENUE else "main")
 	get_tree().call_deferred("change_scene_to_file", path)
+
+
+# ---------------------------------------------------------------- combat feel
+## Hitstop tuning: how long a normal hit freezes the game (real seconds) and
+## how far time slows during the freeze. Killing blows pass a longer duration
+## from the call site (see fighter.gd).
+const HITSTOP_TIME := 0.05
+const HITSTOP_SCALE := 0.05
+
+var _in_hitstop := false
+
+
+## Freeze the whole game briefly on a solid hit. Uses Engine.time_scale, so
+## physics, animations and tweens all pause together; the restore timer runs
+## on real time (ignore_time_scale) or it would never fire. The _in_hitstop
+## guard stops overlapping hits (two enemies hit at once) from stacking or
+## leaving time_scale broken.
+func hitstop(duration := HITSTOP_TIME, frozen_scale := HITSTOP_SCALE) -> void:
+	if _in_hitstop:
+		return
+	_in_hitstop = true
+	Engine.time_scale = frozen_scale
+	await get_tree().create_timer(duration, true, false, true).timeout
+	Engine.time_scale = 1.0
+	_in_hitstop = false
+
+
+func request_shake(pixels := 3.0) -> void:
+	shake_requested.emit(pixels)
 
 
 # ---------------------------------------------------------------- data access

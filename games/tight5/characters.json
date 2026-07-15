@@ -569,6 +569,22 @@
       "HeadSpritePath": "assets/heads/zack-malcomb.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Mr. Anonymous",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mr-anonymous.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Ms. Anonymous",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ms-anonymous.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
     }
   ]
 }

@@ -41,6 +41,8 @@ func _ready() -> void:
 	var banner := "VENUE %d" % _level
 	hud.set_venue_text(banner + ("  !! BOSS !!" if _boss_stage else ""))
 	add_child(TouchControls.new())
+	# Auto-disconnected when this scene is freed; no manual cleanup needed.
+	GameState.shake_requested.connect(_on_shake)
 	_spawn_player()
 
 	if _boss_stage:
@@ -147,6 +149,17 @@ func _spawn_next_enemy() -> void:
 	add_child(e)
 	_alive += 1
 	_spawned += 1
+
+
+## Screen shake: no Camera2D in the venue (static room), so bump the scene
+## root instead. The HUD and touch controls are CanvasLayers and correctly
+## stay still. A second shake mid-shake just wins; both end at ZERO.
+func _on_shake(px: float) -> void:
+	var tw := create_tween()
+	for i in 4:
+		tw.tween_property(self, "position",
+				Vector2(randf_range(-px, px), randf_range(-px, px)), 0.04)
+	tw.tween_property(self, "position", Vector2.ZERO, 0.04)
 
 
 # ---------------------------------------------------------------- outcomes

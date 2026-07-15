@@ -20,7 +20,11 @@ const PLANE_SCALE := 0.35
 ## tow rope leaves the tail, and where the pilot sits. Rough for now — tune.
 const TOW_ANCHOR := Vector2(215, -80)
 const PILOT_POS := Vector2(-68, -75)
-const PILOT_SCALE := 0.45
+## Pilot heads render at this rig-space width regardless of source size —
+## head files range from 48px pixel art to 2176px photos, so a flat scale
+## made some pilots giants. Same normalization fighter.gd applies, including
+## the roster's HeadScale zoom (big-hair crops shrink the face).
+const PILOT_HEAD_PX := 90.0
 const BANNER_SEGMENTS := 12
 const BANNER_H := 26.0
 const BANNER_GAP := 10.0
@@ -119,12 +123,15 @@ func _add_pilot() -> void:
 	var chars: Array = GameState.characters
 	if chars.is_empty():
 		return
-	var path := String(chars.pick_random().get("HeadSpritePath", ""))
+	var cfg: Dictionary = chars.pick_random()
+	var path := String(cfg.get("HeadSpritePath", ""))
 	if not ResourceLoader.exists(path):
 		return
 	_pilot = Sprite2D.new()
 	_pilot.texture = load(path)
-	_pilot.scale = Vector2(PILOT_SCALE, PILOT_SCALE)
+	var zoom := maxf(float(cfg.get("HeadScale", 1.0)), 0.1)
+	var s := zoom * PILOT_HEAD_PX / maxf(_pilot.texture.get_width(), 1.0)
+	_pilot.scale = Vector2(s, s)
 	_pilot.position = PILOT_POS
 	_rig.add_child(_pilot)  # after the plane sprite, so it rides fully on top
 

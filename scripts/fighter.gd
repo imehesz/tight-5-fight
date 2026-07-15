@@ -10,6 +10,13 @@ enum FState { IDLE, WALK, PUNCH, KICK, DUCK, HIT, DEAD }
 
 const PUNCH_DAMAGE := 10.0
 const KICK_DAMAGE := 16.0
+## Combat juice tuning: longer hitstop on a killing blow, the white-blink
+## flash on any hit, and the shake sizes for "player hurt" vs "somebody KO'd".
+const KILL_HITSTOP := 0.09
+const FLASH_COLOR := Color(6.0, 6.0, 6.0)
+const FLASH_FADE := 0.12
+const SHAKE_PLAYER_HURT := 3.0
+const SHAKE_KO := 4.0
 const STAND_BOX := Rect2(-8, -44, 16, 44)
 const DUCK_BOX := Rect2(-8, -26, 16, 26)
 ## Whole-fighter scale (boxes scale with it) and extra bobblehead scale for
@@ -49,6 +56,11 @@ var move_speed := 130.0
 var size_scale := 1.0
 var damage_scale := 1.0
 var facing := 1
+## Direction (+1/-1) the last hit should push this fighter — AWAY from the
+## attacker. Set first thing in take_hit(); needed because on a fatal hit the
+## knockback line is never reached (_die() returns first), yet the KO launch
+## in enemy.gd still needs the direction.
+var last_hit_dir := 1.0
 var state: FState = FState.IDLE
 var hurt_layer := 2   # collision layer bit value of our hurtbox
 var attack_mask := 4  # hurtbox layers our attacks connect with
@@ -221,17 +233,36 @@ func apply_locomotion(dir: float) -> void:
 func take_hit(damage: float, from_x: float) -> void:
 	if state == FState.DEAD:
 		return
+	last_hit_dir = signf(global_position.x - from_x)
+	if last_hit_dir == 0.0:
+		last_hit_dir = float(-facing)
+	flash()
+	if health - damage <= 0.0:
+		GameState.hitstop(KILL_HITSTOP)
+	else:
+		GameState.hitstop()
 	health = maxf(health - damage, 0.0)
 	health_changed.emit(health, max_health)
 	if health <= 0.0:
 		_die()
 		return
+	if self is Player:
+		GameState.request_shake(SHAKE_PLAYER_HURT)
 	state = FState.HIT
 	_set_hurt_rect(STAND_BOX)
 	hitbox.set_deferred("monitoring", false)
-	velocity.x = signf(global_position.x - from_x) * 60.0
+	velocity.x = last_hit_dir * 60.0
 	_play("hit")
 	GameState.play_sfx("hurt")
+
+
+## Blink the whole fighter (body + head + wheelchair) white for a moment.
+## Modulating self covers all child sprites; values above 1.0 saturate the
+## bright pixels toward white, which is exactly the arcade "hit blink".
+func flash() -> void:
+	modulate = FLASH_COLOR
+	var tw := create_tween()
+	tw.tween_property(self, "modulate", Color.WHITE, FLASH_FADE)
 
 
 func _die() -> void:
@@ -239,6 +270,7 @@ func _die() -> void:
 	velocity = Vector2.ZERO
 	hurtbox.set_deferred("collision_layer", 0)
 	hitbox.set_deferred("monitoring", false)
+	GameState.request_shake(SHAKE_KO)
 	_play("defeated")
 	GameState.play_sfx("defeat")
 	died.emit(self)
