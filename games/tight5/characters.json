@@ -102,6 +102,14 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "Brandon Follett",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/brandon-follett.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "Brian Thomas",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -127,7 +135,7 @@
     {
       "CharacterName": "Cheryl Redd",
       "HeadScale": 1,
-      "HeadOffsetY": 1,
+      "HeadOffsetY": 2,
       "HeadSpritePath": "assets/heads/cheryl-redd.png",
       "BodyType": "F",
       "SkinColor": "#e9c098"
@@ -200,6 +208,14 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/dean.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterName": "Deandre Stringer",
+      "HeadScale": 1,
+      "HeadOffsetY": 1,
+      "HeadSpritePath": "assets/heads/deandre-stringer.png",
       "BodyType": "M",
       "SkinColor": "#a0683c"
     },
@@ -290,6 +306,14 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "Joe Bressler",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/joseph-bressler.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "JPAW",
       "HeadScale": 1,
       "HeadOffsetY": 2,
@@ -310,6 +334,14 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/kenzo-west.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Kirk Torres",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/kirk-torres.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
@@ -410,10 +442,26 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "Ross Lougee",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ross-lougee.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "Scott Weys",
       "HeadScale": 1,
       "HeadOffsetY": 2,
       "HeadSpritePath": "assets/heads/scott-weys.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Scooter Jimmy",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/scooter-jimmy.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
@@ -496,6 +544,14 @@
       "HeadSpritePath": "assets/heads/the-last-leroy.png",
       "BodyType": "M",
       "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterName": "Travis Santo",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/travis-santo.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
     },
     {
       "CharacterName": "TK Turner",

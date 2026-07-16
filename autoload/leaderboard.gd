@@ -88,6 +88,7 @@ func record_play() -> void:
 	var character := String(GameState.selected_character_data().get("CharacterName", ""))
 	var kos: Dictionary = GameState.run_kos.duplicate()
 	var venues: Dictionary = GameState.run_venues.duplicate()
+	var run_score := GameState.score
 	var game_id := GameState.active_game
 	if character == "":
 		return
@@ -102,6 +103,9 @@ func record_play() -> void:
 			"gameId": game_id,
 			"character": character,
 			"uuid": _player_uuid,
+			# This run's final score, for the TOP SCORE board (the server
+			# keeps MAX(score) per character). Old servers just ignore it.
+			"score": run_score,
 		}
 		# Who this run beat up, for the MOST BEAT UP board. Omitted when empty
 		# so the payload (and the server's validation) stays the old shape.

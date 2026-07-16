@@ -225,8 +225,9 @@ async function postPlayer(req, res) {
   json(res, 200, { uuid });
 }
 
-// POST /play { gameId, character, uuid } -> { ok: true }
-// Records one play. Called when a run ENDS (see GameState.finish_run), so a
+// POST /play { gameId, character, uuid, score? } -> { ok: true }
+// Records one play (with the run's final score, feeding the per-character
+// TOP SCORE board). Called when a run ENDS (see GameState.finish_run), so a
 // fake play costs a real run's worth of time.
 async function postPlay(req, res) {
   const ip = clientIp(req);
@@ -237,8 +238,15 @@ async function postPlay(req, res) {
     return json(res, 400, { error: e.message });
   }
 
-  const { gameId, character, uuid, kos, venues } = body;
+  const { gameId, character, uuid, kos, venues, score } = body;
   if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
+  // Optional (older clients don't send it). Clamped, not trusted: like the
+  // rest of this board there are no names attached, so a lie only pollutes
+  // the vanity number — and its rows can be deleted by player_uuid.
+  if (score !== undefined && typeof score !== "number") {
+    return json(res, 400, { error: "bad score" });
+  }
+  const runScore = Math.min(Math.max(Math.floor(score || 0), 0), 99999999);
   if (typeof uuid !== "string" || !/^[0-9a-f-]{36}$/i.test(uuid)) {
     return json(res, 400, { error: "bad uuid" });
   }
@@ -260,7 +268,7 @@ async function postPlay(req, res) {
     return json(res, 429, { error: "slow down", retryAfterSec: config.limits.playCooldownSec - age });
   }
 
-  await db.recordPlay({ gameId, characterName: character, playerUuid: uuid });
+  await db.recordPlay({ gameId, characterName: character, playerUuid: uuid, score: runScore });
   if (Object.keys(koCounts).length > 0) {
     await db.recordBeatdowns({ gameId, playerUuid: uuid, counts: koCounts });
   }
@@ -272,9 +280,10 @@ async function postPlay(req, res) {
 }
 
 // GET /leaderboard?gameId=tight5&page=0
-//   -> { page, pageCount, total, rows:     [{ rank, character, plays }],
+//   -> { page, pageCount, total, rows:     [{ rank, character, best, plays }],
 //                          beatTotal, beatRows: [{ rank, character, kos }] }
-// Two boards, one pager: rows ranks most-played, beatRows ranks most-beat-up,
+// Two boards, one pager: rows ranks top-score-per-comedian (plays rides
+// along for older clients and the stats page), beatRows ranks most-beat-up,
 // and page/pageCount span whichever board is longer (the short one just runs
 // out of rows on the last pages). Rank is derived from the offset because
 // MySQL 5.5 has no window functions. Ties therefore get distinct consecutive
@@ -293,6 +302,7 @@ async function getLeaderboard(req, res, url) {
   const rows = (await db.boardPage(gameId, offset, pageSize)).map((r, i) => ({
     rank: offset + i + 1,
     character: r.character_name,
+    best: Number(r.best),
     plays: Number(r.plays),
   }));
   const beatRows = (await db.beatPage(gameId, offset, pageSize)).map((r, i) => ({
@@ -360,6 +370,7 @@ async function getStats(req, res, url) {
       volume: await db.playVolume(gameId),
       topPlayed: (await db.boardPage(gameId, 0, 5)).map((r) => ({
         character: r.character_name,
+        best: Number(r.best),
         plays: Number(r.plays),
       })),
       topBeat: (await db.beatPage(gameId, 0, 5)).map((r) => ({

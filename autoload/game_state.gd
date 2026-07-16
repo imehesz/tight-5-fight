@@ -76,6 +76,12 @@ var _settings_file := ""
 
 var characters: Array = []
 var venues: Array = []
+## Per-run shuffled indices into `venues`: every run deals the venue list in
+## a fresh random order (fair exposure for every venue — ad space included —
+## instead of the json order always winning). Street door spawns walk this
+## via venue_data_for_index; it must stay stable within a run, because the
+## street's door index is saved/restored across venue visits.
+var _venue_order: Array = []
 var selected_character := 0
 var score := 0
 var lives := 1
@@ -260,6 +266,7 @@ func start_new_game(character_index: int) -> void:
 	last_run_rank = -1
 	run_kos = {}
 	run_venues = {}
+	_shuffle_venues()  # every run sees the venues in a fresh order
 	reset_streak()  # a new run never inherits a streak
 	change_scene(SCENE_STREET)
 
@@ -472,7 +479,16 @@ func enemy_characters(count: int) -> Array:
 func venue_data_for_index(i: int) -> Dictionary:
 	if venues.is_empty():
 		return {"VenueName": "The Void", "ExteriorSpritePath": "", "InteriorSpritePath": ""}
-	return venues[i % venues.size()]
+	# Guard for any path that reaches here without start_new_game (and for a
+	# reloaded venue list changing size): deal a fresh order rather than crash.
+	if _venue_order.size() != venues.size():
+		_shuffle_venues()
+	return venues[_venue_order[i % venues.size()]]
+
+
+func _shuffle_venues() -> void:
+	_venue_order = range(venues.size())
+	_venue_order.shuffle()
 
 
 func current_venue_data() -> Dictionary:

@@ -2,9 +2,9 @@ extends MenuBase
 ## Leaderboard, three tabs:
 ##   LOCAL  — this device's high scores (user://<game>_highscores.json).
 ##   GLOBAL — two boards side by side (server/server.js; see
-##            autoload/leaderboard.gd): MOST PLAYED counts each character's
-##            recorded runs, MOST BEAT UP counts how many times each was
-##            KO'd as an enemy. One pager drives both panels.
+##            autoload/leaderboard.gd): TOP SCORE shows the highest score
+##            ever posted with each character, MOST BEAT UP counts how many
+##            times each was KO'd as an enemy. One pager drives both panels.
 ##   VENUES — one board: which venue doors players walk through the most,
 ##            counted per run alongside the KO tally.
 ## All tabs are paged 10 rows at a time. LOCAL is shown first and never
@@ -283,7 +283,7 @@ func _on_board_loaded(data: Dictionary) -> void:
 	var split := HBoxContainer.new()
 	split.alignment = BoxContainer.ALIGNMENT_CENTER
 	split.add_theme_constant_override("separation", PANEL_GAP)
-	split.add_child(_board_panel("MOST PLAYED", rows, "plays"))
+	split.add_child(_board_panel("TOP SCORE", rows, "best"))
 	split.add_child(_board_panel("MOST BEAT UP", beat_rows, "kos"))
 	_rows.add_child(split)
 
@@ -350,7 +350,7 @@ func _venue_row(r: Dictionary) -> HBoxContainer:
 
 ## One half of the global tab: a small gold header over up to ROWS_PER_PAGE
 ## rows. count_key names the number the server row carries for this board
-## ("plays" or "kos"). A panel past the end of its own board (the pager spans
+## ("best" or "kos"). A panel past the end of its own board (the pager spans
 ## the longer of the two) just says so.
 func _board_panel(title: String, rows: Array, count_key: String) -> VBoxContainer:
 	var panel := VBoxContainer.new()
@@ -364,14 +364,17 @@ func _board_panel(title: String, rows: Array, count_key: String) -> VBoxContaine
 	return panel
 
 
-## | rank | count | head | name | — see PANEL_W for the width budget.
+## | rank | count | head | name | — see PANEL_W for the width budget. Scores
+## run bigger than KO counts, so the TOP SCORE panel trades name width for a
+## wider number cell (both variants still sum to PANEL_W).
 func _panel_row(r: Dictionary, count_key: String) -> HBoxContainer:
 	var character := String(r.get("character", "?"))
+	var count_w := 64 if count_key == "best" else 46
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	row.add_child(_cell("%d." % int(r.get("rank", 0)), 28,
 		HORIZONTAL_ALIGNMENT_RIGHT, TEXT, GLOBAL_ROW_HEIGHT))
-	row.add_child(_cell("%d" % int(r.get(count_key, 0)), 46,
+	row.add_child(_cell("%d" % int(r.get(count_key, 0)), count_w,
 		HORIZONTAL_ALIGNMENT_RIGHT, YOU, GLOBAL_ROW_HEIGHT))
 
 	var head := TextureRect.new()
@@ -381,5 +384,5 @@ func _panel_row(r: Dictionary, count_key: String) -> HBoxContainer:
 	head.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(head)
 
-	row.add_child(_cell(character, 162, HORIZONTAL_ALIGNMENT_LEFT, TEXT, GLOBAL_ROW_HEIGHT))
+	row.add_child(_cell(character, 208 - count_w, HORIZONTAL_ALIGNMENT_LEFT, TEXT, GLOBAL_ROW_HEIGHT))
 	return row

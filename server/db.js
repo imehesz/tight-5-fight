@@ -33,6 +33,7 @@ const SCHEMA = {
       game_id        TEXT NOT NULL,
       character_name TEXT NOT NULL,
       player_uuid    TEXT NOT NULL,
+      score          INTEGER NOT NULL DEFAULT 0,
       created_at     TEXT NOT NULL DEFAULT (datetime('now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_board ON plays (game_id, character_name)`,
@@ -77,6 +78,7 @@ const SCHEMA = {
       game_id        VARCHAR(32) NOT NULL,
       character_name VARCHAR(64) NOT NULL,
       player_uuid    CHAR(36)    NOT NULL,
+      score          INT         NOT NULL DEFAULT 0,
       created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_board (game_id, character_name),
@@ -134,6 +136,23 @@ async function init() {
   } else {
     throw new Error(`unknown db driver "${DRIVER}"`);
   }
+  await migrate();
+}
+
+// Idempotent column additions for databases created before the column
+// existed (CREATE TABLE IF NOT EXISTS never touches an existing table).
+// Neither MySQL 5.5 nor SQLite has ADD COLUMN IF NOT EXISTS, so the
+// duplicate-column error on re-runs is the expected no-op signal.
+async function migrate() {
+  const alters = ["ALTER TABLE plays ADD COLUMN score INT NOT NULL DEFAULT 0"];
+  for (const sql of alters) {
+    try {
+      if (DRIVER === "sqlite") sqlite.exec(sql);
+      else await pool.query(sql);
+    } catch (e) {
+      if (!/duplicate column/i.test(e.message)) throw e;
+    }
+  }
 }
 
 // Tiny helpers so every query reads the same regardless of driver. Note
@@ -180,10 +199,10 @@ async function secondsSinceLastPlay(uuid) {
   return row ? Number(row.age) : null;
 }
 
-async function recordPlay({ gameId, characterName, playerUuid }) {
+async function recordPlay({ gameId, characterName, playerUuid, score }) {
   await run(
-    "INSERT INTO plays (game_id, character_name, player_uuid) VALUES (?, ?, ?)",
-    [gameId, characterName, playerUuid]
+    "INSERT INTO plays (game_id, character_name, player_uuid, score) VALUES (?, ?, ?, ?)",
+    [gameId, characterName, playerUuid, score || 0]
   );
 }
 
@@ -292,17 +311,19 @@ async function ecosystemTotals() {
 }
 
 // ---------------------------------------------------------------- board
-// One page of the character-popularity board, most-played first. Ties break
-// on name so paging is stable (an unstable sort can drop or repeat a row
-// across pages). Rank is not in the SQL — MySQL 5.5 has no window
-// functions — so server.js derives it from the offset.
+// One page of the character board, ranked by the highest score anyone has
+// posted with that comedian (the play count still rides along — the admin
+// stats page and older clients read it). Ties break on plays then name so
+// paging is stable (an unstable sort can drop or repeat a row across
+// pages). Rank is not in the SQL — MySQL 5.5 has no window functions — so
+// server.js derives it from the offset.
 async function boardPage(gameId, offset, limit) {
   return all(
-    `SELECT character_name, COUNT(*) AS plays
+    `SELECT character_name, COUNT(*) AS plays, MAX(score) AS best
        FROM plays
       WHERE game_id = ?
       GROUP BY character_name
-      ORDER BY plays DESC, character_name ASC
+      ORDER BY best DESC, plays DESC, character_name ASC
       LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
     [gameId]
   );
