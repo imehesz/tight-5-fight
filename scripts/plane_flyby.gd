@@ -8,6 +8,12 @@ extends Node2D
 ## frees itself once it's past the far one. The looping engine drone is a
 ## child of this node, so it dies with the plane — and with the whole street
 ## scene when the player enters a venue.
+##
+## Payload: every plane visibly carries a bomb slung under its belly, so the
+## player can't read the drop in advance. Each flyby secretly rolls what gets
+## released near the player — the bomb itself (35%), a GOOD SET BOX pushed
+## out while the bomb stays hooked (35%), or nothing (30%). The falling
+## payload is a PlaneDrop, spawned as a world-space sibling.
 
 const SPEED := 140.0  # a hair above the player's 140 — you can't pace it
 const HALF_W := 320.0  # design viewport is 640x360, camera-centered
@@ -32,6 +38,12 @@ const WAVE_SPEED := 7.0
 const WAVE_AMP := 2.5
 const BANNER_CLOTH := Color(0.96, 0.94, 0.88, 0.95)
 const BANNER_INK := Color(0.75, 0.1, 0.12)
+## Source-pixel point on the plane art where the bomb hangs (belly, roughly
+## mid-fuselage) and its on-screen width. Tune PAYLOAD_ANCHOR to reposition.
+const PAYLOAD_ANCHOR := Vector2(0, 88)
+const PAYLOAD_W := 66.0
+const BOMB_CHANCE := 0.35
+const BOX_CHANCE := 0.35
 
 var banner_text := ""
 var camera: Camera2D  # set by the spawner before add_child
@@ -47,6 +59,10 @@ var _banner_w := 120.0
 var _banner_x0 := 0.0  # trailing-signed x where the cloth attaches
 var _engine: AudioStreamPlayer
 var _pilot: Sprite2D
+var _payload: Sprite2D
+var _drop_kind := ""  # "bomb" | "box" | "" (dud run, carries it the whole way)
+var _dropped := false
+var _drop_off := randf_range(-100.0, 100.0)  # camera-local landing target x
 var _look_timer := randf_range(0.8, 2.5)
 var _t := randf() * TAU
 var _exit_x := 0.0
@@ -69,8 +85,15 @@ func _ready() -> void:
 		_sprite.texture = _frames[0]
 	_rig.add_child(_sprite)
 	_add_pilot()
+	_add_payload()
 	_build_banner()
 	add_child(_rig)
+
+	var roll := randf()
+	if roll < BOMB_CHANCE:
+		_drop_kind = "bomb"
+	elif roll < BOMB_CHANCE + BOX_CHANCE:
+		_drop_kind = "box"
 
 	_engine = AudioStreamPlayer.new()
 	_engine.bus = "SFX"
@@ -109,6 +132,14 @@ func _process(delta: float) -> void:
 	_wave_banner()
 	# Engine hum fades in from the edge, peaks overhead, fades back out.
 	var rel_x := position.x - camera.global_position.x
+
+	if not _dropped and _drop_kind != "":
+		# Release upwind of the target so forward momentum carries the
+		# payload onto it: the bomb flies a fair arc, the box barely drifts.
+		var lead := 110.0 if _drop_kind == "bomb" else 60.0
+		if _dir * (rel_x - _drop_off) >= -lead:
+			_drop()
+
 	if _engine.playing:
 		var presence: float = clampf(1.15 - absf(rel_x) / _exit_x, 0.05, 1.0)
 		_engine.volume_db = linear_to_db(presence * 0.9)
@@ -134,6 +165,39 @@ func _add_pilot() -> void:
 	_pilot.scale = Vector2(s, s)
 	_pilot.position = PILOT_POS
 	_rig.add_child(_pilot)  # after the plane sprite, so it rides fully on top
+
+
+## The bomb slung under the belly — every plane carries one regardless of the
+## roll. Lives in the rig for position/size, but the bomb art is direction-
+## specific (PlaneDrop.bomb_tex picks the LTR or RTL PNG), so its x-scale
+## cancels the rig's mirror instead of inheriting it.
+func _add_payload() -> void:
+	var tex := PlaneDrop.bomb_tex(_dir)
+	if not ResourceLoader.exists(tex):
+		return
+	_payload = Sprite2D.new()
+	_payload.texture = load(tex)
+	var s := PAYLOAD_W / (PLANE_SCALE * _payload.texture.get_width())
+	_payload.scale = Vector2(float(-_dir) * s, s)
+	_payload.position = PAYLOAD_ANCHOR
+	_rig.add_child(_payload)
+	_rig.move_child(_payload, 0)  # tucked behind the fuselage
+
+
+## Release the payload as a world-space sibling so it outlives this plane.
+## A bomb run drops the visible bomb off the belly; a box run pushes a GOOD
+## SET BOX out while the bomb stays hooked.
+func _drop() -> void:
+	_dropped = true
+	var at := global_position + Vector2(0, PAYLOAD_ANCHOR.y * PLANE_SCALE + 10.0)
+	if _drop_kind == "bomb" and is_instance_valid(_payload):
+		at = _payload.global_position
+		_payload.queue_free()
+	var drop := PlaneDrop.new()
+	drop.kind = _drop_kind
+	drop.dir = _dir
+	get_parent().add_child(drop)
+	drop.global_position = at
 
 
 ## Cloth strip + static text + tow rope, all in root space (never mirrored, so
