@@ -1,0 +1,9 @@
+{
+  "venues": [
+    { 
+      "VenueName": "Comedy Mothership",
+      "ExteriorSpritePath": "assets/venues/mothership_ext.png",
+      "InteriorSpritePath": "assets/venues/mothership_int.png" 
+    }
+  ]
+}

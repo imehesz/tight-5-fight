@@ -329,6 +329,22 @@ async function boardPage(gameId, offset, limit) {
   );
 }
 
+// Top of the MOST PLAYED board: ranked by play count (popularity), with the
+// character's total banked score riding along — the public stats podium
+// shows "most played" but displays the summed score. Distinct from
+// boardPage, which ranks by best single score.
+async function mostPlayedTop(gameId, limit) {
+  return all(
+    `SELECT character_name, COUNT(*) AS plays, COALESCE(SUM(score), 0) AS total
+       FROM plays
+      WHERE game_id = ?
+      GROUP BY character_name
+      ORDER BY plays DESC, total DESC, character_name ASC
+      LIMIT ${Number(limit)}`,
+    [gameId]
+  );
+}
+
 // Distinct characters with at least one play — the row count of the board.
 async function boardSize(gameId) {
   const row = await get(
@@ -370,6 +386,7 @@ module.exports = {
   recordVenueVisits,
   boardPage,
   boardSize,
+  mostPlayedTop,
   beatPage,
   beatSize,
   venuePage,

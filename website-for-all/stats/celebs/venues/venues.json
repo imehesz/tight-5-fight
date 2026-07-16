@@ -1,0 +1,49 @@
+{
+  "venues": [
+    { 
+      "VenueName": "Gotham Comedy Club",
+      "ExteriorSpritePath": "assets/venues/gotham_ext.png",
+      "InteriorSpritePath": "assets/venues/gotham_int.png" 
+    },
+    { 
+      "VenueName": "Ice House",
+      "ExteriorSpritePath": "assets/venues/ice-house_ext.png",
+      "InteriorSpritePath": "assets/venues/ice-house_int.png" 
+    },
+    { 
+      "VenueName": "The Second City",
+      "ExteriorSpritePath": "assets/venues/the-second-city_ext.png",
+      "InteriorSpritePath": "assets/venues/the-second-city_int.png" 
+    },
+    { 
+      "VenueName": "Laugh Factory",
+      "ExteriorSpritePath": "assets/venues/laugh-factory_ext.png",
+      "InteriorSpritePath": "assets/venues/laugh-factory_int.png" 
+    },
+    { 
+      "VenueName": "The IMRPOV L.A.",
+      "ExteriorSpritePath": "assets/venues/improv-la_ext3.png",
+      "InteriorSpritePath": "assets/venues/improv-la_int.png" 
+    },
+    { 
+      "VenueName": "Comedy Cellar",
+      "ExteriorSpritePath": "assets/venues/comedy-cellar-nyc_ext.png",
+      "InteriorSpritePath": "assets/venues/comedy-cellar-nyc_int.png" 
+    },
+    { 
+      "VenueName": "Comedy Mothership",
+      "ExteriorSpritePath": "assets/venues/mothership_ext.png",
+      "InteriorSpritePath": "assets/venues/mothership_int.png" 
+    },
+    { 
+      "VenueName": "The Comedy Store",
+      "ExteriorSpritePath": "assets/venues/the-comedy-store_ext.png",
+      "InteriorSpritePath": "assets/venues/the-comedy-store_int.png" 
+    },
+    { 
+      "VenueName": "The Stand",
+      "ExteriorSpritePath": "assets/venues/the-stand_ext.png",
+      "InteriorSpritePath": "assets/venues/the-stand_int.png" 
+    }
+  ]
+}

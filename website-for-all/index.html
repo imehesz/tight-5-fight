@@ -10,9 +10,10 @@
   It lands NEXT TO the tight5fight/ build folders and touches nothing else.
 
   ADD A THEME (60-second edit):
-    1. Copy one <a class="card"> ... </a> block below (marked THEME CARD).
-    2. Change the href, the name, and the description (keep it to ~3 lines /
-       ~70 characters — the description box is fixed-height so titles align).
+    1. Copy one <div class="card"> ... </div> block below (marked THEME CARD).
+    2. Change the two hrefs (PLAY -> the game build, STATS -> stats/<theme>/),
+       the name, and the description (keep it to ~3 lines / ~70 characters —
+       the description box is fixed-height so titles align).
     3. Optional splash background: drop imgs/card_<theme>.jpg next to this
        file (~800px wide keeps the page light) and change the url(...) at
        the END of the card's style attribute. If the image is missing the
@@ -134,7 +135,8 @@
     overflow: hidden;
     transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
   }
-  a.card:hover, a.card:focus-visible {
+  a.card:hover, a.card:focus-visible,
+  div.card:not(.soon):hover, div.card:focus-within {
     transform: translateY(-3px);
     border-color: var(--pink);
     box-shadow: 0 0 22px #ff59cc88, inset 0 0 30px #0007;
@@ -165,6 +167,32 @@
     line-height: 1.8;
     color: var(--dim);
     text-shadow: 1px 1px 0 #000;
+  }
+  /* PLAY + STATS side by side (live cards are a <div>, each button its own
+     link — links can't nest, which is why the card isn't an <a> anymore) */
+  .actions {
+    align-self: center;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .actions a { text-decoration: none; }
+  .stats-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 16px;
+    font-size: clamp(11px, 2.8vw, 13px);
+    color: var(--gold);
+    background: #0b0716cc;
+    border: 2px solid var(--gold);
+    border-radius: 8px;
+    box-shadow: 0 0 10px #ffd96655, 0 4px 0 #6b5416;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .stats-btn:hover, .stats-btn:focus-visible {
+    box-shadow: 0 0 18px #ffd966aa, 0 4px 0 #6b5416;
+    outline: none;
   }
   .play {
     align-self: center;
@@ -322,7 +350,8 @@
   @media (prefers-reduced-motion: reduce) {
     h1, .marquee .arrow, .soon-badge { animation: none; }
     .card, .play, .coffee { transition: none; }
-    a.card:hover, a.card:focus-visible { transform: none; }
+    a.card:hover, a.card:focus-visible,
+    div.card:not(.soon):hover, div.card:focus-within { transform: none; }
   }
 </style>
 </head>
@@ -337,23 +366,29 @@
 <main class="cards">
 
   <!-- ==================== THEME CARD: JAX ==================== -->
-  <a class="card" href="https://games.imstandup.com/tight5fight/jax/"
+  <div class="card"
      style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_jax.jpg')">
     <span class="card-body">
       <span class="card-name">JAX<span class="card-edition">EDITION</span></span>
       <span class="card-desc">Jacksonville's own comedians brawl through the 904's open mics.</span>
-      <span class="play">▶ PLAY</span>
+      <span class="actions">
+        <a class="play" href="https://games.imstandup.com/tight5fight/jax/">▶ PLAY</a>
+        <a class="stats-btn" href="stats/jax/">STATS</a>
+      </span>
     </span>
-  </a>
+  </div>
 
-  <a class="card" href="https://games.imstandup.com/tight5fight/daytona/"
+  <div class="card"
      style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_daytona.png')">
     <span class="card-body">
       <span class="card-name">DAYTONA<span class="card-edition">EDITION</span></span>
       <span class="card-desc">The World Center of Racing gets its own roster. Hecklers at 200&nbsp;mph.</span>
-      <span class="play">▶ PLAY</span>
+      <span class="actions">
+        <a class="play" href="https://games.imstandup.com/tight5fight/daytona/">▶ PLAY</a>
+        <a class="stats-btn" href="stats/daytona/">STATS</a>
+      </span>
     </span>
-  </a>
+  </div>
 
   <!-- ==================== THEME CARD: CELEBS ==================== -->
    <!--
@@ -387,8 +422,8 @@
   </a>
 
   <!-- ==================== ADD NEW THEME CARDS ABOVE THIS LINE ====================
-       Copy a card block, change href + name + description (+ optional image URL).
-       Coming-soon panel: copy the <div class="card soon"> block instead.
+       Copy a card block, change the PLAY + STATS hrefs, name, description
+       (+ optional image URL). Coming-soon panel: copy <div class="card soon">.
   ============================================================================== -->
 
 </main>

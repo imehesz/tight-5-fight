@@ -335,6 +335,37 @@ async function getVenues(req, res, url) {
   json(res, 200, { page, pageCount, total, rows });
 }
 
+// GET /podium?gameId=tight5
+//   -> { topPlayed: [{ character, plays, score }],
+//        topBeat:   [{ character, kos }],
+//        topVenues: [{ venue, entries }] }
+// The public top-3 slice behind website-for-all/stats/<game>/. Unlike
+// /leaderboard's rows (ranked by best single score), topPlayed ranks by
+// play COUNT and carries the character's SUMMED score for display. No
+// secret needed: these are the same non-sensitive aggregates the in-game
+// boards already show.
+const PODIUM_SIZE = 3;
+
+async function getPodium(req, res, url) {
+  const gameId = url.searchParams.get("gameId") || "";
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
+
+  const topPlayed = (await db.mostPlayedTop(gameId, PODIUM_SIZE)).map((r) => ({
+    character: r.character_name,
+    plays: Number(r.plays),
+    score: Number(r.total),
+  }));
+  const topBeat = (await db.beatPage(gameId, 0, PODIUM_SIZE)).map((r) => ({
+    character: r.character_name,
+    kos: Number(r.kos),
+  }));
+  const topVenues = (await db.venuePage(gameId, 0, PODIUM_SIZE)).map((r) => ({
+    venue: r.venue_name,
+    entries: Number(r.entries),
+  }));
+  json(res, 200, { topPlayed, topBeat, topVenues });
+}
+
 // GET /stats?pwd=...
 //   -> { generatedAt,
 //        totals: { runs, npcsBeaten, venueFights,     // all games combined
@@ -400,6 +431,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "/play") return await postPlay(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
+    if (req.method === "GET" && route === "/podium") return await getPodium(req, res, url);
     if (req.method === "GET" && route === "/stats") return await getStats(req, res, url);
     if (req.method === "GET" && route === "/health") return json(res, 200, { ok: true });
   } catch (e) {

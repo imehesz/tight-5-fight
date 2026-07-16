@@ -1,0 +1,24 @@
+{
+  "venues": [
+    { 
+      "VenueName": "Tir Na Nog",
+      "ExteriorSpritePath": "assets/venues/tir-na-nog_ext.png",
+      "InteriorSpritePath": "assets/venues/tir-na-nog_int.png" 
+    },
+    { 
+      "VenueName": "Waffle House",
+      "ExteriorSpritePath": "assets/venues/waffle-house_ext.png",
+      "InteriorSpritePath": "assets/venues/waffle-house_int.png" 
+    },
+    { 
+      "VenueName": "Shanghai Nobby's",
+      "ExteriorSpritePath": "assets/venues/shanghai-nobbys_ext.png",
+      "InteriorSpritePath": "assets/venues/shanghai-nobbys_int.png" 
+    },
+    { 
+      "VenueName": "Bonkers",
+      "ExteriorSpritePath": "assets/venues/bonkers_ext.png",
+      "InteriorSpritePath": "assets/venues/bonkers_int.png" 
+    }
+  ]
+}

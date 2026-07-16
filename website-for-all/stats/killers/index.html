@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  TIGHT 5 FIGHT! — per-game stats page (top-3 podiums).
+  GENERATED from stats/_template.html by helper-tools/sync_stats_assets.sh
+  the first time a game is synced; after that it is yours to edit (the
+  script never overwrites an existing index.html).
+
+  All the real markup, style and logic live in ../stats.css + ../stats.js;
+  this file only says WHICH game to show:
+    gameId — the leaderboard DB id (JAX's is "tight5", the rest match)
+    label  — the big neon headline
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIGHT 5 FIGHT! — KILLERS STATS</title>
+<meta name="description" content="TIGHT 5 FIGHT! KILLERS edition — most played comedians, most beat up comedians, top venues.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../stats.css">
+</head>
+<body>
+<script>window.T5F_STATS = { gameId: "killers", label: "KILLERS" };</script>
+<script src="../stats.js"></script>
+</body>
+</html>

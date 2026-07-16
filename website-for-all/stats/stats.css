@@ -1,0 +1,209 @@
+/* TIGHT 5 FIGHT! — stats pages. Same night-street palette and type as the
+   landing page (website-for-all/index.html); shared by every stats/<game>/. */
+
+:root {
+  --night:   #0b0716;
+  --street:  #141022;
+  --panel:   #1a1130;
+  --pink:    #ff59cc;
+  --purple:  #7326bf;
+  --gold:    #ffd966;
+  --silver:  #c9d1e0;
+  --bronze:  #d08a4e;
+  --paper:   #f5eee4;
+  --dim:     #b9a8d6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { max-width: 100%; }
+body {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  color: var(--paper);
+  background:
+    radial-gradient(1px 1px at 15% 12%, #fff8 50%, transparent 51%),
+    radial-gradient(1px 1px at 42% 28%, #fff6 50%, transparent 51%),
+    radial-gradient(1px 1px at 71% 9%,  #fff7 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 22%, #fff5 50%, transparent 51%),
+    radial-gradient(1px 1px at 58% 17%, #fff5 50%, transparent 51%),
+    radial-gradient(2px 2px at 30% 6%,  #fff4 50%, transparent 51%),
+    linear-gradient(180deg, var(--night) 0%, var(--night) 45%, #170d2b 78%, var(--street) 100%);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 12px 20px;
+  text-align: center;
+}
+
+/* ---------- header ---------- */
+.back {
+  align-self: flex-start;
+  font-size: clamp(9px, 2.4vw, 11px);
+  color: var(--dim);
+  text-decoration: none;
+  /* generous tap area */
+  padding: 14px 10px;
+  margin: -10px 0 0 -4px;
+}
+.back:hover, .back:focus-visible { color: var(--gold); }
+h1 {
+  font-size: clamp(22px, 7vw, 40px);
+  line-height: 1.3;
+  color: var(--pink);
+  text-shadow:
+    0 0 6px  var(--pink),
+    0 0 18px var(--pink),
+    0 0 42px var(--purple),
+    3px 3px 0 #3a0f33;
+  animation: flicker 4.5s infinite;
+}
+@keyframes flicker {
+  0%, 6%, 8%, 100% { opacity: 1; }
+  7%               { opacity: .55; }
+  62%, 66%         { opacity: 1; }
+  64%              { opacity: .8; }
+}
+.pitch {
+  margin: 14px auto 0;
+  max-width: 620px;
+  font-size: clamp(9px, 2.4vw, 12px);
+  line-height: 1.9;
+  color: var(--gold);
+  text-shadow: 2px 2px 0 #000;
+}
+
+/* ---------- sections ---------- */
+.board {
+  margin: 34px auto 0;
+  width: 100%;
+  max-width: 900px;
+  padding: 20px 10px 26px;
+  background-color: var(--panel);
+  border: 3px solid var(--purple);
+  border-radius: 10px;
+  box-shadow: 0 0 14px #7326bf44, inset 0 0 30px #0007;
+}
+.board h2 {
+  font-size: clamp(14px, 4.4vw, 22px);
+  color: var(--gold);
+  text-shadow: 2px 2px 0 #000, 0 0 10px #ffd96655;
+}
+.board .sub {
+  margin-top: 10px;
+  font-size: clamp(8px, 2.2vw, 10px);
+  line-height: 1.8;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+.board .empty {
+  margin: 26px 0 10px;
+  font-size: clamp(9px, 2.6vw, 12px);
+  line-height: 2;
+  color: var(--dim);
+}
+.board .empty a { color: var(--gold); }
+
+/* ---------- podium ---------- */
+/* Slots arrive in DOM order 2-1-3 (silver, gold, bronze) so the winner
+   stands center and tallest. Everything scales with the viewport so the
+   three columns always fit a phone side by side. */
+.podium {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: clamp(4px, 1.5vw, 14px);
+}
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: clamp(96px, 30vw, 200px);
+  min-width: 0;
+}
+.slot .who {
+  margin-bottom: 8px;
+  font-size: clamp(7px, 2vw, 10px);
+  line-height: 1.7;
+  color: var(--paper);
+  text-shadow: 1px 1px 0 #000;
+  overflow-wrap: anywhere;
+}
+.slot .stat {
+  display: block;
+  margin-top: 4px;
+  color: var(--gold);
+  font-size: clamp(8px, 2.2vw, 11px);
+}
+.slot .substat {
+  display: block;
+  margin-top: 4px;
+  color: var(--dim);
+  font-size: clamp(6px, 1.7vw, 8px);
+}
+.dancer {
+  width: clamp(84px, 26vw, 132px);
+  height: auto;
+  image-rendering: pixelated;
+}
+.venue-pic {
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border: 2px solid var(--purple);
+  border-radius: 6px;
+  box-shadow: 0 0 10px #7326bf55;
+  margin-bottom: 10px;
+}
+
+/* the three-step podium blocks */
+.step {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  border-radius: 6px 6px 0 0;
+  border: 2px solid;
+  border-bottom: none;
+  font-size: clamp(14px, 4.5vw, 24px);
+  padding-top: 10px;
+  text-shadow: 2px 2px 0 #0009;
+}
+.rank1 .step {
+  height: clamp(64px, 17vw, 110px);
+  color: #5c4400;
+  border-color: #fff2c0;
+  background: linear-gradient(180deg, var(--gold), #b8922e);
+  box-shadow: 0 0 16px #ffd96688;
+}
+.rank2 .step {
+  height: clamp(46px, 12vw, 78px);
+  color: #333c4d;
+  border-color: #eef2fa;
+  background: linear-gradient(180deg, var(--silver), #8792a6);
+  box-shadow: 0 0 12px #c9d1e055;
+}
+.rank3 .step {
+  height: clamp(34px, 9vw, 58px);
+  color: #55301a;
+  border-color: #f2c39a;
+  background: linear-gradient(180deg, var(--bronze), #8f5527);
+  box-shadow: 0 0 12px #d08a4e55;
+}
+
+/* ---------- footer ---------- */
+footer {
+  margin-top: 36px;
+  font-size: 8px;
+  line-height: 2;
+  color: var(--dim);
+}
+footer a {
+  color: var(--gold);
+  padding: 16px 6px;
+  margin: -16px -6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  h1 { animation: none; }
+}
