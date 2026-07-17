@@ -60,4 +60,5 @@ func _on_area_entered(area: Area2D) -> void:
 	# hits_enemies=false bottles exist only in boss venues, so venue-only free.
 	if not hits_enemies and randf() < LAUGH_CHANCE:
 		GameState.play_crowd("laugh")
+		GameState.crowd_reaction.emit("laugh")
 	queue_free()

@@ -153,6 +153,9 @@ func _die() -> void:
 	GameState.count_ko(char_name)
 	if crowd_cheers and randf() < CHEER_CHANCE:
 		GameState.play_crowd("cheer")
+	# Visual pop on every KO (the cheer SFX above stays rarer, by CHEER_CHANCE).
+	if crowd_cheers:
+		GameState.crowd_reaction.emit("cheer")
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -90),
 			"+%d" % (score_value * mult), Color(0.6, 1.0, 0.6))
 	if mult > 1:

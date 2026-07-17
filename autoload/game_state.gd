@@ -11,6 +11,11 @@ signal streak_changed(count: int, mult: int)
 ## many pixels (see street.gd / venue.gd). Scenes own their cameras, so shake
 ## is requested through the singleton rather than reaching into the scene.
 signal shake_requested(pixels: float)
+## Venue-crowd visual reactions, mirrored on the audience silhouette row
+## (see crowd_row.gd). kind is one of "boo", "laugh", "cheer" (per KO) or
+## "celebrate" (venue cleared). Broadcast from the fight call sites alongside
+## the crowd SFX; scenes with no CrowdRow just ignore it.
+signal crowd_reaction(kind: String)
 
 const SCENE_SPLASH := "res://scenes/splash.tscn"
 const SCENE_MAIN_MENU := "res://scenes/main_menu.tscn"

@@ -35,6 +35,10 @@ func _ready() -> void:
 	GameState.pending_venue = {}
 
 	_build_background(data)
+	# Audience silhouettes along the bottom edge; reshuffled each venue. Added
+	# after the background (z=-10) and before the fighters so it reads as a
+	# foreground crowd (it sets its own z_index). Reacts to GameState.crowd_reaction.
+	add_child(CrowdRow.new())
 	hud = Hud.new()
 	add_child(hud)
 	# No venue name: the interior art has it painted on already.
@@ -180,6 +184,7 @@ func _venue_cleared() -> void:
 	_finished = true
 	GameState.mark_pending_venue_cleared()
 	GameState.play_sfx("clear")
+	GameState.crowd_reaction.emit("celebrate")
 	var bonus := CLEAR_BONUS_PER_LEVEL * _level
 	GameState.add_score(bonus)
 	hud.set_center_text("VENUE BATTLED!  +%d" % bonus)
@@ -199,6 +204,7 @@ func _boss_survived() -> void:
 		if GameState.on_boss_defeated():
 			lives_granted += 1
 	GameState.play_sfx("clear")
+	GameState.crowd_reaction.emit("celebrate")
 	for b in _bosses:
 		if is_instance_valid(b):
 			b.active = false
@@ -223,6 +229,7 @@ func _on_player_died(_f: Fighter) -> void:
 	# placement; street.gd's handler deliberately has no crowd.
 	if GameState.lives > 1:
 		GameState.play_crowd("boo")
+		GameState.crowd_reaction.emit("boo")
 	await get_tree().create_timer(1.4).timeout
 	if _finished:
 		return
