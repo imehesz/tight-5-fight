@@ -4,6 +4,8 @@ extends Area2D
 ## lobbed throws arc down onto the player's position (move away).
 
 const GROUND_Y := 314.0
+## Odds the crowd laughs when a boss bottle beans the player.
+const LAUGH_CHANCE := 0.25
 
 var velocity := Vector2.ZERO
 var arc_gravity := 0.0  # "gravity" is a native Area2D property
@@ -54,4 +56,8 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 	var f: Fighter = area.get_meta("fighter")
 	f.take_hit(damage, global_position.x)
+	# Boss bottle beaning the player: the crowd finds it funny sometimes.
+	# hits_enemies=false bottles exist only in boss venues, so venue-only free.
+	if not hits_enemies and randf() < LAUGH_CHANCE:
+		GameState.play_crowd("laugh")
 	queue_free()

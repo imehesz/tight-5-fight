@@ -66,6 +66,18 @@ const STREAK_MAX_MULT := 5
 const SFX_BASE := "res://shared/assets/sfx/sfx_"
 const SFX_NAMES := ["punch", "kick", "hurt", "defeat", "smash", "clear", "click", "throw"]
 const SFX_POOL_SIZE := 6
+## User-supplied crowd sounds use hyphen filenames (sfx-cricket.wav) —
+## deliberately outside the sfx_ pool naming above.
+const HYPHEN_SFX_BASE := "res://shared/assets/sfx/sfx-"
+## Death stingers: one plays at random on the FINAL death (finish_run());
+## the music pauses underneath so the joke lands, then resumes when the
+## stinger ends.
+const STINGER_NAMES := ["cricket", "curb"]
+## Venue-fight-only crowd reactions (play_crowd): boo = player knocked down
+## with a respawn coming, cheer = 20% on an NPC KO, laugh = 25% on the player
+## taking a bottle. The chance rolls live at the call sites.
+const CROWD_NAMES := ["boo", "cheer", "laugh"]
+const CROWD_GAP_MS := 1500
 
 ## The active game id and its parsed game.json manifest. Loaded first in
 ## _ready() from data/active_game.json; everything game-specific reads from here.
@@ -120,6 +132,11 @@ var _music_track := ""
 var _sfx_streams := {}
 var _sfx_pool: Array = []
 var _sfx_next := 0
+var _stinger_streams: Array = []
+var _stinger_player: AudioStreamPlayer
+var _stinger_active := false
+var _crowd_streams := {}
+var _crowd_last_ms := {}
 
 
 func _ready() -> void:
@@ -403,6 +420,7 @@ func lose_life() -> bool:
 
 
 func finish_run() -> void:
+	play_death_stinger()
 	last_run_rank = _record_score()
 	# Banks this character's play on the global board. Deliberately not
 	# awaited: it outlives the scene change (Leaderboard is an autoload) and
@@ -516,6 +534,20 @@ func _setup_audio() -> void:
 		p.bus = "SFX"
 		add_child(p)
 		_sfx_pool.append(p)
+	for stinger_name in STINGER_NAMES:
+		var s := _load_stream(HYPHEN_SFX_BASE + stinger_name)
+		if s:
+			_stinger_streams.append(s)
+	for crowd_name in CROWD_NAMES:
+		var s := _load_stream(HYPHEN_SFX_BASE + crowd_name)
+		if s:
+			_crowd_streams[crowd_name] = s
+	# Dedicated player, not the pool: pool voices get recycled by combat SFX,
+	# which would cut the stinger short and strand the music paused.
+	_stinger_player = AudioStreamPlayer.new()
+	_stinger_player.bus = "SFX"
+	add_child(_stinger_player)
+	_stinger_player.finished.connect(_on_stinger_finished)
 
 
 ## Swap the looping background track; no-op if it's already playing (so
@@ -526,6 +558,9 @@ func play_music(track: String) -> void:
 	_music_track = track
 	_music_player.stream = _music_streams[track]
 	_music_player.play()
+	# A venue death swaps venue->main mid-stinger (change_scene calls this);
+	# the fresh play() must not undo the stinger's pause.
+	_music_player.stream_paused = _stinger_active
 
 
 func play_sfx(sfx_name: String) -> void:
@@ -535,6 +570,39 @@ func play_sfx(sfx_name: String) -> void:
 	_sfx_next = (_sfx_next + 1) % _sfx_pool.size()
 	p.stream = _sfx_streams[sfx_name]
 	p.play()
+
+
+## Venue-crowd one-shot, rate-limited per name so e.g. a double KO whose
+## rolls both pass can't stack two cheers. Missing files no-op like play_sfx.
+func play_crowd(crowd_name: String) -> void:
+	if not _crowd_streams.has(crowd_name):
+		return
+	var now := Time.get_ticks_msec()
+	if now - int(_crowd_last_ms.get(crowd_name, -CROWD_GAP_MS)) < CROWD_GAP_MS:
+		return
+	_crowd_last_ms[crowd_name] = now
+	var p: AudioStreamPlayer = _sfx_pool[_sfx_next]
+	_sfx_next = (_sfx_next + 1) % _sfx_pool.size()
+	p.stream = _crowd_streams[crowd_name]
+	p.play()
+
+
+## Final-death gag: pause the music, play a random stinger (crickets, curb),
+## resume when it ends. Missing files = silent no-op, like play_sfx. Never
+## stop() the stinger player elsewhere — stop() doesn't emit finished, which
+## would leave the music paused forever; worst case it resolves itself in ~3 s.
+func play_death_stinger() -> void:
+	if _stinger_streams.is_empty() or _stinger_active:
+		return
+	_stinger_active = true
+	_music_player.stream_paused = true
+	_stinger_player.stream = _stinger_streams.pick_random()
+	_stinger_player.play()
+
+
+func _on_stinger_finished() -> void:
+	_stinger_active = false
+	_music_player.stream_paused = false
 
 
 func _load_stream(base_path: String) -> AudioStream:

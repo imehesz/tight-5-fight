@@ -27,6 +27,11 @@ var target: Node2D
 var score_value := 100
 var attack_cooldown := 1.2
 var attack_range := 42.0
+## Venue fights only (set by venue.gd at spawn): KOing this enemy has a
+## CHEER_CHANCE shot at a crowd cheer. Street hecklers stay silent.
+var crowd_cheers := false
+
+const CHEER_CHANCE := 0.2
 
 const BAR_W := 26.0
 
@@ -146,6 +151,8 @@ func _die() -> void:
 	_bar_bg.visible = false
 	var mult := GameState.bank_ko_score(score_value)
 	GameState.count_ko(char_name)
+	if crowd_cheers and randf() < CHEER_CHANCE:
+		GameState.play_crowd("cheer")
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -90),
 			"+%d" % (score_value * mult), Color(0.6, 1.0, 0.6))
 	if mult > 1:

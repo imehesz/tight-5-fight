@@ -134,6 +134,7 @@ func _spawn_next_enemy() -> void:
 	e.configure(_to_spawn.pop_front())
 	e.size_scale = FIGHTER_SCALE
 	e.aggressive = true  # venue comedians always attack immediately
+	e.crowd_cheers = true
 	# Base venue scaling, then +10% per boss already cleared.
 	var mult := GameState.enemy_strength_mult()
 	e.max_health = (55.0 + 12.0 * (_level - 1)) * mult
@@ -216,6 +217,12 @@ func _boss_survived() -> void:
 
 
 func _on_player_died(_f: Fighter) -> void:
+	# Boo the knockdown as the player collapses — but only when a respawn is
+	# coming (lives > 1 here: lose_life() hasn't decremented yet). The FINAL
+	# death gets the cricket/curb stinger instead, never a boo. Venue-only by
+	# placement; street.gd's handler deliberately has no crowd.
+	if GameState.lives > 1:
+		GameState.play_crowd("boo")
 	await get_tree().create_timer(1.4).timeout
 	if _finished:
 		return
