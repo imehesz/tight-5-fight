@@ -5,6 +5,8 @@ extends Node
 signal score_changed(new_score: int)
 signal lives_changed(new_lives: int)
 signal bottles_changed(new_count: int)
+## Mic-stand swing cooldown gate; the touch button dims while not ready.
+signal swing_ready_changed(ready: bool)
 signal bosses_changed(new_count: int)
 signal streak_changed(count: int, mult: int)
 ## Combat juice: gameplay scenes listen and bump their camera/root by this
@@ -69,7 +71,7 @@ const STREAK_MAX_MULT := 5
 ## Looping background tracks come from the active game's manifest (main +
 ## venue). SFX are shared engine chrome. See _music_tracks()/_setup_audio().
 const SFX_BASE := "res://shared/assets/sfx/sfx_"
-const SFX_NAMES := ["punch", "kick", "hurt", "defeat", "smash", "clear", "click", "throw"]
+const SFX_NAMES := ["punch", "kick", "hurt", "defeat", "smash", "clear", "click", "throw", "swing"]
 const SFX_POOL_SIZE := 6
 ## User-supplied crowd sounds use hyphen filenames (sfx-cricket.wav) —
 ## deliberately outside the sfx_ pool naming above.
@@ -568,6 +570,12 @@ func play_music(track: String) -> void:
 	_music_player.stream_paused = _stinger_active
 
 
+## Whether a named sound actually loaded — lets callers pick a stand-in
+## (e.g. the swing reuses "throw" until a real sfx_swing.wav exists).
+func has_sfx(sfx_name: String) -> bool:
+	return _sfx_streams.has(sfx_name)
+
+
 func play_sfx(sfx_name: String) -> void:
 	if not _sfx_streams.has(sfx_name):
 		return
@@ -757,6 +765,7 @@ func _register_input_actions() -> void:
 		"punch": [KEY_J, KEY_Z],
 		"kick": [KEY_K, KEY_X],
 		"throw": [KEY_I, KEY_L, KEY_C],
+		"swing": [KEY_U],
 	}
 	for action in actions:
 		if InputMap.has_action(action):

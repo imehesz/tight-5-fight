@@ -25,7 +25,9 @@ var aggressive := true
 var provoked := false
 var target: Node2D
 var score_value := 100
-var attack_cooldown := 1.2
+## Street default, retuned -20% alongside the mic-stand swing rebalance
+## (venues override per level in venue.gd).
+var attack_cooldown := 0.95
 var attack_range := 42.0
 ## Venue fights only (set by venue.gd at spawn): KOing this enemy has a
 ## CHEER_CHANCE shot at a crowd cheer. Street hecklers stay silent.
@@ -53,7 +55,7 @@ func _init() -> void:
 	hurt_layer = 4
 	attack_mask = 2
 	move_speed = 90.0
-	max_health = 40.0
+	max_health = 46.0  # street default, +15% in the mic-stand rebalance
 	damage_scale = 0.5
 	# Every heckler dresses differently. Here rather than at each spawn site,
 	# so no scene can forget it.

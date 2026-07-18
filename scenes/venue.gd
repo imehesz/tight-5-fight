@@ -139,12 +139,14 @@ func _spawn_next_enemy() -> void:
 	e.size_scale = FIGHTER_SCALE
 	e.aggressive = true  # venue comedians always attack immediately
 	e.crowd_cheers = true
-	# Base venue scaling, then +10% per boss already cleared.
+	# Base venue scaling, then +10% per boss already cleared. Bases retuned
+	# (+15% health, -20% attack cooldown) when the mic-stand swing gave the
+	# player a third weapon: less free time inside the swing's 1.5s cooldown.
 	var mult := GameState.enemy_strength_mult()
-	e.max_health = (55.0 + 12.0 * (_level - 1)) * mult
+	e.max_health = (63.0 + 12.0 * (_level - 1)) * mult
 	e.damage_scale = (0.6 + 0.08 * (_level - 1)) * mult
 	e.move_speed = minf(85.0 + 4.0 * _level, 130.0)
-	e.attack_cooldown = maxf(1.3 - 0.05 * _level, 0.6)
+	e.attack_cooldown = maxf(1.05 - 0.05 * _level, 0.5)
 	e.score_value = 250 + 50 * _level
 	e.target = player
 	# Just past the LIVE right edge, so wide phones don't see enemies pop in.

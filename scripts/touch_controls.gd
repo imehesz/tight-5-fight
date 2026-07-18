@@ -1,8 +1,8 @@
 class_name TouchControls
 extends CanvasLayer
 ## Virtual on-screen controls for mobile landscape: D-pad on the left
-## (up = enter doors, down = duck), punch/kick/throw buttons on the right.
-## Buttons emit the same input actions as the keyboard bindings.
+## (up = enter doors, down = duck), punch/kick/throw/swing buttons on the
+## right. Buttons emit the same input actions as the keyboard bindings.
 
 const SCALE := 1.5
 ## The attack cluster runs 1.3x the D-pad — thumbs hunt for it mid-brawl.
@@ -17,8 +17,9 @@ const BUTTONS := [
 	{"action": "duck", "tex": "res://shared/assets/ui/btn_down.png", "pos": Vector2(56, 316), "scale": SCALE},
 	{"action": "punch", "tex": "res://shared/assets/ui/btn_punch.png", "pos": Vector2(536, 296), "scale": ACTION_SCALE},
 	{"action": "kick", "tex": "res://shared/assets/ui/btn_kick.png", "pos": Vector2(584, 248), "scale": ACTION_SCALE},
-	# Beer sits under kick and in punch's row — the three form a reversed L.
+	# Beer under kick, swing above punch — the four make a 2x2 grid.
 	{"action": "throw", "tex": "res://shared/assets/ui/btn_beer.png", "pos": Vector2(584, 296), "scale": ACTION_SCALE},
+	{"action": "swing", "tex": "res://shared/assets/ui/btn_swing.png", "pos": Vector2(536, 248), "scale": ACTION_SCALE},
 ]
 const BUTTON_PX := 40.0  # source texture size, before SCALE
 
@@ -29,6 +30,7 @@ var _buttons: Array = []  # [{node, pos}]
 var _throw_btn: TouchScreenButton
 var _throw_pos := Vector2.ZERO
 var _throw_badge: Label
+var _swing_btn: TouchScreenButton
 
 
 func _ready() -> void:
@@ -44,10 +46,13 @@ func _ready() -> void:
 		if b.action == "throw":
 			_throw_btn = btn
 			_throw_pos = b.pos
+		elif b.action == "swing":
+			_swing_btn = btn
 	_build_throw_badge()
 	_layout()
 	GameState.bottles_changed.connect(_refresh_throw)
 	_refresh_throw(GameState.beer_bottles)
+	GameState.swing_ready_changed.connect(_refresh_swing)
 	# The OS/browser can report the real window size a frame (or a rotation)
 	# after _ready, so re-anchor whenever the viewport changes.
 	get_viewport().size_changed.connect(_layout)
@@ -72,6 +77,13 @@ func _refresh_throw(count: int) -> void:
 	_throw_btn.modulate.a = 1.0 if usable else 0.35
 	_throw_badge.visible = usable
 	_throw_badge.text = str(count)
+
+
+## Dim the mic-swing button while its cooldown runs (the player script is
+## the real gate — this is only the visual).
+func _refresh_swing(ready: bool) -> void:
+	if _swing_btn:
+		_swing_btn.modulate.a = 1.0 if ready else 0.35
 
 
 func _layout() -> void:
