@@ -124,13 +124,11 @@ func _ready() -> void:
 		_select(RANDOM if GameState.random_select else GameState.selected_character)
 
 
-## The "?" pick is resolved here, at the last moment, so the player only
-## discovers who they got once the run is already starting.
+## The "?" pick is resolved at the last moment, so the player only
+## discovers who they got once the run is already starting. _select() has
+## already persisted the pick, so GameState holds the same truth as _selected.
 func _start_fight() -> void:
-	var index := _selected
-	if index == RANDOM:
-		index = randi() % GameState.characters.size()
-	GameState.start_new_game(index)
+	GameState.start_new_game(GameState.fight_character_index())
 
 
 ## FIGHT! is this screen's one primary action, so it wears a neon-purple

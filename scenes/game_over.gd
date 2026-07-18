@@ -40,7 +40,11 @@ func _ready() -> void:
 	if GameState.last_run_rank >= 0 and GameState.last_run_rank < GameState.CELEBRATED_HIGH_SCORES:
 		add_title(_box, "NEW HIGH SCORE — #%d!" % (GameState.last_run_rank + 1), 10)
 	add_spacer(_box, 14)
-	add_button(_box, "PLAY AGAIN", func(): GameState.change_scene(GameState.SCENE_CHARACTER_SELECT))
+	# One-tap retry: straight back to the street as the same comedian (or a
+	# fresh roll if the "?" card is the active pick). Roster detours are the
+	# CHANGE COMEDIAN button's job now.
+	add_button(_box, "PLAY AGAIN", func(): GameState.start_new_game(GameState.fight_character_index()))
+	add_button(_box, "CHANGE COMEDIAN", func(): GameState.change_scene(GameState.SCENE_CHARACTER_SELECT))
 	add_button(_box, "SCOREBOARD", func(): GameState.change_scene(GameState.SCENE_SCOREBOARD))
 	add_button(_box, "MAIN MENU", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 	_dancer = Dancer.new()

@@ -18,6 +18,8 @@ const SIGN_BOB := 4.0
 const SIGN_NEON := Color(1.0, 0.35, 0.8)
 const SIGN_TEXT := Color(1.0, 0.72, 0.95)
 const SIGN_DIM := Color(0.62, 0.62, 0.7)
+## Run-start "FIND A VENUE" hint sign: on screen this long, then fades.
+const HINT_S := 4.0
 const HECKLER_MAX := 4
 ## Street fighters (player + hecklers) sit between the old 1.0 street size
 ## and the venue's 1.3 — readable on phones without crowding the scroll.
@@ -44,6 +46,7 @@ var _spawn_timer := 2.0
 var _beer_timer := 3.0
 var _plane_timer := randf_range(4.0, PLANE_FIRST_WAIT_MAX)
 var _plane: PlaneFlyby
+var _hint_sign: Node2D
 var _busy := false
 
 
@@ -71,6 +74,10 @@ func _ready() -> void:
 		_spawn_player(Vector2(float(saved.player_x), GROUND_Y))
 	else:
 		_spawn_player(Vector2(120, GROUND_Y))
+		# Goal hint, only at the very start of a run — venues_entered, not
+		# "fresh street", so walking back out of venue 1 stays hint-free.
+		if GameState.venues_entered == 0:
+			_spawn_hint_sign()
 	camera.position = Vector2(maxf(player.position.x, 320.0), 180.0)
 	camera.reset_smoothing()
 
@@ -144,10 +151,10 @@ func _add_venue(vx: float, data: Dictionary, cleared: bool) -> void:
 	_doors.append({"x": vx, "data": data, "cleared": cleared, "sign": sign})
 
 
-## A little neon box sign: dark panel framed by a pink "tube" border, ENTER
-## glowing inside via a heavy same-hue outline. Origin is the sign's center,
-## so callers place it at the door's x and let _update_door_signs() bob it.
-func _make_enter_sign() -> Node2D:
+## A little neon box sign: dark panel framed by a pink "tube" border, the
+## text glowing inside via a heavy same-hue outline. Origin is the panel's
+## center, so callers place it and bob it.
+func _make_neon_sign(text: String, panel_w: float) -> Node2D:
 	var sign := Node2D.new()
 	sign.z_index = -4
 
@@ -158,12 +165,12 @@ func _make_enter_sign() -> Node2D:
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(5)
 	panel.add_theme_stylebox_override("panel", style)
-	panel.size = Vector2(76, 24)
-	panel.position = Vector2(-38, -12)
+	panel.size = Vector2(panel_w, 24)
+	panel.position = Vector2(-panel_w / 2.0, -12)
 	sign.add_child(panel)
 
 	var txt := Label.new()
-	txt.text = "ENTER"
+	txt.text = text
 	txt.set_anchors_preset(Control.PRESET_FULL_RECT)
 	txt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	txt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -172,7 +179,11 @@ func _make_enter_sign() -> Node2D:
 	txt.add_theme_color_override("font_outline_color", SIGN_NEON)
 	txt.add_theme_constant_override("outline_size", 4)
 	panel.add_child(txt)
+	return sign
 
+
+func _make_enter_sign() -> Node2D:
+	var sign := _make_neon_sign("ENTER", 76.0)
 	# Arrow under the box pointing down at the door: a pink tube triangle
 	# with the same hot core the lettering has. Children of the sign, so it
 	# bobs and dims/brightens with it.
@@ -185,6 +196,35 @@ func _make_enter_sign() -> Node2D:
 	core.color = SIGN_TEXT
 	sign.add_child(core)
 	return sign
+
+
+## The run-start goal hint, wearing the exact ENTER-sign look (same neon
+## panel recipe, same bob) with the arrow tube pointing right, down the
+## street toward the first venue. World-fixed in the opening camera view at
+## the venue signs' height; fades out after HINT_S.
+func _spawn_hint_sign() -> void:
+	_hint_sign = _make_neon_sign("FIND A VENUE", 144.0)
+	var half_w := 72.0
+	var tube := Polygon2D.new()
+	tube.polygon = PackedVector2Array([
+		Vector2(half_w + 4, -9), Vector2(half_w + 4, 9), Vector2(half_w + 16, 0)])
+	tube.color = SIGN_NEON
+	_hint_sign.add_child(tube)
+	var core := Polygon2D.new()
+	core.polygon = PackedVector2Array([
+		Vector2(half_w + 6, -5), Vector2(half_w + 6, 5), Vector2(half_w + 12, 0)])
+	core.color = SIGN_TEXT
+	_hint_sign.add_child(core)
+	_hint_sign.position = Vector2(320.0, SIGN_Y)
+	add_child(_hint_sign)
+	# Captured as a local: the player can enter a venue (freeing this scene)
+	# before the timer fires, and the lambda must not touch freed members.
+	var sign := _hint_sign
+	get_tree().create_timer(HINT_S).timeout.connect(func():
+		if is_instance_valid(sign):
+			var tw: Tween = sign.create_tween()
+			tw.tween_property(sign, "modulate:a", 0.0, 0.4)
+			tw.tween_callback(sign.queue_free))
 
 
 func _add_cancelled_tape(vx: float) -> void:
@@ -214,6 +254,10 @@ func _add_cancelled_tape(vx: float) -> void:
 ## player is standing at — the proximity cue the old hint label used to give.
 func _update_door_signs() -> void:
 	var t := Time.get_ticks_msec() / 1000.0
+	# The hint sign bobs on the same wave as the venue signs (always at full
+	# ENTER-sign brightness — it IS the call to action, no door to be near).
+	if is_instance_valid(_hint_sign):
+		_hint_sign.position.y = SIGN_Y + sin(t * 4.0 + _hint_sign.position.x) * SIGN_BOB
 	for d in _doors:
 		var sign: Node2D = d.sign
 		if d.cleared:

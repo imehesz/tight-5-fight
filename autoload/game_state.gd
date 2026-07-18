@@ -280,6 +280,15 @@ func _music_tracks() -> Dictionary:
 
 
 # ---------------------------------------------------------------- run lifecycle
+## The roster index a new run should start as: the persisted pick — or a
+## fresh roll every time while the "?" (random) card is the active pick, so
+## FIGHT! and PLAY AGAIN both keep the mystery.
+func fight_character_index() -> int:
+	if random_select and not characters.is_empty():
+		return randi() % characters.size()
+	return selected_character
+
+
 func start_new_game(character_index: int) -> void:
 	set_selected_character(character_index)
 	score = 0
