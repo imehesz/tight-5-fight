@@ -102,6 +102,9 @@ var venues: Array = []
 ## street's door index is saved/restored across venue visits.
 var _venue_order: Array = []
 var selected_character := 0
+## True when the roster's "?" card is the active pick — FIGHT! rolls a
+## random comedian. Persisted so character select reopens on the "?".
+var random_select := false
 var score := 0
 var lives := 1
 var venues_entered := 0
@@ -655,6 +658,13 @@ func set_selected_character(idx: int) -> void:
 	_save_settings()
 
 
+func set_random_select(on: bool) -> void:
+	if on == random_select:
+		return  # don't rewrite the save file just for opening a menu
+	random_select = on
+	_save_settings()
+
+
 func set_outfit(idx: int) -> void:
 	# Never OUTFIT_BAKED: the player always wears a color they picked.
 	outfit = clampi(idx, 0, CharacterFactory.OUTFITS.size() - 1)
@@ -697,6 +707,7 @@ func _load_settings() -> void:
 	# falls back to the first comedian (and is rewritten on the next save).
 	var saved_name: Variant = d.get("character", "")
 	selected_character = character_index_by_name(saved_name) if saved_name is String else 0
+	random_select = bool(d.get("random", false))
 	_apply_volume("Music", music_volume)
 	_apply_volume("SFX", sfx_volume)
 
@@ -708,6 +719,7 @@ func _save_settings() -> void:
 		"outfit": outfit,
 		"character": "" if characters.is_empty() \
 				else String(selected_character_data().get("CharacterName", "")),
+		"random": random_select,
 	})
 
 

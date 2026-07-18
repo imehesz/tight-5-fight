@@ -3,9 +3,16 @@ extends MenuBase
 ## (paged 9 at a time with LEFT/RIGHT arrows) on the left, a dancing
 ## preview of the highlighted comedian on the right. Tapping a head only
 ## selects it; the FIGHT! button starts the run.
+##
+## Slot 1 of the grid is a "?" card: pick it and FIGHT! rolls a random
+## comedian, revealed only once the run starts. Short last pages are
+## padded with blank frames so the 3x3 grid never changes shape.
 
 const GRID_COLUMNS := 3
 const PAGE_SIZE := 9
+## _selected value meaning "the ? card" — resolved to a real roster index
+## the moment FIGHT! is pressed.
+const RANDOM := -1
 const PREVIEW_SIZE := Vector2(150, 170)
 ## 1.5x the in-game fighter size.
 const PREVIEW_SCALE := Fighter.BODY_SCALE * 1.5
@@ -19,6 +26,7 @@ var _selected := -1
 var _grid: GridContainer
 var _pager: Label
 var _dancer: Dancer
+var _preview_question: Label
 var _preview_name: Label
 var _fight_btn: Button
 var _orbit: SelectionOrbit
@@ -80,13 +88,14 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("h_separation", 24)
 	_grid.add_theme_constant_override("v_separation", 10)
 
-	# Open on the remembered comedian, on whichever page they live.
-	if not GameState.characters.is_empty():
-		_page = GameState.selected_character / PAGE_SIZE
+	# Open on the remembered comedian, on whichever page they live. The "?"
+	# card shifts every roster index one entry to the right.
+	if not GameState.characters.is_empty() and not GameState.random_select:
+		_page = (GameState.selected_character + 1) / PAGE_SIZE
 
 	# Pagers hug the screen edges (not the row) so they never shift with the
 	# widths of the names between them — taps land where the thumb expects.
-	if GameState.characters.size() > PAGE_SIZE:
+	if _entry_count() > PAGE_SIZE:
 		add_edge_arrow("<", false, func(): _turn_page(-1))
 		add_edge_arrow(">", true, func(): _turn_page(1))
 	var center := CenterContainer.new()
@@ -99,20 +108,29 @@ func _ready() -> void:
 		add_text(box, "No characters found in data/characters.json!")
 
 	add_spacer(box, 8)
-	if GameState.characters.size() > PAGE_SIZE:
+	if _entry_count() > PAGE_SIZE:
 		box.add_child(_build_pager())
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 12)
 	box.add_child(buttons)
-	_fight_btn = add_button(buttons, "FIGHT!", func(): GameState.start_new_game(_selected))
+	_fight_btn = add_button(buttons, "FIGHT!", _start_fight)
 	_style_fight_button(_fight_btn)
 	add_button(buttons, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 
 	if GameState.characters.is_empty():
 		_fight_btn.disabled = true
 	else:
-		_select(GameState.selected_character)
+		_select(RANDOM if GameState.random_select else GameState.selected_character)
+
+
+## The "?" pick is resolved here, at the last moment, so the player only
+## discovers who they got once the run is already starting.
+func _start_fight() -> void:
+	var index := _selected
+	if index == RANDOM:
+		index = randi() % GameState.characters.size()
+	GameState.start_new_game(index)
 
 
 ## FIGHT! is this screen's one primary action, so it wears a neon-purple
@@ -147,6 +165,18 @@ func _build_preview() -> Control:
 	_dancer.position = Vector2(PREVIEW_SIZE.x / 2.0, PREVIEW_SIZE.y - 6.0)
 	_dancer.scale = Vector2(PREVIEW_SCALE, PREVIEW_SCALE)
 	stage.add_child(_dancer)
+	# The mystery mark shown instead of the dancer while "?" is picked —
+	# Press Start 2P at this size IS the pixelated game question mark.
+	_preview_question = Label.new()
+	_preview_question.text = "?"
+	_preview_question.visible = false
+	_preview_question.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_question.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_preview_question.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_preview_question.add_theme_font_size_override("font_size", 96)
+	_preview_question.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	_preview_question.pivot_offset = PREVIEW_SIZE / 2.0
+	stage.add_child(_preview_question)
 	_preview_name = Label.new()
 	_preview_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_preview_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -161,30 +191,39 @@ func _select(index: int) -> void:
 	_selected = index
 	# Persisted here, not on FIGHT!, so the pick survives quitting from the
 	# roster. A no-op when it matches what's already saved.
-	GameState.set_selected_character(index)
-	var cfg: Dictionary = GameState.characters[index]
-	_dancer.set_character(cfg)
-	_pop_preview()
-	_preview_name.text = String(cfg.get("CharacterName", "?"))
+	GameState.set_random_select(index == RANDOM)
+	_dancer.visible = index != RANDOM
+	_preview_question.visible = index == RANDOM
+	if index == RANDOM:
+		_pop_preview(_preview_question, Vector2.ONE)
+		_preview_name.text = "???"
+	else:
+		GameState.set_selected_character(index)
+		var cfg: Dictionary = GameState.characters[index]
+		_dancer.set_character(cfg)
+		_pop_preview(_dancer, Vector2.ONE * PREVIEW_SCALE)
+		_preview_name.text = String(cfg.get("CharacterName", "?"))
 	_fight_btn.disabled = false
 	_update_highlights()
 
 
-## The freshly picked comedian pops in: born tiny at their feet, zooming
+## The freshly picked comedian (or the "?") pops in: born tiny, zooming
 ## up to full preview size with a little overshoot bounce at the end.
-func _pop_preview() -> void:
+func _pop_preview(node: Node, full_scale: Vector2) -> void:
 	if _zoom:
 		_zoom.kill()
-	_dancer.scale = Vector2.ONE * PREVIEW_SCALE * ZOOM_START
+	node.set("scale", full_scale * ZOOM_START)
 	_zoom = create_tween()
-	_zoom.tween_property(_dancer, "scale", Vector2.ONE * PREVIEW_SCALE, ZOOM_TIME) \
+	_zoom.tween_property(node, "scale", full_scale, ZOOM_TIME) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _update_highlights() -> void:
 	_detach_orbit()
 	for card in _grid.get_children():
-		var on: bool = card.get_meta("index", -1) == _selected
+		if not card.has_meta("index"):
+			continue  # blank filler frame, never selected or dimmed
+		var on: bool = card.get_meta("index") == _selected
 		card.modulate = Color(1, 1, 1) if on else Color(0.62, 0.62, 0.68)
 		if on:
 			if _orbit == null:
@@ -219,8 +258,14 @@ func _build_pager() -> HBoxContainer:
 	return pager
 
 
+## Grid entries = the "?" card + the whole roster (0 when there's no roster,
+## so an empty characters.json keeps its plain error screen).
+func _entry_count() -> int:
+	return 0 if GameState.characters.is_empty() else GameState.characters.size() + 1
+
+
 func _page_count() -> int:
-	return maxi(ceili(GameState.characters.size() / float(PAGE_SIZE)), 1)
+	return maxi(ceili(_entry_count() / float(PAGE_SIZE)), 1)
 
 
 func _turn_page(dir: int) -> void:
@@ -234,11 +279,68 @@ func _fill_page() -> void:
 		_grid.remove_child(c)
 		c.queue_free()
 	var start := _page * PAGE_SIZE
-	for i in range(start, mini(start + PAGE_SIZE, GameState.characters.size())):
-		_grid.add_child(_character_card(i, GameState.characters[i]))
+	for e in range(start, mini(start + PAGE_SIZE, _entry_count())):
+		if e == 0:
+			_grid.add_child(_random_card())
+		else:
+			_grid.add_child(_character_card(e - 1, GameState.characters[e - 1]))
+	# Pad a short (only ever the last) page with blank frames so the 3x3
+	# grid never changes shape.
+	if _entry_count() > 0:
+		while _grid.get_child_count() < PAGE_SIZE:
+			_grid.add_child(_empty_card())
 	if _pager:
 		_pager.text = "PAGE %d / %d" % [_page + 1, _page_count()]
 	_update_highlights()
+
+
+## The "?" card heading the roster: a big pixel-font question mark where
+## a head would be. Selecting it defers the pick to _start_fight().
+func _random_card() -> VBoxContainer:
+	var card := VBoxContainer.new()
+	card.alignment = BoxContainer.ALIGNMENT_CENTER
+	card.set_meta("index", RANDOM)
+	var btn := Button.new()
+	btn.flat = true
+	btn.text = "?"
+	btn.custom_minimum_size = Vector2(64, 64)
+	btn.add_theme_font_size_override("font_size", 40)
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		btn.add_theme_color_override(state, Color(1.0, 0.85, 0.4))
+	btn.pressed.connect(func():
+		GameState.play_sfx("click")
+		_select(RANDOM))
+	card.add_child(btn)
+	var name_label := Label.new()
+	name_label.text = "RANDOM"
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 8)
+	card.add_child(name_label)
+	return card
+
+
+## A blank placeholder frame (no meta, not clickable) keeping short pages
+## on the same 3x3 grid as full ones.
+func _empty_card() -> VBoxContainer:
+	var card := VBoxContainer.new()
+	card.alignment = BoxContainer.ALIGNMENT_CENTER
+	var frame := Panel.new()
+	frame.custom_minimum_size = Vector2(64, 64)
+	# Wide columns (long neighbor names) must not stretch the frame into a
+	# rectangle — hold it at 64x64, centered in the cell.
+	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.04)
+	sb.set_corner_radius_all(3)
+	sb.set_border_width_all(2)
+	sb.border_color = Color(0.45, 0.45, 0.52, 0.35)
+	frame.add_theme_stylebox_override("panel", sb)
+	card.add_child(frame)
+	var pad := Label.new()
+	pad.text = " "  # same metrics as a name label, so rows stay aligned
+	pad.add_theme_font_size_override("font_size", 8)
+	card.add_child(pad)
+	return card
 
 
 func _character_card(index: int, cfg: Dictionary) -> VBoxContainer:
