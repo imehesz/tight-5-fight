@@ -90,8 +90,8 @@ func _ready() -> void:
 
 	# Open on the remembered comedian, on whichever page they live. The "?"
 	# card shifts every roster index one entry to the right.
-	if not GameState.characters.is_empty() and not GameState.random_select:
-		_page = (GameState.selected_character + 1) / PAGE_SIZE
+	if not GameState.playable.is_empty() and not GameState.random_select:
+		_page = (maxi(GameState.playable.find(GameState.selected_character), 0) + 1) / PAGE_SIZE
 
 	# Pagers hug the screen edges (not the row) so they never shift with the
 	# widths of the names between them — taps land where the thumb expects.
@@ -104,7 +104,7 @@ func _ready() -> void:
 	row.add_child(_build_preview())
 
 	_fill_page()
-	if GameState.characters.is_empty():
+	if GameState.playable.is_empty():
 		add_text(box, "No characters found in data/characters.json!")
 
 	add_spacer(box, 8)
@@ -118,7 +118,7 @@ func _ready() -> void:
 	_style_fight_button(_fight_btn)
 	add_button(buttons, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 
-	if GameState.characters.is_empty():
+	if GameState.playable.is_empty():
 		_fight_btn.disabled = true
 	else:
 		_select(RANDOM if GameState.random_select else GameState.selected_character)
@@ -256,10 +256,12 @@ func _build_pager() -> HBoxContainer:
 	return pager
 
 
-## Grid entries = the "?" card + the whole roster (0 when there's no roster,
-## so an empty characters.json keeps its plain error screen).
+## Grid entries = the "?" card + every playable comedian (0 when nobody is
+## playable, so an empty — or fully disabled — roster keeps its plain error
+## screen). Entry e > 0 maps to roster index GameState.playable[e - 1]; cards
+## carry that roster index, never their grid position.
 func _entry_count() -> int:
-	return 0 if GameState.characters.is_empty() else GameState.characters.size() + 1
+	return 0 if GameState.playable.is_empty() else GameState.playable.size() + 1
 
 
 func _page_count() -> int:
@@ -281,7 +283,8 @@ func _fill_page() -> void:
 		if e == 0:
 			_grid.add_child(_random_card())
 		else:
-			_grid.add_child(_character_card(e - 1, GameState.characters[e - 1]))
+			var ri: int = GameState.playable[e - 1]
+			_grid.add_child(_character_card(ri, GameState.characters[ri]))
 	# Pad a short (only ever the last) page with blank frames so the 3x3
 	# grid never changes shape.
 	if _entry_count() > 0:

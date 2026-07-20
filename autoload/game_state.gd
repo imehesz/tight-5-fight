@@ -94,6 +94,14 @@ var _scores_file := ""
 var _settings_file := ""
 
 var characters: Array = []
+## Roster indices (into `characters`) of everyone a player may actually meet:
+## every entry whose characters.json record doesn't say `"isDisabled": true`.
+## Disabled comedians stay in `characters` on purpose — the leaderboards look
+## their name up there for the head sprite, so old stats keep their face — they
+## are only kept out of the roster grid, random picks, hecklers and pilots.
+## Seasonal characters (a Santa in December) live and die by this flag, no
+## database edit required.
+var playable: Array = []
 var venues: Array = []
 ## Per-run shuffled indices into `venues`: every run deals the venue list in
 ## a fresh random order (fair exposure for every venue — ad space included —
@@ -186,6 +194,10 @@ func _load_roster() -> void:
 		if String(c.get("HeadSpritePath", "")) != "":
 			c["HeadSpritePath"] = game_path(String(c["HeadSpritePath"]))
 	characters = chars
+	playable = []
+	for i in characters.size():
+		if not bool(characters[i].get("isDisabled", false)):
+			playable.append(i)
 	var vs: Array = _load_json(game_path(String(manifest.get("venues", "venues.json")))).get("venues", [])
 	for v in vs:
 		for k in ["ExteriorSpritePath", "InteriorSpritePath"]:
@@ -284,8 +296,8 @@ func _music_tracks() -> Dictionary:
 ## fresh roll every time while the "?" (random) card is the active pick, so
 ## FIGHT! and PLAY AGAIN both keep the mystery.
 func fight_character_index() -> int:
-	if random_select and not characters.is_empty():
-		return randi() % characters.size()
+	if random_select and not playable.is_empty():
+		return playable[randi() % playable.size()]
 	return selected_character
 
 
@@ -502,7 +514,7 @@ func character_index_by_name(char_name: String) -> int:
 ## Random enemy configs pulled from the roster, excluding the player's pick.
 func enemy_characters(count: int) -> Array:
 	var pool: Array = []
-	for i in characters.size():
+	for i in playable:
 		if i != selected_character:
 			pool.append(characters[i])
 	if pool.is_empty():
@@ -716,6 +728,10 @@ func _load_settings() -> void:
 	# falls back to the first comedian (and is rewritten on the next save).
 	var saved_name: Variant = d.get("character", "")
 	selected_character = character_index_by_name(saved_name) if saved_name is String else 0
+	# A favorite who has since been disabled (a seasonal character out of
+	# season) can't stay the pick: fall back to the first one still playable.
+	if not playable.is_empty() and not playable.has(selected_character):
+		selected_character = playable[0]
 	random_select = bool(d.get("random", false))
 	_apply_volume("Music", music_volume)
 	_apply_volume("SFX", sfx_volume)

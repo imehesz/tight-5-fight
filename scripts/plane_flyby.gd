@@ -151,10 +151,10 @@ func _process(delta: float) -> void:
 
 
 func _add_pilot() -> void:
-	var chars: Array = GameState.characters
-	if chars.is_empty():
+	var roster: Array = GameState.playable
+	if roster.is_empty():
 		return
-	var cfg: Dictionary = chars.pick_random()
+	var cfg: Dictionary = GameState.characters[roster.pick_random()]
 	var path := String(cfg.get("HeadSpritePath", ""))
 	if not ResourceLoader.exists(path):
 		return
