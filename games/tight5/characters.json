@@ -641,6 +641,23 @@
       "HeadSpritePath": "assets/heads/ms-anonymous.png",
       "BodyType": "F",
       "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Santa",
+      "isDisabled": true,
+      "HeadScale": 1,
+      "HeadOffsetY": 4,
+      "HeadSpritePath": "assets/heads/santa.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Paul",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/paul.png",
+      "BodyType": "M",
+      "SkinColor": "#329622"
     }
   ]
 }

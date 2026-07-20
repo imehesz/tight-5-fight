@@ -53,6 +53,16 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 | `overrides.bodyMale` / `.bodyFemale` | optional | `shared/assets/bodies/body_{male,female}.png` |
 | `planeBanners` (array of sentences) | optional | no banner-plane flybys on the street |
 
+### Benching a comedian (`characters.json`)
+
+Add `"isDisabled": true` to a character entry and they vanish from the roster
+grid, the "?" random roll, heckler spawns and plane pilots — but stay in the
+file, so every leaderboard row they already own keeps its name **and** its head
+sprite. Leave the field out (or set it `false`) and they're playable as usual.
+That's how a seasonal character works: ship Santa with `isDisabled: true` all
+year, flip it off in December, redeploy. No database edit either way. A player
+whose saved favorite gets disabled simply opens on the first playable comedian.
+
 ---
 
 ## Building / deploying
