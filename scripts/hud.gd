@@ -11,6 +11,14 @@ const BAR_W := 150.0
 ## on every side on purpose.
 const PORTRAIT := 26.0
 const HEAD := 35.0
+## Gain fliers: "+250" / "+1 LIFE" pop to 2x over the action, then sail to
+## their HUD counter (score top-right, lives top-left), shrinking back to
+## 1x and fading out just before they land on it.
+const FLY_POP_S := 0.12
+const FLY_S := 0.7
+const FLY_FADE_S := 0.3
+const FLY_GOLD := Color(1.0, 0.85, 0.4)
+const FLY_GREEN := Color(0.3, 0.9, 0.35)
 
 var _health_fill: ColorRect
 var _lives_label: Label
@@ -22,6 +30,11 @@ var _center_label: Label
 var _portrait: TextureRect
 var _portrait_style: StyleBoxFlat
 var _flip_timer: Timer
+var _player: Fighter
+## -1 = not seeded yet: the first signal after _ready() sets the baseline
+## without flying (a fresh HUD mid-run must not replay the whole score).
+var _last_score := -1
+var _last_lives := -1
 
 
 func _ready() -> void:
@@ -118,6 +131,7 @@ func _process(_delta: float) -> void:
 
 
 func bind_player(p: Fighter) -> void:
+	_player = p
 	p.health_changed.connect(_on_health_changed)
 	_on_health_changed(p.health, p.max_health)
 
@@ -154,11 +168,55 @@ func _health_color(ratio: float) -> Color:
 
 
 func _on_score_changed(s: int) -> void:
+	if _last_score >= 0 and s > _last_score:
+		_fly_gain("+%d" % (s - _last_score), FLY_GOLD,
+				_score_label.get_global_rect().get_center())
+	_last_score = s
 	_score_label.text = "SCORE %06d" % s
 
 
 func _on_lives_changed(l: int) -> void:
+	if _last_lives >= 0 and l > _last_lives:
+		_fly_gain("+%d LIFE" % (l - _last_lives), FLY_GREEN,
+				_lives_label.get_global_rect().get_center())
+	_last_lives = l
 	_lives_label.text = "LIVES x%d" % maxi(l, 0)
+
+
+## A gained amount flying home to its counter: born over the action, popped
+## to 2x, then sailing to `target` while shrinking back and going
+## transparent on arrival.
+func _fly_gain(text: String, color: Color, target: Vector2) -> void:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+	lbl.add_theme_constant_override("outline_size", 4)
+	lbl.modulate = color
+	add_child(lbl)
+	lbl.reset_size()
+	lbl.pivot_offset = lbl.size / 2.0  # scale from the center, not top-left
+	lbl.position = _gain_origin() - lbl.size / 2.0
+	var tw := lbl.create_tween()
+	tw.tween_property(lbl, "scale", Vector2(2, 2), FLY_POP_S) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Ease IN: it lingers readably over the action, then whips to the corner.
+	tw.tween_property(lbl, "position", target - lbl.size / 2.0, FLY_S) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(lbl, "scale", Vector2.ONE, FLY_S)
+	tw.parallel().tween_property(lbl, "modulate:a", 0.0, FLY_FADE_S) \
+			.set_delay(FLY_S - FLY_FADE_S)
+	tw.tween_callback(lbl.queue_free)
+
+
+## Fliers launch from the player's chest (that's where the earning action
+## is), projected into screen space; center-screen when the player is gone.
+func _gain_origin() -> Vector2:
+	if is_instance_valid(_player):
+		return get_viewport().get_canvas_transform() \
+				* (_player.global_position + Vector2(0.0, -70.0))
+	var view := get_viewport().get_visible_rect().size
+	return Vector2(view.x / 2.0, view.y * 0.4)
 
 
 func _on_bosses_changed(n: int) -> void:

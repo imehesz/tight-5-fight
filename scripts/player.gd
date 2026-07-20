@@ -44,6 +44,8 @@ func _init() -> void:
 
 func _ready() -> void:
 	super()
+	# Lets in-flight boss bottles find the player for the close-call check.
+	add_to_group("player")
 	_build_swing_box()
 	_build_carried_stand()
 

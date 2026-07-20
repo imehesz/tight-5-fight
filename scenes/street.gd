@@ -5,7 +5,11 @@ extends Node2D
 const GROUND_Y := 310.0
 const TILE_W := 320.0
 const TILE_COUNT := 5
-const FIRST_VENUE_X := 900.0
+## Past the opening camera view (which ends at x=640), so the first door
+## never pops in mid-screen — far enough for a short walk (and the opening
+## heckler brawl), near enough that a new player is brawling inside a venue
+## within ~30 s. Tuned by feel: 900 dragged, 650 was too close.
+const FIRST_VENUE_X := 750.0
 const VENUE_SPACING_MIN := 1100.0
 const VENUE_SPACING_MAX := 1600.0
 const DOOR_HALF_WIDTH := 34.0
@@ -43,6 +47,9 @@ var _doors: Array = []  # [{x, data, cleared, sign}]
 var _next_venue_x := FIRST_VENUE_X
 var _venue_index := 0
 var _spawn_timer := 2.0
+## The run's opening heckler is guaranteed hostile, so combat gets
+## demonstrated immediately; cleared once spent (or on a restored street).
+var _first_heckler := true
 var _beer_timer := 3.0
 var _plane_timer := randf_range(4.0, PLANE_FIRST_WAIT_MAX)
 var _plane: PlaneFlyby
@@ -72,8 +79,11 @@ func _ready() -> void:
 		for d in saved.doors:
 			_add_venue(float(d.x), d.data, bool(d.cleared))
 		_spawn_player(Vector2(float(saved.player_x), GROUND_Y))
+		# Mid-run pacing is untouched: no fast spawn, no forced aggression.
+		_first_heckler = false
 	else:
 		_spawn_player(Vector2(120, GROUND_Y))
+		_spawn_timer = 0.5  # first heckler shows up almost immediately
 		# Goal hint, only at the very start of a run — venues_entered, not
 		# "fresh street", so walking back out of venue 1 stays hint-free.
 		if GameState.venues_entered == 0:
@@ -298,6 +308,9 @@ func _maybe_spawn_heckler(delta: float) -> void:
 	# start fights (40% -> 60%) and they walk 10% faster.
 	var post_boss := GameState.bosses_defeated > 0
 	e.aggressive = randf() < (0.6 if post_boss else 0.4)
+	if _first_heckler:
+		e.aggressive = true
+		_first_heckler = false
 	e.move_speed = randf_range(60.0, 95.0) * (1.1 if post_boss else 1.0)
 	e.score_value = 100
 	# Each boss cleared toughens the mob by 10% (health + damage).
@@ -305,7 +318,11 @@ func _maybe_spawn_heckler(delta: float) -> void:
 	e.max_health *= mult
 	e.damage_scale *= mult
 	e.target = player
-	e.position = Vector2(camera.position.x + 380.0, GROUND_Y)
+	# Just past the LIVE right edge (the camera is centered): aspect="expand"
+	# makes phones wider than the 640 design, so a fixed +380 offset (design
+	# half-width 320 + 60) landed hecklers ON-SCREEN there, right of middle.
+	e.position = Vector2(
+			camera.position.x + get_viewport_rect().size.x / 2.0 + 60.0, GROUND_Y)
 	add_child(e)
 
 
@@ -320,7 +337,11 @@ func _maybe_spawn_beer(delta: float) -> void:
 			or get_tree().get_nodes_in_group("beer_pickups").size() >= BEER_MAX_ON_SCREEN:
 		return
 	var pickup := BeerPickup.new()
-	pickup.position = Vector2(camera.position.x + randf_range(300.0, 440.0), BEER_GROUND_Y)
+	# Same live-edge rule as the heckler spawn: 20-140px past whatever the
+	# phone's real right edge is, so bottles never pop into view either.
+	pickup.position = Vector2(
+			camera.position.x + get_viewport_rect().size.x / 2.0 + randf_range(20.0, 140.0),
+			BEER_GROUND_Y)
 	add_child(pickup)
 
 

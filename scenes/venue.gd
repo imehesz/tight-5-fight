@@ -5,6 +5,14 @@ extends Node2D
 
 const GROUND_Y := 310.0
 const MAX_CONCURRENT := 3
+## Entry lanes for same-side spawns. A venue fighter is ~48px wide at
+## FIGHTER_SCALE, so 70px keeps bodies clearly apart as they walk in; 3 lanes
+## covers the worst case (MAX_CONCURRENT all queued on one side) and cycles.
+const SPAWN_LANE_GAP := 70.0
+const SPAWN_LANES := 3
+## Per-enemy walk-speed spread (±%), so a pack drifts apart instead of
+## holding formation. Centered on the tuned speed — see _spawn_next_enemy.
+const SPEED_VARIANCE := 0.12
 const CLEAR_BONUS_PER_LEVEL := 250
 ## Venue fighters (player + comedians) are drawn bigger than on the street;
 ## the boss keeps its own scale. 1.495 = the old 1.3 bumped 15% for phone
@@ -58,6 +66,15 @@ func _ready() -> void:
 		if ordinal >= 3:
 			# Second thrower, offset timers so the pair don't fire in sync.
 			_spawn_boss(100.0, 3.2)
+		# One bottle on the floor so the stagger is findable with empty
+		# pockets. Boss #1 gets none (beer isn't unlocked yet) — that's the
+		# designed curve: the first boss stays a pure dodge test.
+		if GameState.beer_unlocked():
+			var pickup := BeerPickup.new()
+			# LIVE viewport width, never a hardcoded 640 (wide-phone rule).
+			pickup.position = Vector2(
+					get_viewport().get_visible_rect().size.x * 0.4, 300.0)
+			add_child(pickup)
 	else:
 		_to_spawn = GameState.enemy_characters(_level)
 		for i in mini(MAX_CONCURRENT, _to_spawn.size()):
@@ -145,13 +162,22 @@ func _spawn_next_enemy() -> void:
 	var mult := GameState.enemy_strength_mult()
 	e.max_health = (63.0 + 12.0 * (_level - 1)) * mult
 	e.damage_scale = (0.6 + 0.08 * (_level - 1)) * mult
-	e.move_speed = minf(85.0 + 4.0 * _level, 130.0)
+	# Centered variance, so the average pace (and the difficulty tuning built
+	# on it) is unchanged — it only breaks the lockstep that made same-side
+	# spawns march in as one blob.
+	e.move_speed = minf(85.0 + 4.0 * _level, 130.0) \
+			* randf_range(1.0 - SPEED_VARIANCE, 1.0 + SPEED_VARIANCE)
 	e.attack_cooldown = maxf(1.05 - 0.05 * _level, 0.5)
 	e.score_value = 250 + 50 * _level
 	e.target = player
 	# Just past the LIVE right edge, so wide phones don't see enemies pop in.
 	var off_right := get_viewport().get_visible_rect().size.x + 20.0
-	e.position = Vector2(off_right if _spawned % 2 == 0 else -20, GROUND_Y)
+	# Sides alternate, so a batch of 3 puts #1 and #3 on the SAME side. Give
+	# each successive same-side spawn its own lane further out, or they share
+	# an exact start x, walk in at the same speed and read as one fighter.
+	var lane := float((_spawned / 2) % SPAWN_LANES) * SPAWN_LANE_GAP
+	e.position = Vector2(
+			off_right + lane if _spawned % 2 == 0 else -20.0 - lane, GROUND_Y)
 	e.died.connect(_on_enemy_died)
 	add_child(e)
 	_alive += 1
