@@ -3,12 +3,64 @@
     {
       "sponsorId": "example-sponsor",
       "sponsorName": "Example Sponsor",
-      "isDisabled": false,
       "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "isDisabled": true,
       "dateStart": "2026-01-01",
       "dateEnd": "2026-12-31",
       "imgLink": "ads/example.png",
       "linkTo": "https://games.imstandup.com/",
+      "weight": 20
+    },
+    {
+      "sponsorId": "psst-pod",
+      "sponsorName": "Psst! Did You Hear That!?",
+      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "dateStart": "2026-01-01",
+      "dateEnd": "2026-12-31",
+      "imgLink": "ads/sponsor_psst-pod.png",
+      "linkTo": "https://psst-pod.com/",
+      "weight": 20
+    },
+    {
+      "sponsorId": "bizzbuzzcomics",
+      "isDisabled": true,
+      "sponsorName": "BizzBuzzComics.com",
+      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "dateStart": "2026-01-01",
+      "dateEnd": "2026-12-31",
+      "imgLink": "ads/sponsor_bizzbuzzcomics.png",
+      "linkTo": "https://bizzbuzzcomics.com/",
+      "weight": 20
+    },
+    {
+      "sponsorId": "rogan",
+      "isDisabled":true,
+      "sponsorName": "Joe Rogan Experience",
+      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "dateStart": "2026-01-01",
+      "dateEnd": "2026-12-31",
+      "imgLink": "ads/sponsor_rogan.png",
+      "linkTo": "https://open.spotify.com/show/4rOoJ6Egrf8K2IrywzwOMk",
+      "weight": 20
+    },
+    {
+      "sponsorId": "comedy-super-friends",
+      "sponsorName": "Comedy Super Friends",
+      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "dateStart": "2026-01-01",
+      "dateEnd": "2026-12-31",
+      "imgLink": "ads/sponsor_comedy-super-friends.png",
+      "linkTo": "https://comedy-super-friends.com/",
+      "weight": 20
+    },
+    {
+      "sponsorId": "first-coast",
+      "sponsorName": "First Coast Comedy",
+      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "dateStart": "2026-01-01",
+      "dateEnd": "2026-12-31",
+      "imgLink": "ads/sponsor_firstcoast.png",
+      "linkTo": "https://firstcoastcomedy.com/",
       "weight": 20
     }
   ]

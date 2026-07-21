@@ -38,9 +38,9 @@ const PLANE_FIRST_WAIT_MAX := 12.0
 const PLANE_WAIT_MIN := 18.0
 const PLANE_WAIT_MAX := 40.0
 ## Chance that any given venue gap grows a sponsor billboard (when the hosted
-## sponsor roster has anyone active for this game) — a paid treat, not
-## wallpaper. WHICH sponsor fills the slot is Sponsors.pick_weighted().
-const BILLBOARD_CHANCE := 0.4
+## sponsor roster has anyone active for this game). WHICH sponsor fills the
+## slot is Sponsors.pick_weighted().
+const BILLBOARD_CHANCE := 0.75
 
 var player: Player
 var camera: Camera2D
@@ -92,7 +92,8 @@ func _ready() -> void:
 		for b in saved.get("billboards", []):
 			var sponsor: Dictionary = Sponsors.by_id(String(b.id))
 			if not sponsor.is_empty():
-				_add_billboard(float(b.x), sponsor, bool(b.counted))
+				_add_billboard(float(b.x), sponsor, bool(b.counted),
+						String(b.get("variant", "")), float(b.get("tilt", 0.0)))
 		_spawn_player(Vector2(float(saved.player_x), GROUND_Y))
 		# Mid-run pacing is untouched: no fast spawn, no forced aggression.
 		_first_heckler = false
@@ -164,9 +165,10 @@ func _maybe_spawn_billboard(gap_start: float, gap_end: float) -> void:
 	_add_billboard((gap_start + gap_end) / 2.0 + randf_range(-80.0, 80.0), sponsor, false)
 
 
-func _add_billboard(bx: float, sponsor: Dictionary, counted: bool) -> void:
+func _add_billboard(bx: float, sponsor: Dictionary, counted: bool,
+		variant := "", tilt := 0.0) -> void:
 	var board := Billboard.new()
-	board.configure(sponsor, counted)
+	board.configure(sponsor, counted, variant, tilt)
 	board.position = Vector2(bx, GROUND_Y)
 	add_child(board)
 	_billboards.append(board)
@@ -446,7 +448,8 @@ func _capture_state() -> Dictionary:
 	var billboards: Array = []
 	for b in _billboards:
 		if is_instance_valid(b):
-			billboards.append({"x": b.position.x, "id": b.sponsor_id, "counted": b.counted})
+			billboards.append({"x": b.position.x, "id": b.sponsor_id,
+					"counted": b.counted, "variant": b.variant, "tilt": b.tilt_deg})
 	return {
 		"player_x": player.position.x,
 		"next_venue_x": _next_venue_x,

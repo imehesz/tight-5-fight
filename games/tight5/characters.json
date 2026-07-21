@@ -643,6 +643,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "A Karen",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/a-karen.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+
+    {
       "CharacterName": "Santa",
       "isDisabled": true,
       "HeadScale": 1,
@@ -658,6 +667,14 @@
       "HeadSpritePath": "assets/heads/paul.png",
       "BodyType": "M",
       "SkinColor": "#329622"
+    },
+    {
+      "CharacterName": "Officer",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/officer.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
     }
   ]
 }
