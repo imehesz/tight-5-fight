@@ -277,6 +277,34 @@
         section.appendChild(boards);
         main.appendChild(section);
       });
+
+      // Sponsor impression report (guarded like totals: absent on an older
+      // backend). One table, all games: the numbers ad invoices come from.
+      if (data.sponsors && data.sponsors.length > 0) {
+        var section = el("section", "game");
+        section.appendChild(el("h2", null, "SPONSOR IMPRESSIONS"));
+        var box = el("div", "board");
+        var table = el("table");
+        var tr = el("tr");
+        tr.appendChild(el("th", null, "sponsor"));
+        tr.appendChild(el("th", null, "game"));
+        tr.appendChild(el("th", "num", "30 days"));
+        tr.appendChild(el("th", "num", "all time"));
+        table.appendChild(tr);
+        data.sponsors.forEach(function (r) {
+          var row = el("tr");
+          row.appendChild(el("td", null, r.sponsorId));
+          row.appendChild(el("td", null, r.gameId));
+          row.appendChild(el("td", "num", Number(r.month).toLocaleString("en-US")));
+          row.appendChild(el("td", "num", Number(r.allTime).toLocaleString("en-US")));
+          table.appendChild(row);
+        });
+        box.appendChild(table);
+        var boardsWrap = el("div", "boards");
+        boardsWrap.appendChild(box);
+        section.appendChild(boardsWrap);
+        main.appendChild(section);
+      }
     })
     .catch(function (e) {
       if (e.message === "403") return;

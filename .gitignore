@@ -19,3 +19,5 @@ deploy-be/
 tools/*
 helper-tools/.cache/
 helper-tools/__pycache__/
+
+requirements/

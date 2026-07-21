@@ -25,6 +25,7 @@ const SCENE_CHARACTER_SELECT := "res://scenes/character_select.tscn"
 const SCENE_SETTINGS := "res://scenes/settings_menu.tscn"
 const SCENE_SCOREBOARD := "res://scenes/scoreboard.tscn"
 const SCENE_ABOUT := "res://scenes/about.tscn"
+const SCENE_SPONSORS := "res://scenes/sponsors_menu.tscn"
 const SCENE_STREET := "res://scenes/street.tscn"
 const SCENE_VENUE := "res://scenes/venue.tscn"
 const SCENE_GAME_OVER := "res://scenes/game_over.tscn"
@@ -102,6 +103,9 @@ var characters: Array = []
 ## Seasonal characters (a Santa in December) live and die by this flag, no
 ## database edit required.
 var playable: Array = []
+## Venues a run can spawn doors for: every venues.json entry not marked
+## `"isDisabled": true`. Benched venues never enter this array (see
+## _load_roster for why that's safe here but not for characters).
 var venues: Array = []
 ## Per-run shuffled indices into `venues`: every run deals the venue list in
 ## a fresh random order (fair exposure for every venue — ad space included —
@@ -133,6 +137,11 @@ var run_kos: Dictionary = {}
 ## feed the global VENUES board. The same name can recur: the street cycles
 ## the venue list, so a deep run walks past The Giggle Shack more than once.
 var run_venues: Dictionary = {}
+## Sponsor billboards actually SEEN this run (scrolled into view, not merely
+## spawned), sponsorId -> count. Ships alongside run_kos so sponsor reports
+## bill real eyeballs. Lost if the tab closes mid-run — same accepted
+## trade-off as the other run tallies.
+var run_billboards: Dictionary = {}
 ## Current KO streak and the tick (Time.get_ticks_msec, unaffected by
 ## hitstop's Engine.time_scale) the window closes at; expired lazily in
 ## bank_ko_score()/streak_active(), so no timer to manage.
@@ -199,11 +208,19 @@ func _load_roster() -> void:
 		if not bool(characters[i].get("isDisabled", false)):
 			playable.append(i)
 	var vs: Array = _load_json(game_path(String(manifest.get("venues", "venues.json")))).get("venues", [])
+	venues = []
 	for v in vs:
+		# Unlike disabled comedians, disabled venues can drop out of the array
+		# entirely: nothing in the client looks venue art up by name — the
+		# scoreboard's venue rows are text-only, and the public stats pages read
+		# their own synced copy of venues.json. The DB keeps the visit rows, so
+		# a benched venue still ranks on the boards; it just spawns no door.
+		if bool(v.get("isDisabled", false)):
+			continue
 		for k in ["ExteriorSpritePath", "InteriorSpritePath"]:
 			if String(v.get(k, "")) != "":
 				v[k] = game_path(String(v[k]))
-	venues = vs
+		venues.append(v)
 
 
 # ---------------------------------------------------------------- manifest resolvers
@@ -314,6 +331,7 @@ func start_new_game(character_index: int) -> void:
 	last_run_rank = -1
 	run_kos = {}
 	run_venues = {}
+	run_billboards = {}
 	_shuffle_venues()  # every run sees the venues in a fresh order
 	reset_streak()  # a new run never inherits a streak
 	change_scene(SCENE_STREET)
@@ -329,6 +347,12 @@ func enter_venue() -> void:
 
 func is_boss_venue() -> bool:
 	return venues_entered > 0 and venues_entered % BOSS_EVERY == 0
+
+
+## One billboard scrolled into view (Billboard._on_seen fires this exactly
+## once per instance; the counted flag survives street restores).
+func count_billboard_impression(sponsor_id: String) -> void:
+	run_billboards[sponsor_id] = int(run_billboards.get(sponsor_id, 0)) + 1
 
 
 # ---------------------------------------------------------------- beer bottles

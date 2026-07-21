@@ -52,6 +52,10 @@ visible and drive the same input actions (mouse clicks work on them too, via
 - **New venue:** add an entry to `data/venues.json` (`VenueName`,
   `ExteriorSpritePath` 160x120 with the door at bottom center,
   `InteriorSpritePath` 640x360).
+- **New sponsor (paid billboard on the street + SPONSORS screen):** hosted,
+  not baked into any build — see `website-for-all/sponsors/README.md`.
+  Paste the 640x460 ad into `website-for-all/sponsors/ads/`, add an entry to
+  `sponsors.json`, rsync the website. No game redeploy.
 
 ## Placeholder art
 

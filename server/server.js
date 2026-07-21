@@ -141,6 +141,28 @@ function cleanVenues(gameId, venues) {
   return clean;
 }
 
+// Sponsor billboards seen per run: {sponsorId: count}. There is no server-
+// side sponsor roster (sponsors.json lives with the website, not the API),
+// so validation is shape-only: slug ids, sane counts. A determined liar can
+// inflate an impression figure they don't benefit from; the rows stay
+// attributable by player_uuid and deletable, like everything else here.
+// Even a marathon run walks past a few dozen billboards, so 200 per sponsor
+// bounds one (cooldown-priced) request comfortably.
+const MAX_IMPRESSIONS_PER_SPONSOR = 200;
+
+function cleanBillboards(billboards) {
+  if (billboards === undefined || billboards === null) return {};
+  if (typeof billboards !== "object" || Array.isArray(billboards)) return null;
+  const entries = Object.entries(billboards);
+  if (entries.length > 16) return null;
+  const clean = {};
+  for (const [id, count] of entries) {
+    if (!Number.isInteger(count) || count < 1 || count > MAX_IMPRESSIONS_PER_SPONSOR) return null;
+    if (/^[a-z0-9][a-z0-9-]{0,39}$/.test(id)) clean[id] = count;
+  }
+  return clean;
+}
+
 // ---------------------------------------------------------------- rate limits
 // Sliding-window counters, keyed by IP. Memory-only and therefore reset by a
 // restart — fine, because the durable per-UUID cooldown lives in the DB and
@@ -238,7 +260,7 @@ async function postPlay(req, res) {
     return json(res, 400, { error: e.message });
   }
 
-  const { gameId, character, uuid, kos, venues, score } = body;
+  const { gameId, character, uuid, kos, venues, billboards, score } = body;
   if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
   // Optional (older clients don't send it). Clamped, not trusted: like the
   // rest of this board there are no names attached, so a lie only pollutes
@@ -255,6 +277,8 @@ async function postPlay(req, res) {
   if (koCounts === null) return json(res, 400, { error: "bad kos" });
   const venueCounts = cleanVenues(gameId, venues);
   if (venueCounts === null) return json(res, 400, { error: "bad venues" });
+  const billboardCounts = cleanBillboards(billboards);
+  if (billboardCounts === null) return json(res, 400, { error: "bad billboards" });
 
   // An unknown UUID means the caller never went through /player. That's the
   // check that makes the per-IP mint cap the real cost of scripted spam.
@@ -274,6 +298,9 @@ async function postPlay(req, res) {
   }
   if (Object.keys(venueCounts).length > 0) {
     await db.recordVenueVisits({ gameId, playerUuid: uuid, counts: venueCounts });
+  }
+  if (Object.keys(billboardCounts).length > 0) {
+    await db.recordSponsorImpressions({ gameId, playerUuid: uuid, counts: billboardCounts });
   }
   chargeHit("play", ip);
   json(res, 200, { ok: true });
@@ -414,7 +441,15 @@ async function getStats(req, res, url) {
       })),
     });
   }
-  json(res, 200, { generatedAt: new Date().toISOString(), totals, games });
+  // Sponsor impression report: one row per (sponsor, game), 30-day window +
+  // all time — the numbers the ad rate card is priced from.
+  const sponsors = (await db.sponsorReport()).map((r) => ({
+    sponsorId: r.sponsor_id,
+    gameId: r.game_id,
+    month: Number(r.month_total),
+    allTime: Number(r.all_time),
+  }));
+  json(res, 200, { generatedAt: new Date().toISOString(), totals, games, sponsors });
 }
 
 const server = http.createServer(async (req, res) => {

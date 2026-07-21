@@ -37,6 +37,10 @@ const BEER_MAX_ON_SCREEN := 2
 const PLANE_FIRST_WAIT_MAX := 12.0
 const PLANE_WAIT_MIN := 18.0
 const PLANE_WAIT_MAX := 40.0
+## Chance that any given venue gap grows a sponsor billboard (when the hosted
+## sponsor roster has anyone active for this game) — a paid treat, not
+## wallpaper. WHICH sponsor fills the slot is Sponsors.pick_weighted().
+const BILLBOARD_CHANCE := 0.4
 
 var player: Player
 var camera: Camera2D
@@ -44,6 +48,7 @@ var hud: Hud
 
 var _tiles: Array = []
 var _doors: Array = []  # [{x, data, cleared, sign}]
+var _billboards: Array = []  # Billboard nodes, in spawn order
 var _next_venue_x := FIRST_VENUE_X
 var _venue_index := 0
 var _spawn_timer := 2.0
@@ -71,6 +76,10 @@ func _ready() -> void:
 	# Auto-disconnected when this scene is freed; no manual cleanup needed.
 	GameState.shake_requested.connect(_on_shake)
 
+	# Best-effort retry: a boot-time fetch failure (offline blip) shouldn't
+	# cost the whole session its billboards.
+	Sponsors.ensure_loaded()
+
 	var saved: Dictionary = GameState.street_state
 	if saved.has("doors"):
 		# Returning from a venue: rebuild the street exactly as it was.
@@ -78,6 +87,12 @@ func _ready() -> void:
 		_venue_index = int(saved.venue_index)
 		for d in saved.doors:
 			_add_venue(float(d.x), d.data, bool(d.cleared))
+		# Billboards restore with their counted flag, so a re-walk past a
+		# restored board never bills a second impression.
+		for b in saved.get("billboards", []):
+			var sponsor: Dictionary = Sponsors.by_id(String(b.id))
+			if not sponsor.is_empty():
+				_add_billboard(float(b.x), sponsor, bool(b.counted))
 		_spawn_player(Vector2(float(saved.player_x), GROUND_Y))
 		# Mid-run pacing is untouched: no fast spawn, no forced aggression.
 		_first_heckler = false
@@ -129,9 +144,32 @@ func _recycle_tiles() -> void:
 func _maybe_spawn_venue() -> void:
 	if camera.position.x + 700.0 < _next_venue_x:
 		return
-	_add_venue(_next_venue_x, GameState.venue_data_for_index(_venue_index), false)
+	var placed_x := _next_venue_x
+	_add_venue(placed_x, GameState.venue_data_for_index(_venue_index), false)
 	_venue_index += 1
 	_next_venue_x += randf_range(VENUE_SPACING_MIN, VENUE_SPACING_MAX)
+	_maybe_spawn_billboard(placed_x, _next_venue_x)
+
+
+## Roll a sponsor billboard into the gap that just opened between the venue
+## placed at gap_start and the next one. Mid-gap ±80 keeps it clear of both
+## exteriors (min gap 1100, exterior half-width ~160). Same-sponsor repeats
+## across gaps are fine — the street cycles everything.
+func _maybe_spawn_billboard(gap_start: float, gap_end: float) -> void:
+	if randf() > BILLBOARD_CHANCE:
+		return
+	var sponsor: Dictionary = Sponsors.pick_weighted()
+	if sponsor.is_empty():
+		return
+	_add_billboard((gap_start + gap_end) / 2.0 + randf_range(-80.0, 80.0), sponsor, false)
+
+
+func _add_billboard(bx: float, sponsor: Dictionary, counted: bool) -> void:
+	var board := Billboard.new()
+	board.configure(sponsor, counted)
+	board.position = Vector2(bx, GROUND_Y)
+	add_child(board)
+	_billboards.append(board)
 
 
 func _add_venue(vx: float, data: Dictionary, cleared: bool) -> void:
@@ -405,11 +443,16 @@ func _capture_state() -> Dictionary:
 	var doors: Array = []
 	for d in _doors:
 		doors.append({"x": d.x, "data": d.data, "cleared": d.cleared})
+	var billboards: Array = []
+	for b in _billboards:
+		if is_instance_valid(b):
+			billboards.append({"x": b.position.x, "id": b.sponsor_id, "counted": b.counted})
 	return {
 		"player_x": player.position.x,
 		"next_venue_x": _next_venue_x,
 		"venue_index": _venue_index,
 		"doors": doors,
+		"billboards": billboards,
 	}
 
 

@@ -53,7 +53,7 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 | `overrides.bodyMale` / `.bodyFemale` | optional | `shared/assets/bodies/body_{male,female}.png` |
 | `planeBanners` (array of sentences) | optional | no banner-plane flybys on the street |
 
-### Benching a comedian (`characters.json`)
+### Benching a comedian or a venue (`characters.json` / `venues.json`)
 
 Add `"isDisabled": true` to a character entry and they vanish from the roster
 grid, the "?" random roll, heckler spawns and plane pilots — but stay in the
@@ -62,6 +62,13 @@ sprite. Leave the field out (or set it `false`) and they're playable as usual.
 That's how a seasonal character works: ship Santa with `isDisabled: true` all
 year, flip it off in December, redeploy. No database edit either way. A player
 whose saved favorite gets disabled simply opens on the first playable comedian.
+
+The same flag works on a `venues.json` entry: a disabled venue stops spawning
+on the street, but stays in the file so the public stats pages keep finding its
+name and exterior art, and every row it already owns on the VENUES boards
+survives untouched. No database edit, no re-run of `sync-rosters` needed —
+though running it anyway is harmless (disabled names stay whitelisted, which
+only matters to in-flight runs on an older build).
 
 ---
 

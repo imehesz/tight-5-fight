@@ -58,6 +58,16 @@ const SCHEMA = {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_venue_board ON venue_visits (game_id, venue_name)`,
     `CREATE INDEX IF NOT EXISTS idx_venue_uuid  ON venue_visits (player_uuid, id)`,
+    `CREATE TABLE IF NOT EXISTS sponsor_impressions (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id     TEXT NOT NULL,
+      sponsor_id  TEXT NOT NULL,
+      player_uuid TEXT NOT NULL,
+      count       INTEGER NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_sponsor_report ON sponsor_impressions (game_id, sponsor_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_sponsor_uuid   ON sponsor_impressions (player_uuid, id)`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -105,6 +115,17 @@ const SCHEMA = {
       PRIMARY KEY (id),
       KEY idx_venue_board (game_id, venue_name),
       KEY idx_venue_uuid (player_uuid, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS sponsor_impressions (
+      id          INT         NOT NULL AUTO_INCREMENT,
+      game_id     VARCHAR(32) NOT NULL,
+      sponsor_id  VARCHAR(40) NOT NULL,
+      player_uuid CHAR(36)    NOT NULL,
+      count       INT         NOT NULL,
+      created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_sponsor_report (game_id, sponsor_id),
+      KEY idx_sponsor_uuid (player_uuid, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
@@ -231,6 +252,34 @@ async function recordVenueVisits({ gameId, playerUuid, counts }) {
       [gameId, name, playerUuid, count]
     );
   }
+}
+
+// ---------------------------------------------------------------- sponsors
+// Billboard impressions a run's player actually saw, one row per sponsor id
+// (with a count). Attributable like beatdowns: an inflated report heals when
+// the offending player_uuid's rows are deleted.
+async function recordSponsorImpressions({ gameId, playerUuid, counts }) {
+  for (const [sponsorId, count] of Object.entries(counts)) {
+    await run(
+      "INSERT INTO sponsor_impressions (game_id, sponsor_id, player_uuid, count) VALUES (?, ?, ?, ?)",
+      [gameId, sponsorId, playerUuid, count]
+    );
+  }
+}
+
+// The billing view: impressions per (sponsor, game), last 30 days + all
+// time. Whole table, no paging — the sponsor roster is a handful of rows.
+// CASE instead of FILTER keeps it MySQL 5.5-safe; the window expression is
+// the dialect constant below, never user input.
+async function sponsorReport() {
+  return all(
+    `SELECT sponsor_id, game_id,
+            SUM(CASE WHEN created_at >= ${SINCE[DRIVER].month} THEN count ELSE 0 END) AS month_total,
+            SUM(count) AS all_time
+       FROM sponsor_impressions
+      GROUP BY sponsor_id, game_id
+      ORDER BY sponsor_id ASC, game_id ASC`
+  );
 }
 
 // One page of the most-entered-venues board. Same stable ordering contract
@@ -384,6 +433,8 @@ module.exports = {
   recordPlay,
   recordBeatdowns,
   recordVenueVisits,
+  recordSponsorImpressions,
+  sponsorReport,
   boardPage,
   boardSize,
   mostPlayedTop,

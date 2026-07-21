@@ -88,6 +88,7 @@ func record_play() -> void:
 	var character := String(GameState.selected_character_data().get("CharacterName", ""))
 	var kos: Dictionary = GameState.run_kos.duplicate()
 	var venues: Dictionary = GameState.run_venues.duplicate()
+	var billboards: Dictionary = GameState.run_billboards.duplicate()
 	var run_score := GameState.score
 	var game_id := GameState.active_game
 	if character == "":
@@ -115,6 +116,10 @@ func record_play() -> void:
 		# omit-when-empty contract as kos.
 		if not venues.is_empty():
 			body["venues"] = venues
+		# Sponsor billboards seen this run, for the impression reports. Same
+		# omit-when-empty contract; old servers just ignore the field.
+		if not billboards.is_empty():
+			body["billboards"] = billboards
 		await _request(HTTPClient.METHOD_POST, "/play", body)
 	_recording = false
 

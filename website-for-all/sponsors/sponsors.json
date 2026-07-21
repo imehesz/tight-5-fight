@@ -1,0 +1,15 @@
+{
+  "sponsors": [
+    {
+      "sponsorId": "example-sponsor",
+      "sponsorName": "Example Sponsor",
+      "isDisabled": false,
+      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "dateStart": "2026-01-01",
+      "dateEnd": "2026-12-31",
+      "imgLink": "ads/example.png",
+      "linkTo": "https://games.imstandup.com/",
+      "weight": 20
+    }
+  ]
+}
