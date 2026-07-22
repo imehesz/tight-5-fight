@@ -25,8 +25,9 @@ var hud: Hud
 
 var _level := 1
 var _boss_stage := false
-## One boss on the right through the first two boss fights; from the third
-## on, a second owner joins from the LEFT so bottles fly in from both sides.
+## One boss on the right through the first two boss fights (#2 adds a rival
+## comedian on the floor to fight while dodging); from the third on, a
+## second owner joins from the LEFT so bottles fly in from both sides.
 var _bosses: Array[Boss] = []
 var _to_spawn: Array = []
 var _alive := 0
@@ -66,6 +67,13 @@ func _ready() -> void:
 		if ordinal >= 3:
 			# Second thrower, offset timers so the pair don't fire in sync.
 			_spawn_boss(100.0, 3.2)
+		elif ordinal == 2:
+			# Boss #2's twist: one rival comedian works the room, so the
+			# player fights while dodging bottles. (#1 = pure dodge test,
+			# #3+ = double throwers.) KOing them pays score but never ends
+			# the stage — only the survive timer does (see _on_enemy_died).
+			_to_spawn = GameState.enemy_characters(1)
+			_spawn_next_enemy()
 		# One bottle on the floor so the stagger is findable with empty
 		# pockets. Boss #1 gets none (beer isn't unlocked yet) — that's the
 		# designed curve: the first boss stays a pure dodge test.
@@ -198,6 +206,10 @@ func _on_shake(px: float) -> void:
 # ---------------------------------------------------------------- outcomes
 func _on_enemy_died(_f: Fighter) -> void:
 	_alive -= 1
+	# Boss-stage comedian (boss #2): no respawn, and no "venue cleared" —
+	# a boss stage only ends when the survive timer runs out.
+	if _boss_stage:
+		return
 	if not _to_spawn.is_empty():
 		await get_tree().create_timer(1.0).timeout
 		if not _finished:
@@ -236,6 +248,11 @@ func _boss_survived() -> void:
 	for b in _bosses:
 		if is_instance_valid(b):
 			b.active = false
+	# Boss #2's comedian, if still standing, stops fighting and just mills
+	# around during the victory banner.
+	for e in get_tree().get_nodes_in_group("enemies"):
+		e.aggressive = false
+		e.provoked = false
 	for p in get_tree().get_nodes_in_group("projectiles"):
 		p.queue_free()
 	var bonus := 2 * CLEAR_BONUS_PER_LEVEL * _level
