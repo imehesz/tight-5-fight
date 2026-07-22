@@ -307,8 +307,10 @@
         board("MOST PLAYED", "THE CROWD'S PICKS · TOTAL POINTS THEY'VE BANKED"),
         data.topPlayed || [],
         function (slot, row) {
-          fillChar(slot, row, fmt(row.score) + " PTS",
-            fmt(row.plays) + (row.plays === 1 ? " RUN" : " RUNS"));
+          // Runs count hidden for now — may bring it back later:
+          // fillChar(slot, row, fmt(row.score) + " PTS",
+          //   fmt(row.plays) + (row.plays === 1 ? " RUN" : " RUNS"));
+          fillChar(slot, row, fmt(row.score) + " PTS");
         });
 
       podium(
