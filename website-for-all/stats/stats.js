@@ -332,8 +332,12 @@
             img.src = "venues/" + v.ExteriorSpritePath.split("/").pop();
             slot.appendChild(img);
           }
+          // Fights = KOs landed inside the venue. Hidden while 0: the tally
+          // only exists on new-client runs, so early boards would otherwise
+          // read "0 FIGHTS" across the podium.
           slot.appendChild(nameplate(row.venue,
-            fmt(row.entries) + (row.entries === 1 ? " ENTRY" : " ENTRIES")));
+            fmt(row.entries) + (row.entries === 1 ? " ENTRY" : " ENTRIES"),
+            row.fights ? fmt(row.fights) + (row.fights === 1 ? " FIGHT" : " FIGHTS") : null));
         });
 
       footer();

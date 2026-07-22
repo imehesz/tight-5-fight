@@ -19,6 +19,16 @@
       "VenueName": "Bonkers",
       "ExteriorSpritePath": "assets/venues/bonkers_ext.png",
       "InteriorSpritePath": "assets/venues/bonkers_int.png" 
+    },
+    { 
+      "VenueName": "Sareth Fest",
+      "ExteriorSpritePath": "assets/venues/sareth-fest_ext.png",
+      "InteriorSpritePath": "assets/venues/sareth-fest_int.png" 
+    },
+    { 
+      "VenueName": "Cinematique",
+      "ExteriorSpritePath": "assets/venues/cinematique_ext.png",
+      "InteriorSpritePath": "assets/venues/cinematique_int.png" 
     }
   ]
 }
