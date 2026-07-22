@@ -9,6 +9,7 @@
 	{ "VenueName": "Salt Cave", "ExteriorSpritePath": "assets/venues/salt-cave_ext.png", "InteriorSpritePath": "assets/venues/salt-cave_int.png" },
 	{ "VenueName": "Bonkers", "ExteriorSpritePath": "assets/venues/bonkers_ext.png", "InteriorSpritePath": "assets/venues/bonkers_int.png" },
 	{ "VenueName": "Comedy School", "ExteriorSpritePath": "assets/venues/comedy-school_ext.png", "InteriorSpritePath": "assets/venues/comedy-school_int.png" },
-	{ "VenueName": "Bay Street Grille", "ExteriorSpritePath": "assets/venues/bay-street_ext.png", "InteriorSpritePath": "assets/venues/bay-street_int.png" }
+	{ "VenueName": "Bay Street Grille", "ExteriorSpritePath": "assets/venues/bay-street_ext.png", "InteriorSpritePath": "assets/venues/bay-street_int.png" },
+	{ "VenueName": "Rooftop Comedy Show", "ExteriorSpritePath": "assets/venues/rooftop_ext.png", "InteriorSpritePath": "assets/venues/rooftop_int.png" }
   ]
 }

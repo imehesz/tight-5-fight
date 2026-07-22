@@ -141,6 +141,26 @@ function cleanVenues(gameId, venues) {
   return clean;
 }
 
+// KOs landed inside each venue per run: {venueName: count} — the "fights"
+// tally on the TOP VENUES board. A deep run KOs a few comedians per visit
+// and re-enters venues, so the per-character KO cap is the right scale here.
+const MAX_KOS_PER_VENUE = MAX_KOS_PER_CHARACTER;
+
+// Validate the optional `venueKos` payload. Same contract as cleanVenues —
+// hostile shape is null (fatal), unknown venue names are dropped.
+function cleanVenueKos(gameId, venueKos) {
+  if (venueKos === undefined || venueKos === null) return {};
+  if (typeof venueKos !== "object" || Array.isArray(venueKos)) return null;
+  const entries = Object.entries(venueKos);
+  if (entries.length > 64) return null;
+  const clean = {};
+  for (const [name, count] of entries) {
+    if (!Number.isInteger(count) || count < 1 || count > MAX_KOS_PER_VENUE) return null;
+    if (validVenue(gameId, name)) clean[name] = count;
+  }
+  return clean;
+}
+
 // Sponsor billboards seen per run: {sponsorId: count}. There is no server-
 // side sponsor roster (sponsors.json lives with the website, not the API),
 // so validation is shape-only: slug ids, sane counts. A determined liar can
@@ -260,7 +280,7 @@ async function postPlay(req, res) {
     return json(res, 400, { error: e.message });
   }
 
-  const { gameId, character, uuid, kos, venues, billboards, score } = body;
+  const { gameId, character, uuid, kos, venues, venueKos, billboards, score } = body;
   if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
   // Optional (older clients don't send it). Clamped, not trusted: like the
   // rest of this board there are no names attached, so a lie only pollutes
@@ -277,6 +297,8 @@ async function postPlay(req, res) {
   if (koCounts === null) return json(res, 400, { error: "bad kos" });
   const venueCounts = cleanVenues(gameId, venues);
   if (venueCounts === null) return json(res, 400, { error: "bad venues" });
+  const venueKoCounts = cleanVenueKos(gameId, venueKos);
+  if (venueKoCounts === null) return json(res, 400, { error: "bad venueKos" });
   const billboardCounts = cleanBillboards(billboards);
   if (billboardCounts === null) return json(res, 400, { error: "bad billboards" });
 
@@ -298,6 +320,9 @@ async function postPlay(req, res) {
   }
   if (Object.keys(venueCounts).length > 0) {
     await db.recordVenueVisits({ gameId, playerUuid: uuid, counts: venueCounts });
+  }
+  if (Object.keys(venueKoCounts).length > 0) {
+    await db.recordVenueFights({ gameId, playerUuid: uuid, counts: venueKoCounts });
   }
   if (Object.keys(billboardCounts).length > 0) {
     await db.recordSponsorImpressions({ gameId, playerUuid: uuid, counts: billboardCounts });
@@ -365,7 +390,7 @@ async function getVenues(req, res, url) {
 // GET /podium?gameId=tight5
 //   -> { topPlayed: [{ character, plays, score }],
 //        topBeat:   [{ character, kos }],
-//        topVenues: [{ venue, entries }] }
+//        topVenues: [{ venue, entries, fights }] }
 // The public top-3 slice behind website-for-all/stats/<game>/. Unlike
 // /leaderboard's rows (ranked by best single score), topPlayed ranks by
 // play COUNT and carries the character's SUMMED score for display. No
@@ -386,9 +411,17 @@ async function getPodium(req, res, url) {
     character: r.character_name,
     kos: Number(r.kos),
   }));
+  // KO totals per venue ride along on the entries ranking ("fights" on the
+  // stats page). A venue with visits but no recorded KOs shows 0 — that's
+  // real data, not an error (older clients don't send venueKos).
+  const fightsBy = {};
+  (await db.venueFightTotals(gameId)).forEach((r) => {
+    fightsBy[r.venue_name] = Number(r.kos);
+  });
   const topVenues = (await db.venuePage(gameId, 0, PODIUM_SIZE)).map((r) => ({
     venue: r.venue_name,
     entries: Number(r.entries),
+    fights: fightsBy[r.venue_name] || 0,
   }));
   json(res, 200, { topPlayed, topBeat, topVenues });
 }

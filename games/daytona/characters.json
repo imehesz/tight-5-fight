@@ -9,6 +9,14 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "Andrew Ramos",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/andrew-ramos.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "Billy Meyers III.",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -61,6 +69,22 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/joe-lovece.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "J-Zilla",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/j-zilla.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },   
+    {
+      "CharacterName": "Kelly Hughey",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/kelly-hughey.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },

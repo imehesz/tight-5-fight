@@ -58,6 +58,16 @@ const SCHEMA = {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_venue_board ON venue_visits (game_id, venue_name)`,
     `CREATE INDEX IF NOT EXISTS idx_venue_uuid  ON venue_visits (player_uuid, id)`,
+    `CREATE TABLE IF NOT EXISTS venue_fights (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id     TEXT NOT NULL,
+      venue_name  TEXT NOT NULL,
+      player_uuid TEXT NOT NULL,
+      count       INTEGER NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_fight_board ON venue_fights (game_id, venue_name)`,
+    `CREATE INDEX IF NOT EXISTS idx_fight_uuid  ON venue_fights (player_uuid, id)`,
     `CREATE TABLE IF NOT EXISTS sponsor_impressions (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       game_id     TEXT NOT NULL,
@@ -115,6 +125,17 @@ const SCHEMA = {
       PRIMARY KEY (id),
       KEY idx_venue_board (game_id, venue_name),
       KEY idx_venue_uuid (player_uuid, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS venue_fights (
+      id          INT         NOT NULL AUTO_INCREMENT,
+      game_id     VARCHAR(32) NOT NULL,
+      venue_name  VARCHAR(64) NOT NULL,
+      player_uuid CHAR(36)    NOT NULL,
+      count       INT         NOT NULL,
+      created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_fight_board (game_id, venue_name),
+      KEY idx_fight_uuid (player_uuid, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
     `CREATE TABLE IF NOT EXISTS sponsor_impressions (
       id          INT         NOT NULL AUTO_INCREMENT,
@@ -252,6 +273,31 @@ async function recordVenueVisits({ gameId, playerUuid, counts }) {
       [gameId, name, playerUuid, count]
     );
   }
+}
+
+// KOs this run's player landed inside each venue, one row per venue name
+// (with a count) — the "fights" tally under TOP VENUES. Same attributable
+// shape as venue_visits, for the same reason.
+async function recordVenueFights({ gameId, playerUuid, counts }) {
+  for (const [name, count] of Object.entries(counts)) {
+    await run(
+      "INSERT INTO venue_fights (game_id, venue_name, player_uuid, count) VALUES (?, ?, ?, ?)",
+      [gameId, name, playerUuid, count]
+    );
+  }
+}
+
+// Total KOs per venue for one game — merged onto the entries-ranked podium
+// rows in server.js. Whole-game GROUP BY, no paging: the venue roster is a
+// handful of names.
+async function venueFightTotals(gameId) {
+  return all(
+    `SELECT venue_name, SUM(count) AS kos
+       FROM venue_fights
+      WHERE game_id = ?
+      GROUP BY venue_name`,
+    [gameId]
+  );
 }
 
 // ---------------------------------------------------------------- sponsors
@@ -433,6 +479,8 @@ module.exports = {
   recordPlay,
   recordBeatdowns,
   recordVenueVisits,
+  recordVenueFights,
+  venueFightTotals,
   recordSponsorImpressions,
   sponsorReport,
   boardPage,

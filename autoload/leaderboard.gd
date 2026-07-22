@@ -89,6 +89,7 @@ func record_play() -> void:
 	var kos: Dictionary = GameState.run_kos.duplicate()
 	var venues: Dictionary = GameState.run_venues.duplicate()
 	var billboards: Dictionary = GameState.run_billboards.duplicate()
+	var venue_kos: Dictionary = GameState.run_venue_kos.duplicate()
 	var run_score := GameState.score
 	var game_id := GameState.active_game
 	if character == "":
@@ -120,6 +121,10 @@ func record_play() -> void:
 		# omit-when-empty contract; old servers just ignore the field.
 		if not billboards.is_empty():
 			body["billboards"] = billboards
+		# KOs landed inside each venue, for the TOP VENUES fight tallies.
+		# Same omit-when-empty contract; old servers just ignore the field.
+		if not venue_kos.is_empty():
+			body["venueKos"] = venue_kos
 		await _request(HTTPClient.METHOD_POST, "/play", body)
 	_recording = false
 

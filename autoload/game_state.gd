@@ -142,6 +142,13 @@ var run_venues: Dictionary = {}
 ## bill real eyeballs. Lost if the tab closes mid-run — same accepted
 ## trade-off as the other run tallies.
 var run_billboards: Dictionary = {}
+## KOs dealt INSIDE each venue this run, venue name -> count ("fights" on the
+## TOP VENUES board). Street KOs are deliberately unattributed — only KOs
+## landed while current_venue_name is set count. Ships alongside run_kos.
+var run_venue_kos: Dictionary = {}
+## The venue the player is currently inside; "" on the street and in menus.
+## Set by enter_venue(), cleared by any change_scene() away from the venue.
+var current_venue_name := ""
 ## Current KO streak and the tick (Time.get_ticks_msec, unaffected by
 ## hitstop's Engine.time_scale) the window closes at; expired lazily in
 ## bank_ko_score()/streak_active(), so no timer to manage.
@@ -332,6 +339,7 @@ func start_new_game(character_index: int) -> void:
 	run_kos = {}
 	run_venues = {}
 	run_billboards = {}
+	run_venue_kos = {}
 	_shuffle_venues()  # every run sees the venues in a fresh order
 	reset_streak()  # a new run never inherits a streak
 	change_scene(SCENE_STREET)
@@ -342,6 +350,7 @@ func enter_venue() -> void:
 	var venue_name := String(pending_venue.get("VenueName", ""))
 	if venue_name != "":
 		run_venues[venue_name] = int(run_venues.get(venue_name, 0)) + 1
+	current_venue_name = venue_name
 	change_scene(SCENE_VENUE)
 
 
@@ -465,6 +474,11 @@ func reset_streak() -> void:
 func count_ko(char_name: String) -> void:
 	if char_name != "":
 		run_kos[char_name] = int(run_kos.get(char_name, 0)) + 1
+	# A nameless fighter is still a fight: the venue tally counts the KO even
+	# when the roster tally above can't.
+	if current_venue_name != "":
+		run_venue_kos[current_venue_name] = \
+				int(run_venue_kos.get(current_venue_name, 0)) + 1
 
 
 ## Returns true when the run is over (no lives left).
@@ -485,6 +499,9 @@ func finish_run() -> void:
 
 
 func change_scene(path: String) -> void:
+	# Leaving the venue (street, game over, menu) ends venue-KO attribution.
+	if path != SCENE_VENUE:
+		current_venue_name = ""
 	play_music("venue" if path == SCENE_VENUE else "main")
 	get_tree().call_deferred("change_scene_to_file", path)
 
