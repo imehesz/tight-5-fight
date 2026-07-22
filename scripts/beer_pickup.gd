@@ -16,11 +16,11 @@ func _ready() -> void:
 	var bottle_path := GameState.projectile_path()
 	if bottle_path != "" and ResourceLoader.exists(bottle_path):
 		_sprite.texture = load(bottle_path)
-	_sprite.scale = Vector2(1.6, 1.6)  # a little bigger than a thrown bottle
+	_sprite.scale = Vector2(2.4, 2.4)  # a little bigger than a thrown bottle
 	add_child(_sprite)
 	var cs := CollisionShape2D.new()
 	var rs := RectangleShape2D.new()
-	rs.size = Vector2(26, 48)
+	rs.size = Vector2(39, 72)
 	cs.shape = rs
 	add_child(cs)
 	area_entered.connect(_on_area_entered)
