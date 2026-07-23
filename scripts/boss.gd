@@ -5,7 +5,14 @@ extends Node2D
 ## out. A thrown beer bottle staggers him (see stagger()), and walking into
 ## his reach gets you a bar stool to the head (see _try_stool()).
 
-const BOSS_SCALE := 2.0
+## 3.0 = the previous 2.0 bumped ×1.5 alongside the venue FIGHTER_SCALE bump, so
+## the boss keeps towering over the comedians (same ~1.34× ratio) instead of
+## looking tiny next to them. Body, head, resting stool, swung stool and the
+## stool hitbox are all children of this node, so they grow with it in one shot.
+## Bottle trajectory is deliberately UNAFFECTED: throws spawn in scene space off
+## boss.position with literal offsets, and fastball height derives from the
+## player's scale (see _throw / _fastball_y) — neither reads BOSS_SCALE.
+const BOSS_SCALE := 3.0
 const HEAD_SCALE := 2.6
 const TAUNTS := [
 	"You call that comedy?!",
@@ -25,17 +32,22 @@ const STAGGER_LINES := ["MY EYE!", "WHY YOU LITTLE--", "OW! SECURITY!"]
 ## hits ducking players too (it comes down on the floor), so the counter is
 ## backing off during the wind-up, not ducking under it.
 const STOOL_DAMAGE := Player.SWING_DAMAGE  # same punch as the mic stand
-const STOOL_RANGE := 78.0     # parent-space distance that provokes a swing
+const STOOL_RANGE := 117.0    # parent-space distance that provokes a swing
+							  # (78 ×1.5, tracking the stool box's BOSS_SCALE
+							  #  bump — the live hitbox reaches ~129px, so every
+							  #  provoked swing still connects)
 const STOOL_WINDUP := 0.5     # telegraph: stool up, player's cue to retreat
 const STOOL_SWEEP := 0.22     # hitbox is live for this long
 const STOOL_RECOVER := 0.35   # helpless tail after the slam
 const STOOL_COOLDOWN := 2.2
 const STOOL_BOX_SIZE := Vector2(34, 46)
 const STOOL_BOX_X := 26.0
-## Where the stool waits between swings: on the floor just past his body
-## edge (body is 32 local px wide), on the side AWAY from the room, so it
-## never sits on top of the fight. Local px — the 2.0 node scale doubles it.
-const STOOL_REST_X := 30.0
+## Where the stool waits between swings: on the floor beside his body, on the
+## side AWAY from the room, so it never sits on top of the fight. Local px — the
+## 3.0 node scale triples it, and the boss spawns ~100px from the screen edge,
+## so this is pulled in from 30 to keep the tripled prop fully on-screen instead
+## of clipping half off the edge (still just past the 32px-wide body base).
+const STOOL_REST_X := 20.0
 const STOOL_LINES := ["OUTTA MY CLUB!", "SIT DOWN!", "LAST CALL!"]
 
 var target: Node2D

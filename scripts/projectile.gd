@@ -32,7 +32,10 @@ func _ready() -> void:
 	add_child(_sprite)
 	var cs := CollisionShape2D.new()
 	var rs := RectangleShape2D.new()
-	rs.size = Vector2(12, 15)
+	# Matched to the 1.5x sprite (was 12x15, smaller than the drawn bottle, so
+	# hits read as whiffs). The projectile isn't a child of a scaled fighter, so
+	# unlike the fists/mic-stand it doesn't grow with FIGHTER_SCALE — bumped here.
+	rs.size = Vector2(18, 22)
 	cs.shape = rs
 	add_child(cs)
 	area_entered.connect(_on_area_entered)

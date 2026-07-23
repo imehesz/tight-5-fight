@@ -15,7 +15,7 @@ var _t := 0.0
 var _stool: BarStool
 
 ## Pivot at the shoulder, matching SwingSwoosh — boss-local coords, before
-## the node's 2.0 scale.
+## the node's 3.0 scale.
 const CENTER := Vector2(0, -34)
 const START_ANGLE := -PI / 2.0   # stool held straight up
 const END_ANGLE := 0.5           # a touch past horizontal, into the floor

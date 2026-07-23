@@ -5,20 +5,24 @@ extends Node2D
 
 const GROUND_Y := 310.0
 const MAX_CONCURRENT := 3
-## Entry lanes for same-side spawns. A venue fighter is ~48px wide at
-## FIGHTER_SCALE, so 70px keeps bodies clearly apart as they walk in; 3 lanes
+## Entry lanes for same-side spawns. A venue fighter is ~72px wide at
+## FIGHTER_SCALE, so 105px keeps bodies clearly apart as they walk in; 3 lanes
 ## covers the worst case (MAX_CONCURRENT all queued on one side) and cycles.
-const SPAWN_LANE_GAP := 70.0
+## (Gap tracks fighter width — bumped with FIGHTER_SCALE's ×1.5 so same-side
+## spawns don't overlap into one blob.)
+const SPAWN_LANE_GAP := 105.0
 const SPAWN_LANES := 3
 ## Per-enemy walk-speed spread (±%), so a pack drifts apart instead of
 ## holding formation. Centered on the tuned speed — see _spawn_next_enemy.
 const SPEED_VARIANCE := 0.12
 const CLEAR_BONUS_PER_LEVEL := 250
 ## Venue fighters (player + comedians) are drawn bigger than on the street;
-## the boss keeps its own scale. 1.495 = the old 1.3 bumped 15% for phone
-## readability — safe for the boss fastball, whose height and duck clearance
-## derive from the player's live scale (see Boss._fastball_y).
-const FIGHTER_SCALE := 1.495
+## the boss keeps its own scale. 2.2425 = the previous 1.495 bumped ×1.5 for
+## readability on every platform (not a mobile-only tweak) — still safe for the
+## boss fastball, whose height and duck clearance derive from the player's live
+## scale (see Boss._fastball_y). Bigger bodies also grow the fist/kick/mic-stand
+## and hurtboxes for free, since those are children of the fighter node.
+const FIGHTER_SCALE := 2.2425
 
 var player: Player
 var hud: Hud
