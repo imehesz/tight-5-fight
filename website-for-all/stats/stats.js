@@ -276,6 +276,271 @@
     };
   }
 
+  // ---- trend charts (last 30 days) ----------------------------------------
+  // Three SVG line charts under the podiums: the top-5 comedians/venues (same
+  // ranking the podium shows) each get a daily line over the last 30 days,
+  // coloured by ENTITY (rank order), with a tiny head/venue picture pinned to
+  // the tip of the line. Palette is the data-viz skill's dark categorical set,
+  // validated against this page's --panel surface for a 5-series line.
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var SERIES_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181"];
+  var clipSeq = 0;
+
+  function svgEl(tag, attrs) {
+    var n = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function isoDay(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+
+  // The 30 calendar days ending today, as 'YYYY-MM-DD' — the fixed X axis
+  // every line is plotted onto (days with no activity read 0).
+  function lastNDays(n) {
+    var out = [], base = new Date();
+    base.setHours(0, 0, 0, 0);
+    for (var i = n - 1; i >= 0; i--) {
+      var d = new Date(base);
+      d.setDate(base.getDate() - i);
+      out.push(isoDay(d));
+    }
+    return out;
+  }
+
+  function shortDay(iso) { var p = iso.split("-"); return (+p[1]) + "/" + (+p[2]); }
+
+  // A round step so gridlines land on 1/2/5·10ⁿ, ~4 of them.
+  function niceStep(maxV) {
+    var raw = Math.max(maxV, 1) / 4;
+    var p = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var n = raw / p;
+    return Math.max(1, (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p);
+  }
+
+  // { names, rows:[{name,day,value}] } from /trends -> one series per name in
+  // RANK order, each with a value for every axis day and its picture src.
+  function buildSeries(block, axis, srcOf) {
+    var names = (block && block.names) || [];
+    var byName = {};
+    names.forEach(function (nm) { byName[nm] = {}; });
+    ((block && block.rows) || []).forEach(function (r) {
+      if (byName[r.name]) byName[r.name][r.day] = r.value;
+    });
+    return names.map(function (nm, i) {
+      return {
+        name: nm,
+        color: SERIES_COLORS[i % SERIES_COLORS.length],
+        values: axis.map(function (day) { return byName[nm][day] || 0; }),
+        src: srcOf(nm),
+      };
+    });
+  }
+
+  // Tip of a line = its most recent day with any activity (where the picture
+  // sits). -1 when the series is flat-zero across the window.
+  function lastActiveIndex(values) {
+    for (var i = values.length - 1; i >= 0; i--) if (values[i] > 0) return i;
+    return -1;
+  }
+
+  function trendChart(box, series, axis, unit) {
+    var hasData = series.some(function (s) { return lastActiveIndex(s.values) >= 0; });
+    if (!hasData) {
+      box.appendChild(el("p", "empty", "NO DATA YET — THE STAGE IS YOURS"));
+      return;
+    }
+
+    var W = 640, H = 260, padL = 40, padR = 34, padT = 16, padB = 34;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    var maxV = 1;
+    series.forEach(function (s) { s.values.forEach(function (v) { if (v > maxV) maxV = v; }); });
+    var step = niceStep(maxV);
+    var niceMax = Math.ceil(maxV / step) * step;
+
+    function X(i) { return padL + (axis.length <= 1 ? 0 : (i / (axis.length - 1)) * plotW); }
+    function Y(v) { return padT + plotH - (v / niceMax) * plotH; }
+
+    var wrap = el("div", "chart-wrap");
+    var svg = svgEl("svg", {
+      class: "chart", viewBox: "0 0 " + W + " " + H,
+      role: "img", "aria-label": box.querySelector("h2").textContent + " — last 30 days",
+    });
+
+    // horizontal gridlines + Y labels
+    for (var g = 0; g <= niceMax + 0.0001; g += step) {
+      var gy = Y(g);
+      svg.appendChild(svgEl("line", {
+        class: "grid", x1: padL, y1: gy, x2: W - padR, y2: gy,
+      }));
+      var lbl = svgEl("text", { class: "axis-txt", x: padL - 6, y: gy + 3, "text-anchor": "end" });
+      lbl.textContent = String(Math.round(g));
+      svg.appendChild(lbl);
+    }
+
+    // X labels at a handful of days (first, quarters, TODAY)
+    var ticks = [0, 7, 14, 21, axis.length - 1];
+    ticks.forEach(function (i, k) {
+      if (i >= axis.length) return;
+      var tx = svgEl("text", {
+        class: "axis-txt", x: X(i), y: H - padB + 16,
+        "text-anchor": k === 0 ? "start" : k === ticks.length - 1 ? "end" : "middle",
+      });
+      tx.textContent = i === axis.length - 1 ? "TODAY" : shortDay(axis[i]);
+      svg.appendChild(tx);
+    });
+
+    // one polyline per series, then its picture at the tip
+    series.forEach(function (s) {
+      var pts = s.values.map(function (v, i) { return X(i) + "," + Y(v); }).join(" ");
+      svg.appendChild(svgEl("polyline", {
+        points: pts, fill: "none", stroke: s.color,
+        "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round",
+        "vector-effect": "non-scaling-stroke", class: "series-line",
+      }));
+    });
+    series.forEach(function (s) {
+      var li = lastActiveIndex(s.values);
+      if (li < 0) return;
+      var cx = X(li), cy = Y(s.values[li]), R = 12;
+      if (s.src) {
+        var cid = "t5fclip" + (++clipSeq);
+        var defs = svgEl("defs", {});
+        var clip = svgEl("clipPath", { id: cid });
+        clip.appendChild(svgEl("circle", { cx: cx, cy: cy, r: R }));
+        defs.appendChild(clip);
+        svg.appendChild(defs);
+        var img = svgEl("image", {
+          x: cx - R, y: cy - R, width: 2 * R, height: 2 * R,
+          preserveAspectRatio: "xMidYMid slice", "clip-path": "url(#" + cid + ")",
+        });
+        img.setAttributeNS("http://www.w3.org/1999/xlink", "href", s.src);
+        img.setAttribute("href", s.src);
+        svg.appendChild(img);
+      }
+      svg.appendChild(svgEl("circle", {
+        cx: cx, cy: cy, r: R, fill: s.src ? "none" : s.color,
+        stroke: s.color, "stroke-width": 2, "vector-effect": "non-scaling-stroke",
+        class: "face-ring",
+      }));
+    });
+
+    // hover crosshair + tooltip
+    var cross = svgEl("line", { class: "crosshair", y1: padT, y2: padT + plotH, x1: padL, x2: padL });
+    cross.style.display = "none";
+    svg.appendChild(cross);
+    var hit = svgEl("rect", { x: padL, y: padT, width: plotW, height: plotH, fill: "transparent" });
+    svg.appendChild(hit);
+
+    var tip = el("div", "chart-tip");
+    tip.style.display = "none";
+    wrap.appendChild(svg);
+    wrap.appendChild(tip);
+
+    function move(ev) {
+      var rect = svg.getBoundingClientRect();
+      var vbx = (ev.clientX - rect.left) / rect.width * W;
+      var idx = Math.round((vbx - padL) / plotW * (axis.length - 1));
+      idx = Math.max(0, Math.min(axis.length - 1, idx));
+      cross.setAttribute("x1", X(idx));
+      cross.setAttribute("x2", X(idx));
+      cross.style.display = "";
+      tip.innerHTML = "";
+      tip.appendChild(el("div", "tip-day", axis[idx] === axis[axis.length - 1] ? "TODAY" : shortDay(axis[idx])));
+      series.forEach(function (s) {
+        var row = el("div", "tip-row");
+        row.appendChild(svgSwatchDot(s.color));
+        row.appendChild(el("span", "tip-name", s.name));
+        row.appendChild(el("span", "tip-val", fmt(s.values[idx]) + " " + unit));
+        tip.appendChild(row);
+      });
+      tip.style.display = "";
+      // keep the tooltip inside the wrap, flipping side near the right edge
+      var wr = wrap.getBoundingClientRect();
+      var left = ev.clientX - wr.left + 14;
+      if (left + 150 > wr.width) left = ev.clientX - wr.left - 150 - 14;
+      tip.style.left = Math.max(4, left) + "px";
+      tip.style.top = Math.max(4, ev.clientY - wr.top - 10) + "px";
+    }
+    function leave() { cross.style.display = "none"; tip.style.display = "none"; }
+    hit.addEventListener("pointermove", move);
+    hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", leave);
+
+    box.appendChild(wrap);
+
+    // legend (identity is never colour-alone: picture + name ride with it)
+    var legend = el("div", "chart-legend");
+    series.forEach(function (s) {
+      var item = el("div", "chart-legend-item");
+      var sw = el("span", "chart-swatch");
+      sw.style.background = s.color;
+      item.appendChild(sw);
+      if (s.src) {
+        var f = new Image();
+        f.className = "chart-face";
+        f.alt = "";
+        f.src = s.src;
+        f.style.borderColor = s.color;
+        item.appendChild(f);
+      }
+      item.appendChild(el("span", "legend-name", s.name));
+      legend.appendChild(item);
+    });
+    box.appendChild(legend);
+
+    // accessible data table (identity + exact numbers without the chart)
+    var det = el("details", "chart-data");
+    det.appendChild(el("summary", null, "SEE THE NUMBERS"));
+    var scroll = el("div", "table-scroll");
+    var table = el("table");
+    var thead = el("tr");
+    thead.appendChild(el("th", null, "DAY"));
+    series.forEach(function (s) { thead.appendChild(el("th", null, s.name)); });
+    table.appendChild(thead);
+    axis.forEach(function (day, i) {
+      // only rows with some activity, newest first — keeps the table short
+      if (!series.some(function (s) { return s.values[i] > 0; })) return;
+      var tr = el("tr");
+      tr.appendChild(el("td", null, shortDay(day)));
+      series.forEach(function (s) { tr.appendChild(el("td", null, fmt(s.values[i]))); });
+      table.insertBefore(tr, table.children[1] || null);
+    });
+    scroll.appendChild(table);
+    det.appendChild(scroll);
+    box.appendChild(det);
+  }
+
+  function svgSwatchDot(color) {
+    var s = el("span", "tip-dot");
+    s.style.background = color;
+    return s;
+  }
+
+  function renderTrendCharts(trends, byName, venueByName) {
+    var axis = lastNDays(30);
+    function headSrc(nm) {
+      var c = byName[nm];
+      var f = c && c.HeadSpritePath ? c.HeadSpritePath.split("/").pop() : null;
+      return f ? "characters/" + f : null;
+    }
+    function venueSrc(nm) {
+      var v = venueByName[nm];
+      var f = v && v.ExteriorSpritePath ? v.ExteriorSpritePath.split("/").pop() : null;
+      return f ? "venues/" + f : null;
+    }
+    trendChart(
+      board("MOST PLAYED — 30 DAYS", "DAILY RUNS PER COMEDIAN · TOP 5"),
+      buildSeries(trends && trends.topPlayed, axis, headSrc), axis, "RUNS");
+    trendChart(
+      board("MOST BEAT UP — 30 DAYS", "DAILY KOs SUFFERED · TOP 5"),
+      buildSeries(trends && trends.topBeat, axis, headSrc), axis, "KOs");
+    trendChart(
+      board("VENUES VISITED — 30 DAYS", "DAILY DOORS WALKED THROUGH · TOP 5"),
+      buildSeries(trends && trends.topVenues, axis, venueSrc), axis, "ENTRIES");
+  }
+
   function main() {
     header();
 
@@ -288,6 +553,11 @@
       loadImage("../assets/body_female.png"),
       loadImage("../assets/wheelie_1.png"),
       loadImage("../assets/wheelie_2.png"),
+      // Trends are a separate, non-fatal fetch: a failure here leaves the
+      // podiums untouched and the charts show their own empty state.
+      fetch(apiBase() + "/trends?gameId=" + encodeURIComponent(CFG.gameId))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; }),
     ]).then(function (got) {
       var chars = (got[0].characters || []);
       var venues = (got[1].venues || []);
@@ -295,6 +565,7 @@
       bodyImgs.M = got[3];
       bodyImgs.F = got[4] || got[3];
       wheelImgs = [got[5], got[6]];
+      var trends = got[7];
 
       var byName = {};
       chars.forEach(function (c) { byName[c.CharacterName] = c; });
@@ -339,6 +610,8 @@
             fmt(row.entries) + (row.entries === 1 ? " ENTRY" : " ENTRIES"),
             row.fights ? fmt(row.fights) + (row.fights === 1 ? " FIGHT" : " FIGHTS") : null));
         });
+
+      renderTrendCharts(trends, byName, venueByName);
 
       footer();
       if (!reduceMotion) requestAnimationFrame(danceLoop);

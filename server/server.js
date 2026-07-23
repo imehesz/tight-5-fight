@@ -426,6 +426,44 @@ async function getPodium(req, res, url) {
   json(res, 200, { topPlayed, topBeat, topVenues });
 }
 
+// GET /trends?gameId=tight5
+//   -> { days: 30,
+//        topPlayed:  { names: [c1..c5], rows: [{ name, day, value }] },
+//        topBeat:    { names: [...],    rows: [...] },
+//        topVenues:  { names: [...],    rows: [...] } }
+// The 30-day daily time series behind the three charts at the bottom of
+// stats/<game>/. Same public, non-sensitive aggregates as /podium, just
+// bucketed by day. For each board the top 5 by ALL-TIME total is picked
+// first (the same ranking the podiums show — play count, KOs, venue
+// entries), then only those five names get a per-day line, so the chart
+// legend and the podium above always name the same comedians/venues. `names`
+// is in rank order 1..5 so the client can colour each line by entity, not by
+// its height on any given day. Days with no activity are omitted from rows
+// and drawn as 0 client-side.
+const TREND_SIZE = 5;
+
+async function getTrends(req, res, url) {
+  const gameId = url.searchParams.get("gameId") || "";
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
+
+  const playedNames = (await db.mostPlayedTop(gameId, TREND_SIZE)).map((r) => r.character_name);
+  const beatNames = (await db.beatPage(gameId, 0, TREND_SIZE)).map((r) => r.character_name);
+  const venueNames = (await db.venuePage(gameId, 0, TREND_SIZE)).map((r) => r.venue_name);
+
+  const norm = (rows) => rows.map((r) => ({
+    name: r.name,
+    day: r.day,
+    value: Number(r.value),
+  }));
+
+  json(res, 200, {
+    days: 30,
+    topPlayed: { names: playedNames, rows: norm(await db.dailyPlays(gameId, playedNames)) },
+    topBeat: { names: beatNames, rows: norm(await db.dailyBeatdowns(gameId, beatNames)) },
+    topVenues: { names: venueNames, rows: norm(await db.dailyVenueVisits(gameId, venueNames)) },
+  });
+}
+
 // GET /stats?pwd=...
 //   -> { generatedAt,
 //        totals: { runs, npcsBeaten, venueFights,     // all games combined
@@ -500,6 +538,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
     if (req.method === "GET" && route === "/podium") return await getPodium(req, res, url);
+    if (req.method === "GET" && route === "/trends") return await getTrends(req, res, url);
     if (req.method === "GET" && route === "/stats") return await getStats(req, res, url);
     if (req.method === "GET" && route === "/health") return json(res, 200, { ok: true });
   } catch (e) {

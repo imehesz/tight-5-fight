@@ -368,6 +368,17 @@ const SINCE = {
   },
 };
 
+// Bucket a row into its calendar day as a 'YYYY-MM-DD' STRING (not a date
+// object) — formatted in SQL so both drivers return the exact same shape and
+// the trend client can key on it directly. mysql2 would otherwise hand back a
+// JS Date for a bare DATE(), serializing to an ISO timestamp the client can't
+// match. Same UTC-vs-local caveat as SINCE; the 30-day trend charts are
+// cosmetic, so a boundary row landing a day off is harmless.
+const DAY = {
+  sqlite: "strftime('%Y-%m-%d', created_at)",
+  mysql: "DATE_FORMAT(created_at, '%Y-%m-%d')",
+};
+
 async function playVolume(gameId) {
   const out = {};
   for (const window of ["today", "week", "month"]) {
@@ -471,6 +482,59 @@ async function beatSize(gameId) {
   return Number(row ? row.n : 0);
 }
 
+// ---------------------------------------------------------------- daily trends
+// Per-day counts over the last 30 days for a FIXED set of names — the all-time
+// top 5 the caller already picked (mostPlayedTop / beatPage / venuePage), so
+// the trend lines track the same comedians/venues the podiums above show. One
+// row per (name, day) that had activity; days with none are simply absent and
+// the client fills 0. The IN list is the only bound value — its names came
+// from this module's own top-N queries, never from the request — so building
+// the placeholders by count is safe (same trust model as the inlined LIMIT).
+//
+// Kept as three explicit functions (not one table-name-parameterized helper)
+// to match the rest of this file: the value expression genuinely differs
+// (plays counts rows; beatdowns/venue_visits SUM a per-run count), and an
+// interpolated table name is exactly the kind of thing worth not having.
+function placeholders(names) {
+  return names.map(() => "?").join(",");
+}
+
+async function dailyPlays(gameId, names) {
+  if (!names.length) return [];
+  return all(
+    `SELECT character_name AS name, ${DAY[DRIVER]} AS day, COUNT(*) AS value
+       FROM plays
+      WHERE game_id = ? AND character_name IN (${placeholders(names)})
+        AND created_at >= ${SINCE[DRIVER].month}
+      GROUP BY character_name, ${DAY[DRIVER]}`,
+    [gameId, ...names]
+  );
+}
+
+async function dailyBeatdowns(gameId, names) {
+  if (!names.length) return [];
+  return all(
+    `SELECT character_name AS name, ${DAY[DRIVER]} AS day, SUM(count) AS value
+       FROM beatdowns
+      WHERE game_id = ? AND character_name IN (${placeholders(names)})
+        AND created_at >= ${SINCE[DRIVER].month}
+      GROUP BY character_name, ${DAY[DRIVER]}`,
+    [gameId, ...names]
+  );
+}
+
+async function dailyVenueVisits(gameId, names) {
+  if (!names.length) return [];
+  return all(
+    `SELECT venue_name AS name, ${DAY[DRIVER]} AS day, SUM(count) AS value
+       FROM venue_visits
+      WHERE game_id = ? AND venue_name IN (${placeholders(names)})
+        AND created_at >= ${SINCE[DRIVER].month}
+      GROUP BY venue_name, ${DAY[DRIVER]}`,
+    [gameId, ...names]
+  );
+}
+
 module.exports = {
   init,
   createPlayer,
@@ -492,4 +556,7 @@ module.exports = {
   venueSize,
   playVolume,
   ecosystemTotals,
+  dailyPlays,
+  dailyBeatdowns,
+  dailyVenueVisits,
 };
