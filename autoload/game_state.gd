@@ -178,6 +178,13 @@ var _sfx_next := 0
 var _stinger_streams: Array = []
 var _stinger_player: AudioStreamPlayer
 var _stinger_active := false
+## The music player's own volume, saved across a stinger. Player-level, NOT
+## the "Music" bus — the bus carries the player's volume setting, and this
+## must not fight with it.
+var _music_volume_db := 0.0
+## Bumped on every stinger start AND end, so a late safety timer from an
+## older stinger can tell it has been superseded and do nothing.
+var _stinger_token := 0
 var _crowd_streams := {}
 var _crowd_last_ms := {}
 
@@ -640,7 +647,9 @@ func play_music(track: String) -> void:
 	_music_player.stream = _music_streams[track]
 	_music_player.play()
 	# A venue death swaps venue->main mid-stinger (change_scene calls this);
-	# the fresh play() must not undo the stinger's pause.
+	# the fresh play() must not undo the stinger's pause. The stinger's volume
+	# duck needs no re-applying — volume_db is a property of the player, not
+	# of the stream, so swapping streams leaves it muted.
 	_music_player.stream_paused = _stinger_active
 
 
@@ -674,22 +683,58 @@ func play_crowd(crowd_name: String) -> void:
 	p.play()
 
 
-## Final-death gag: pause the music, play a random stinger (crickets, curb),
-## resume when it ends. Missing files = silent no-op, like play_sfx. Never
-## stop() the stinger player elsewhere — stop() doesn't emit finished, which
-## would leave the music paused forever; worst case it resolves itself in ~3 s.
+## Final-death gag: duck the music, play a random stinger (crickets, curb),
+## bring it back when the stinger ends. Missing files = silent no-op, like
+## play_sfx.
+##
+## Silenced TWO ways on purpose. `stream_paused` alone was the original
+## implementation and it works on desktop, but on Android the music played
+## straight through the stinger (reported 2026-07-23) — so the volume is
+## dropped as well, which no platform has ever ignored. On desktop the pause
+## still wins, so the track resumes where it left off; where the pause is
+## ignored the music keeps rolling silently and comes back further along.
+## That trade is deliberate: audible-but-wrong-position beats never ducking.
+##
+## Never stop() the stinger player elsewhere — stop() doesn't emit finished.
+## That used to strand the music paused; now the safety timer below unwinds
+## it either way.
+const MUTED_DB := -80.0
+## Longest stinger is ~2.7s. If `finished` never lands (a real risk on mobile
+## web, which is what this whole workaround is about), restore anyway rather
+## than leave the game silent forever.
+const STINGER_MAX_SEC := 6.0
+
+
 func play_death_stinger() -> void:
 	if _stinger_streams.is_empty() or _stinger_active:
 		return
 	_stinger_active = true
+	_stinger_token += 1
+	var token := _stinger_token
+	_music_volume_db = _music_player.volume_db
+	_music_player.volume_db = MUTED_DB
 	_music_player.stream_paused = true
 	_stinger_player.stream = _stinger_streams.pick_random()
 	_stinger_player.play()
+	get_tree().create_timer(STINGER_MAX_SEC).timeout.connect(
+			func() -> void:
+				if token == _stinger_token:
+					_end_death_stinger())
 
 
 func _on_stinger_finished() -> void:
+	_end_death_stinger()
+
+
+## Idempotent: the finished signal and the safety timer both land here, and
+## whichever arrives first invalidates the other (via the token).
+func _end_death_stinger() -> void:
+	if not _stinger_active:
+		return
 	_stinger_active = false
+	_stinger_token += 1
 	_music_player.stream_paused = false
+	_music_player.volume_db = _music_volume_db
 
 
 func _load_stream(base_path: String) -> AudioStream:
