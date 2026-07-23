@@ -39,6 +39,14 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "Alysse Stewart",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/alysse-stewart.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "Amir Schuman",
       "HeadScale": 1,
       "HeadSpritePath": "assets/heads/amir-schuman.png",
@@ -102,6 +110,14 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterName": "Brad Thomas",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/brad-thomas.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterName": "Brandon Follett",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -135,7 +151,7 @@
     {
       "CharacterName": "Cheryl Redd",
       "HeadScale": 1,
-      "HeadOffsetY": 2,
+      "HeadOffsetY": 3,
       "HeadSpritePath": "assets/heads/cheryl-redd.png",
       "BodyType": "F",
       "SkinColor": "#e9c098"
@@ -153,6 +169,14 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/christian-blaker.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Chris Valdivia",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/chris-valdivia.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
@@ -220,10 +244,26 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterName": "Dewey Shawn",
+      "HeadScale": 1,
+      "HeadOffsetY": 1,
+      "HeadSpritePath": "assets/heads/dewey-shawn.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
       "CharacterName": "Dominican Dave",
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/dominican-dave.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterName": "Don Pablo",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/don-pablo.png",
       "BodyType": "M",
       "SkinColor": "#a0683c"
     },

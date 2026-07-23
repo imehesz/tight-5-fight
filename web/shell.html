@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
+		<title>$GODOT_PROJECT_NAME</title>
+		<style>
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+body {
+	color: white;
+	background-color: black;
+	overflow: hidden;
+	touch-action: none;
+}
+
+#canvas {
+	display: block;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+#status, #status-splash, #status-progress {
+	position: absolute;
+	left: 0;
+	right: 0;
+}
+
+#status, #status-splash {
+	top: 0;
+	bottom: 0;
+}
+
+#status {
+	background-color: $GODOT_SPLASH_COLOR;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	visibility: hidden;
+}
+
+#status-splash {
+	max-height: 100%;
+	max-width: 100%;
+	margin: auto;
+}
+
+#status-splash.show-image--false {
+	display: none;
+}
+
+#status-splash.fullsize--true {
+	height: 100%;
+	width: 100%;
+	object-fit: contain;
+}
+
+#status-splash.use-filter--false {
+	image-rendering: pixelated;
+}
+
+#status-progress, #status-notice {
+	display: none;
+}
+
+#status-progress {
+	bottom: 10%;
+	width: 50%;
+	margin: 0 auto;
+}
+
+#status-notice {
+	background-color: #5b3943;
+	border-radius: 0.5rem;
+	border: 1px solid #9b3943;
+	color: #e0e0e0;
+	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+	line-height: 1.3;
+	margin: 0 2rem;
+	overflow: hidden;
+	padding: 1rem;
+	text-align: center;
+	z-index: 1;
+}
+
+/* --- Landscape gate -------------------------------------------------------
+   The engine's window/handheld/orientation setting only applies to native
+   Android/iOS builds; on the Web the browser decides. So we cover the canvas
+   with a "rotate your phone" panel whenever a touch device is in portrait.
+   Pure CSS media query, so it reacts instantly with no resize listener. */
+
+@font-face {
+	font-family: 'Press Start 2P';
+	src: url('PressStart2P-Regular.ttf?v={{version}}') format('truetype');
+	font-display: swap;
+}
+
+#rotate-gate {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	background-color: #000;
+	color: #fff;
+	font-family: 'Press Start 2P', 'Courier New', monospace;
+	text-align: center;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1.6rem;
+	padding: 2rem 1.4rem;
+	box-sizing: border-box;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+#rotate-gate .rotate-phone {
+	width: 84px;
+	height: 84px;
+	animation: rotate-hint 2.4s ease-in-out infinite;
+}
+
+#rotate-gate .rotate-title {
+	font-size: 1rem;
+	line-height: 1.7;
+	color: #ffd23f;
+}
+
+#rotate-gate .rotate-sub {
+	font-size: 0.62rem;
+	line-height: 1.9;
+	color: #fff;
+}
+
+#rotate-gate .rotate-hint {
+	font-size: 0.5rem;
+	line-height: 1.9;
+	color: #8a8a8a;
+	max-width: 26em;
+}
+
+@keyframes rotate-hint {
+	0%, 30% { transform: rotate(0deg); }
+	55%, 85% { transform: rotate(-90deg); }
+	100% { transform: rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#rotate-gate .rotate-phone { animation: none; transform: rotate(-90deg); }
+}
+
+/* Touch devices only — a narrow desktop window should not lock anyone out. */
+@media (orientation: portrait) and (pointer: coarse) {
+	#rotate-gate { display: flex; }
+}
+		</style>
+		$GODOT_HEAD_INCLUDE
+	</head>
+	<body>
+		<canvas id="canvas">
+			Your browser does not support the canvas tag.
+		</canvas>
+
+		<noscript>
+			Your browser does not support JavaScript.
+		</noscript>
+
+		<div id="status">
+			<img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH?v={{version}}" alt="">
+			<progress id="status-progress"></progress>
+			<div id="status-notice"></div>
+		</div>
+
+		<div id="rotate-gate" role="alertdialog" aria-label="Please rotate your device to landscape">
+			<svg class="rotate-phone" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+				<rect x="14" y="4" width="20" height="40" rx="3" stroke="#ffd23f" stroke-width="3"/>
+				<line x1="20" y1="9" x2="28" y2="9" stroke="#ffd23f" stroke-width="2" stroke-linecap="round"/>
+				<circle cx="24" cy="38" r="2" fill="#ffd23f"/>
+			</svg>
+			<div class="rotate-title">ROTATE<br>YOUR PHONE</div>
+			<div class="rotate-sub">THIS FIGHT IS<br>LANDSCAPE ONLY</div>
+			<div class="rotate-hint">Nothing happening? Turn off rotation lock in your Control Center / quick settings.</div>
+		</div>
+
+		<script src="$GODOT_URL?v={{version}}"></script>
+		<script>
+// --- Cache busting --------------------------------------------------------
+// deployScriptPROD.sh rewrites every {{version}} in the built index.html with
+// the build stamp (the same one Settings shows as v.1.0.<stamp>) right before
+// rsync, so a new deploy always lands on fresh URLs.
+//
+// The <script> tag above and the font/splash URLs carry ?v= directly, but the
+// two big files — index.wasm and index.pck — are fetched by the engine itself
+// from paths it builds internally ("index" + extension), with no config hook
+// to version them. So we wrap fetch() and tag those requests on the way out.
+// The engine calls the global fetch() at load time, so this must run before
+// startGame() below — it does.
+(function () {
+	const raw = '{{version}}';
+	// Unreplaced placeholder => running a local/unbaked build, skip busting.
+	if (raw.indexOf('{{') === 0) {
+		return;
+	}
+	const bustable = /(^|\/)index\.(wasm|pck)$/;
+	const nativeFetch = window.fetch.bind(window);
+	window.fetch = function (input, init) {
+		if (typeof input === 'string' && bustable.test(input.split('?')[0])) {
+			return nativeFetch(input + (input.indexOf('?') === -1 ? '?' : '&') + 'v=' + raw, init);
+		}
+		return nativeFetch(input, init);
+	};
+}());
+
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+// Best-effort hard lock. Only Android Chrome/Firefox honour this, and only
+// while fullscreen, so it is a bonus on top of the CSS gate above — never the
+// only defence. iOS Safari has no Screen Orientation lock at all.
+(function () {
+	function lockLandscape() {
+		try {
+			const orientation = window.screen && window.screen.orientation;
+			if (orientation && typeof orientation.lock === 'function') {
+				const promise = orientation.lock('landscape');
+				if (promise && typeof promise.catch === 'function') {
+					promise.catch(function () { /* not permitted here; CSS gate covers it */ });
+				}
+			}
+		} catch (err) {
+			/* unsupported browser */
+		}
+	}
+	document.addEventListener('fullscreenchange', lockLandscape);
+	document.addEventListener('webkitfullscreenchange', lockLandscape);
+	window.addEventListener('load', lockLandscape);
+}());
+
+(function () {
+	const statusOverlay = document.getElementById('status');
+	const statusProgress = document.getElementById('status-progress');
+	const statusNotice = document.getElementById('status-notice');
+
+	let initializing = true;
+	let statusMode = '';
+
+	function setStatusMode(mode) {
+		if (statusMode === mode || !initializing) {
+			return;
+		}
+		if (mode === 'hidden') {
+			statusOverlay.remove();
+			initializing = false;
+			return;
+		}
+		statusOverlay.style.visibility = 'visible';
+		statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
+		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
+		statusMode = mode;
+	}
+
+	function setStatusNotice(text) {
+		while (statusNotice.lastChild) {
+			statusNotice.removeChild(statusNotice.lastChild);
+		}
+		const lines = text.split('\n');
+		lines.forEach((line) => {
+			statusNotice.appendChild(document.createTextNode(line));
+			statusNotice.appendChild(document.createElement('br'));
+		});
+	}
+
+	function displayFailureNotice(err) {
+		console.error(err);
+		if (err instanceof Error) {
+			setStatusNotice(err.message);
+		} else if (typeof err === 'string') {
+			setStatusNotice(err);
+		} else {
+			setStatusNotice('An unknown error occurred.');
+		}
+		setStatusMode('notice');
+		initializing = false;
+	}
+
+	const missing = Engine.getMissingFeatures({
+		threads: GODOT_THREADS_ENABLED,
+	});
+
+	if (missing.length !== 0) {
+		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
+			let serviceWorkerRegistrationPromise;
+			try {
+				serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
+			} catch (err) {
+				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
+			}
+			// There's a chance that installing the service worker would fix the issue
+			Promise.race([
+				serviceWorkerRegistrationPromise.then((registration) => {
+					if (registration != null) {
+						return Promise.reject(new Error('Service worker already exists.'));
+					}
+					return registration;
+				}).then(() => engine.installServiceWorker()),
+				// For some reason, `getRegistration()` can stall
+				new Promise((resolve) => {
+					setTimeout(() => resolve(), 2000);
+				}),
+			]).then(() => {
+				// Reload if there was no error.
+				window.location.reload();
+			}).catch((err) => {
+				console.error('Error while registering service worker:', err);
+			});
+		} else {
+			// Display the message as usual
+			const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
+			displayFailureNotice(missingMsg + missing.join('\n'));
+		}
+	} else {
+		setStatusMode('progress');
+		engine.startGame({
+			'onProgress': function (current, total) {
+				if (current > 0 && total > 0) {
+					statusProgress.value = current;
+					statusProgress.max = total;
+				} else {
+					statusProgress.removeAttribute('value');
+					statusProgress.removeAttribute('max');
+				}
+			},
+		}).then(() => {
+			setStatusMode('hidden');
+		}, displayFailureNotice);
+	}
+}());
+		</script>
+	</body>
+</html>

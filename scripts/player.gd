@@ -23,6 +23,25 @@ const SWING_BOX_X := 34.0
 const CARRY_POS := Vector2(-5, -26)  # sprite center, x mirrors with facing
 const CARRY_TILT := 0.4              # radians off vertical, toward the back
 const CARRY_LEN := 47.6              # full stand height in local px
+## What holds that stand up: a leather strap over the back-side shoulder,
+## running down across the chest to the front-side hip — so it leans the same
+## way as the stand behind it, and mirrors when the player turns around.
+## Endpoints are relative to the animation's neck anchor (CharacterFactory
+## .HEAD_OFFSETS), which is what makes the strap ride the torso through the
+## walk bob, the punch lean and the hit recoil without per-frame tuning. X
+## mirrors with facing, exactly like the head and the stand.
+const STRAP_COLOR := Color(0.42, 0.26, 0.14)
+const STRAP_WIDTH := 2.0
+## Endpoints verified against every frame of both body sheets: the band stays
+## on shirt pixels throughout. Pushing the bottom out to x=4 puts the tip on
+## the forearm during walk frame 2, where the near arm swings across the hip.
+const STRAP_TOP := Vector2(-5, 4)
+const STRAP_BOTTOM := Vector2(3, 16)
+## Ducking squashes the torso to roughly half its standing height (chest rows
+## end 6px above the hips), so the strap needs its own shorter run or it would
+## trail off the shirt and onto the legs.
+const STRAP_DUCK_TOP := Vector2(-5, 3)
+const STRAP_DUCK_BOTTOM := Vector2(4, 11)
 
 ## Brief lock while the throw animation plays, so the player can't walk or
 ## re-throw mid-toss (the melee state machine is untouched — no punch damage).
@@ -32,6 +51,7 @@ var _swing_lock := 0.0
 var _swing_cooldown := 0.0
 var _swing_box: Area2D
 var _carried_stand: Sprite2D
+var _chest_strap: Line2D
 
 
 func _init() -> void:
@@ -48,6 +68,7 @@ func _ready() -> void:
 	add_to_group("player")
 	_build_swing_box()
 	_build_carried_stand()
+	_build_chest_strap()
 
 
 ## The between-swings stand on the back. Child index 0 keeps it behind the
@@ -65,6 +86,23 @@ func _build_carried_stand() -> void:
 	move_child(_carried_stand, 0)
 
 
+## The strap sits in front of the body sprite (the stand behind it), so it
+## reads as worn rather than floating. Placed by index for the same reason
+## _build_carried_stand() uses index 0: negative z_index would sink it behind
+## the scene background.
+func _build_chest_strap() -> void:
+	_chest_strap = Line2D.new()
+	_chest_strap.width = STRAP_WIDTH
+	_chest_strap.default_color = STRAP_COLOR
+	# Flat caps and no AA — a soft, rounded band would read as a smear next
+	# to art drawn on a 2px grid.
+	_chest_strap.begin_cap_mode = Line2D.LINE_CAP_NONE
+	_chest_strap.end_cap_mode = Line2D.LINE_CAP_NONE
+	_chest_strap.antialiased = false
+	add_child(_chest_strap)
+	move_child(_chest_strap, body_sprite.get_index() + 1)
+
+
 func _process(delta: float) -> void:
 	super(delta)
 	if _carried_stand:
@@ -74,6 +112,20 @@ func _process(delta: float) -> void:
 		_carried_stand.position.x = CARRY_POS.x * facing
 		_carried_stand.flip_h = facing < 0
 		_carried_stand.rotation = -CARRY_TILT * facing
+	if _chest_strap:
+		# Worn through the swing (the stand leaves, the strap stays), dropped
+		# only on defeat — the defeated frame lies the body down sideways, so
+		# a chest-height diagonal would hang in the air.
+		_chest_strap.visible = state != FState.DEAD
+		if _chest_strap.visible:
+			var ducking := body_sprite.animation == "duck"
+			var top := STRAP_DUCK_TOP if ducking else STRAP_TOP
+			var bottom := STRAP_DUCK_BOTTOM if ducking else STRAP_BOTTOM
+			var neck := CharacterFactory.head_offset(body_sprite.animation)
+			_chest_strap.points = PackedVector2Array([
+				Vector2((neck.x + top.x) * facing, neck.y + top.y),
+				Vector2((neck.x + bottom.x) * facing, neck.y + bottom.y),
+			])
 
 
 ## Separate hitbox for the mic-stand swing so the shared punch/kick hitbox

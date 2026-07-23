@@ -97,10 +97,10 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterName": "Rob Ford",
+      "CharacterName": "Matt Nagin",
       "HeadScale": 1,
       "HeadOffsetY": 0,
-      "HeadSpritePath": "assets/heads/rob-ford.png",
+      "HeadSpritePath": "assets/heads/matt-nagin.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
@@ -117,6 +117,14 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/patrick-luby.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterName": "Rob Ford",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/rob-ford.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
