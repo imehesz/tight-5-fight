@@ -24,6 +24,7 @@ const SHAKE_PX := 5.0
 var _box: VBoxContainer
 var _title: Label
 var _dancer: Dancer
+var _back_btn: Button
 var _mic: Sprite2D
 
 
@@ -46,7 +47,11 @@ func _ready() -> void:
 	add_button(_box, "PLAY AGAIN", func(): GameState.start_new_game(GameState.fight_character_index()))
 	add_button(_box, "CHANGE COMEDIAN", func(): GameState.change_scene(GameState.SCENE_CHARACTER_SELECT))
 	add_button(_box, "SCOREBOARD", func(): GameState.change_scene(GameState.SCENE_SCOREBOARD))
-	add_button(_box, "MAIN MENU", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
+	# Leaving to the main menu is the corner BACK now, like every other
+	# screen. It hangs off the root rather than _box, so it has to be hidden
+	# and revealed by hand with the rest (see _reveal) — a tap during the mic
+	# drop must not jump the player out mid-animation.
+	_back_btn = add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 	_dancer = Dancer.new()
 	_dancer.position = DANCE_FEET_POS
 	_dancer.scale = Vector2(DANCE_SCALE, DANCE_SCALE)
@@ -58,6 +63,7 @@ func _ready() -> void:
 	# takes clicks, and a mid-drop tap must not restart the game.
 	_box.visible = false
 	_dancer.visible = false
+	_back_btn.visible = false
 	_drop_the_mic()
 
 
@@ -125,8 +131,10 @@ func _shake() -> void:
 func _reveal() -> void:
 	_box.visible = true
 	_dancer.visible = true
+	_back_btn.visible = true
 	_box.modulate.a = 0.0
 	_dancer.modulate.a = 0.0
+	_back_btn.modulate.a = 0.0
 	# Scaling a Control inside a VBox only transforms its paint, not the
 	# layout, so the slam doesn't shove the column around — but it needs the
 	# pivot centered or it grows from the top-left corner.
@@ -135,5 +143,6 @@ func _reveal() -> void:
 	var tw := create_tween()
 	tw.tween_property(_box, "modulate:a", 1.0, 0.25)
 	tw.parallel().tween_property(_dancer, "modulate:a", 1.0, 0.25)
+	tw.parallel().tween_property(_back_btn, "modulate:a", 1.0, 0.25)
 	tw.parallel().tween_property(_title, "scale", Vector2.ONE, 0.3) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

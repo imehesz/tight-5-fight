@@ -103,20 +103,17 @@ func _ready() -> void:
 	row.add_child(center)
 	row.add_child(_build_preview())
 
+	# Pinned to the screen bottom rather than the column: it is a caption, not
+	# a control, so it can use the strip the buttons moved out of. Built
+	# before _fill_page() so that one call seeds its text.
+	if _entry_count() > PAGE_SIZE:
+		_pager = add_bottom_label()
+
 	_fill_page()
 	if GameState.playable.is_empty():
 		add_text(box, "No characters found in data/characters.json!")
 
-	add_spacer(box, 8)
-	if _entry_count() > PAGE_SIZE:
-		box.add_child(_build_pager())
-	var buttons := HBoxContainer.new()
-	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override("separation", 12)
-	box.add_child(buttons)
-	_fight_btn = add_button(buttons, "FIGHT!", _start_fight)
-	_style_fight_button(_fight_btn)
-	add_button(buttons, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
+	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 
 	if GameState.playable.is_empty():
 		_fight_btn.disabled = true
@@ -132,9 +129,10 @@ func _start_fight() -> void:
 
 
 ## FIGHT! is this screen's one primary action, so it wears a neon-purple
-## fill — bright violet tube border, glowing lavender text — while BACK
-## stays on the stock gray, which is what makes this one pop. Disabled
-## keeps the default gray stylebox on purpose.
+## fill — bright violet tube border, glowing lavender text. It is the only
+## filled button in the content column (BACK lives in the top-left corner in
+## red), which is what makes it pop. Disabled keeps the default gray
+## stylebox on purpose.
 func _style_fight_button(b: Button) -> void:
 	var fills := {
 		"normal": Color(0.45, 0.15, 0.75),
@@ -182,6 +180,13 @@ func _build_preview() -> Control:
 	_preview_name.add_theme_font_size_override("font_size", 16)
 	_preview_name.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	panel.add_child(_preview_name)
+	# FIGHT! sits directly under the comedian it will send out — the pick and
+	# the commit in one place, instead of a button row across the bottom.
+	# Sized to the preview column so the panel width never jumps.
+	add_spacer(panel, 6)
+	_fight_btn = add_button(panel, "FIGHT!", _start_fight)
+	_fight_btn.custom_minimum_size = Vector2(PREVIEW_SIZE.x, 40)
+	_style_fight_button(_fight_btn)
 	return panel
 
 
@@ -239,21 +244,6 @@ func _detach_orbit() -> void:
 func _exit_tree() -> void:
 	if _orbit and not _orbit.is_inside_tree():
 		_orbit.free()
-
-
-## Same "PAGE x / y" treatment as the leaderboard's pager. Built after the
-## first _fill_page() runs, so it seeds its own text.
-func _build_pager() -> HBoxContainer:
-	var pager := HBoxContainer.new()
-	pager.alignment = BoxContainer.ALIGNMENT_CENTER
-	_pager = Label.new()
-	_pager.custom_minimum_size = Vector2(110, 0)
-	_pager.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_pager.add_theme_font_size_override("font_size", 8)
-	_pager.add_theme_color_override("font_color", Color(0.6, 0.6, 0.68))
-	_pager.text = "PAGE %d / %d" % [_page + 1, _page_count()]
-	pager.add_child(_pager)
-	return pager
 
 
 ## Grid entries = the "?" card + every playable comedian (0 when nobody is

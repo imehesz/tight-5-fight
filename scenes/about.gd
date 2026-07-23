@@ -24,5 +24,4 @@ func _ready() -> void:
 	add_spacer(box, 10)
 	add_text(box, "Enjoying the fight? Keep the mic on:", 8)
 	add_button(box, "BUY ME A COFFEE", func(): OS.shell_open(SUPPORT_URL))
-	add_spacer(box, 12)
-	add_button(box, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
+	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))

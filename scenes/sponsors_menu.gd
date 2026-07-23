@@ -36,7 +36,7 @@ func _ready() -> void:
 	scroll.add_child(_list)
 	add_spacer(box, 8)
 	add_button(box, "ADVERTISE HERE", func(): OS.shell_open(ADVERTISE_MAILTO))
-	add_button(box, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
+	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 
 	Sponsors.ensure_loaded()
 	if Sponsors.is_ready():

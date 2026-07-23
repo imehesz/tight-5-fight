@@ -2,7 +2,11 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
+		<!-- No viewport-fit=cover: it lets the layout viewport (and so the
+		     canvas) extend underneath Android's gesture pill / nav bar, which
+		     is exactly where the bottom row of buttons lives. Stock Godot
+		     meta keeps the page inside the safe area. -->
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
 		<title>$GODOT_PROJECT_NAME</title>
 		<style>
 html, body, #canvas {

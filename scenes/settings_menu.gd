@@ -35,8 +35,7 @@ func _ready() -> void:
 	col.add_child(_outfit_picker())
 	row.add_child(_outfit_preview())
 
-	add_spacer(box, 14)
-	add_button(box, "BACK", func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
+	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 	_add_version_label()
 
 
@@ -46,7 +45,11 @@ func _add_version_label() -> void:
 	var v := Label.new()
 	v.text = GameState.version_string()
 	v.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	v.offset_top = -16
+	# Lifted clear of the nav bar like everything else down there — otherwise
+	# the one label you check to confirm a fresh deploy is the one the phone
+	# hides.
+	v.offset_top = -16 - GameState.SAFE_BOTTOM
+	v.offset_bottom = -GameState.SAFE_BOTTOM
 	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_theme_font_size_override("font_size", 8)
 	v.modulate = Color(1.0, 1.0, 1.0, 0.3)

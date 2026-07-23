@@ -102,7 +102,10 @@ func _layout() -> void:
 func _screen_pos(pos: Vector2, btn_scale: float, view: Vector2) -> Vector2:
 	var x := pos.x * btn_scale if pos.x < DESIGN_W / 2.0 \
 			else view.x - (DESIGN_W - pos.x) * btn_scale
-	var y := view.y - (DESIGN_H - pos.y) * btn_scale
+	# Lifted clear of the Android nav bar: DUCK is the low one, and at 1x it
+	# sat with its bottom edge 6px off the screen edge — right under the
+	# gesture pill.
+	var y := view.y - GameState.SAFE_BOTTOM - (DESIGN_H - pos.y) * btn_scale
 	return Vector2(x, y)
 
 

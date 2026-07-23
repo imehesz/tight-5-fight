@@ -19,6 +19,15 @@ signal shake_requested(pixels: float)
 ## the crowd SFX; scenes with no CrowdRow just ignore it.
 signal crowd_reaction(kind: String)
 
+## Dead zone along the bottom edge, in design pixels (the viewport is 360
+## tall, so this is also roughly CSS pixels on a phone in landscape). Android
+## draws its gesture pill / nav bar over the bottom of the browser viewport,
+## and taps there go to the system, not to us — so anything tappable has to
+## stay above this line. Menus lift their whole column by it (menu_base.gd)
+## and the on-screen controls lift their clusters (touch_controls.gd). Bump
+## it if a device still swallows the bottom row.
+const SAFE_BOTTOM := 16.0
+
 const SCENE_SPLASH := "res://scenes/splash.tscn"
 const SCENE_MAIN_MENU := "res://scenes/main_menu.tscn"
 const SCENE_CHARACTER_SELECT := "res://scenes/character_select.tscn"
