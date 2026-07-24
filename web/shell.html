@@ -223,6 +223,153 @@ body {
 	};
 }());
 
+// --- iOS WebAudio unlock ---------------------------------------------------
+// Godot builds its AudioContext during startGame(), i.e. before the player has
+// touched anything, so it is born suspended. The engine does ask the browser to
+// resume it from its own input handlers, which is enough for Android Chrome and
+// desktop — but iOS Safari also wants a buffer to have actually flowed through
+// the graph inside a real user gesture before it will route audio anywhere. Not
+// getting that is why the iPhone build was silent while everything else worked.
+//
+// Safari also suspends the context whenever the app is backgrounded or the
+// phone is locked and does NOT always fire the engine's resume path on return,
+// so these listeners stay installed for the whole session rather than removing
+// themselves after the first tap. They cost nothing while the context is
+// already running.
+//
+// This must run before engine.startGame() below so the wrapper is in place when
+// the engine constructs its context — it does.
+(function () {
+	const Native = window.AudioContext || window.webkitAudioContext;
+	if (!Native) {
+		return;
+	}
+	const contexts = [];
+	function TrackedAudioContext() {
+		const ctx = Reflect.construct(Native, arguments, Native);
+		contexts.push(ctx);
+		hardenAddModule(ctx);
+		return ctx;
+	}
+	TrackedAudioContext.prototype = Native.prototype;
+	window.AudioContext = TrackedAudioContext;
+	if (window.webkitAudioContext) {
+		window.webkitAudioContext = TrackedAudioContext;
+	}
+
+	// This project exports with audio/general/default_playback_type.web = 1
+	// (Sample), Godot 4.4's web default. In that mode EVERY sound — music and
+	// SFX alike — is gated behind a single promise: the engine loads
+	// index.audio.position.worklet.js once at startup and each sample node
+	// awaits it before calling start(). If that one addModule() rejects or
+	// never settles, the game is completely silent with no error the player
+	// can see. Godot requests it immediately after constructing the context,
+	// i.e. while it is still suspended, which is exactly the situation Safari
+	// is unreliable in.
+	//
+	// So: retry instead of accepting the first answer, and race each attempt
+	// against a timeout so a promise that simply never settles is covered too.
+	// The returned promise resolves on the first success and only rejects once
+	// we are out of attempts — a stall here degrades to the silence we already
+	// have, never to something worse.
+	const ATTEMPT_TIMEOUT_MS = 2500;
+	const MAX_ATTEMPTS = 6;
+
+	function hardenAddModule(ctx) {
+		const worklet = ctx.audioWorklet;
+		if (!worklet || typeof worklet.addModule !== 'function') {
+			return;
+		}
+		const nativeAddModule = worklet.addModule.bind(worklet);
+		worklet.addModule = function (url, options) {
+			return new Promise(function (resolve, reject) {
+				let attempts = 0;
+				function attempt() {
+					attempts += 1;
+					let settled = false;
+					nativeAddModule(url, options).then(function () {
+						settled = true;
+						resolve();
+					}, function (err) {
+						settled = true;
+						retry(err);
+					});
+					setTimeout(function () {
+						if (!settled) {
+							retry(new Error('addModule timed out: ' + url));
+						}
+					}, ATTEMPT_TIMEOUT_MS);
+				}
+				function retry(err) {
+					if (attempts >= MAX_ATTEMPTS) {
+						reject(err);
+						return;
+					}
+					// A tap between now and then is what usually makes the
+					// difference, so leave room for one.
+					setTimeout(attempt, 600);
+				}
+				attempt();
+			});
+		};
+	}
+
+	// iOS puts a page's WebAudio on the "ambient" audio session, which the
+	// phone's physical mute switch silences outright — there is no equivalent
+	// on Android, which is why that build was fine. Declaring the session as
+	// "playback" moves us onto the media channel, so the game is audible with
+	// the ringer switch off, same as a video. Safari 16.4+; a no-op elsewhere.
+	function claimPlaybackSession() {
+		try {
+			if (navigator.audioSession && navigator.audioSession.type !== 'playback') {
+				navigator.audioSession.type = 'playback';
+			}
+		} catch (err) {
+			/* older Safari: nothing we can do from here */
+		}
+	}
+	claimPlaybackSession();
+
+	let primed = false;
+	function unlock() {
+		claimPlaybackSession();
+		contexts.forEach(function (ctx) {
+			if (ctx.state === 'running' && primed) {
+				return;
+			}
+			try {
+				const promise = ctx.resume();
+				if (promise && typeof promise.catch === 'function') {
+					promise.catch(function () { /* nothing else to try */ });
+				}
+			} catch (err) {
+				/* closed context */
+			}
+			// One silent frame. This is the part iOS actually requires, and it
+			// has to happen inside the gesture — which is where we are.
+			try {
+				const source = ctx.createBufferSource();
+				source.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+				source.connect(ctx.destination);
+				source.start(0);
+				primed = true;
+			} catch (err) {
+				/* context not usable yet; the next gesture retries */
+			}
+		});
+	}
+
+	['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'].forEach(function (type) {
+		window.addEventListener(type, unlock, { passive: true, capture: true });
+	});
+	document.addEventListener('visibilitychange', function () {
+		if (!document.hidden) {
+			unlock();
+		}
+	});
+	window.addEventListener('pageshow', unlock);
+}());
+
 const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 const engine = new Engine(GODOT_CONFIG);

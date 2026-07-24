@@ -187,6 +187,8 @@ var _music_volume_db := 0.0
 var _stinger_token := 0
 var _crowd_streams := {}
 var _crowd_last_ms := {}
+## Web only: whether the first user gesture has been seen. See unlock_audio().
+var _audio_unlocked := false
 
 
 func _ready() -> void:
@@ -200,6 +202,20 @@ func _ready() -> void:
 	_load_settings()
 	_load_scores()
 	_setup_audio()
+	# Only the Web build needs the gesture handshake; everywhere else the
+	# boot-time play_music() is already audible.
+	set_process_input(OS.has_feature("web"))
+
+
+## First real user gesture of the session — hand it straight to unlock_audio()
+## and then stop listening. Lives on the autoload rather than on splash.gd so
+## it fires no matter which scene the player happens to be looking at.
+func _input(event: InputEvent) -> void:
+	var pressed: bool = (event is InputEventMouseButton and event.pressed) \
+			or (event is InputEventScreenTouch and event.pressed) \
+			or (event is InputEventKey and event.pressed)
+	if pressed:
+		unlock_audio()
 
 
 # ---------------------------------------------------------------- active game
@@ -638,10 +654,50 @@ func _setup_audio() -> void:
 	_stinger_player.finished.connect(_on_stinger_finished)
 
 
+## Mobile browsers keep the WebAudio context suspended until the first user
+## gesture, and anything play()ed while it is suspended is dropped on the
+## floor rather than queued. _setup_audio() runs at autoload time — long
+## before any tap — so on the Web the boot-time play_music("main") is lost.
+## Android/Chrome papers over it; iOS Safari does not, which is why the iPhone
+## build was silent (reported 2026-07-23) while Android and desktop were fine.
+##
+## Worse, play_music() no-ops when the requested track is already current, so
+## nothing would ever re-issue it and the music stayed dead for the whole
+## session. Hence the `force` flag.
+##
+## The retry exists because resume() is asynchronous: the engine asks the
+## browser to resume the context from inside the same browser event that
+## produced this input, but the context may still be suspended a frame later
+## when we call play(). If the playhead has not moved by then, we try once
+## more. get_playback_position() advances only as frames are actually mixed
+## out, so it is a real "is sound flowing" check, not a guess.
+## How long to wait before checking whether the unlock actually took.
+const AUDIO_UNLOCK_RETRY_SEC := 0.5
+
+
+func unlock_audio() -> void:
+	if _audio_unlocked:
+		return
+	_audio_unlocked = true
+	set_process_input(false)
+	if _music_track == "":
+		return
+	play_music(_music_track, true)
+	await get_tree().create_timer(AUDIO_UNLOCK_RETRY_SEC).timeout
+	if not is_instance_valid(_music_player) or _music_player.stream_paused:
+		return
+	if _music_player.get_playback_position() <= 0.0:
+		play_music(_music_track, true)
+
+
 ## Swap the looping background track; no-op if it's already playing (so
 ## menu-to-menu transitions never restart the tune) or the file is missing.
-func play_music(track: String) -> void:
-	if track == _music_track or not _music_streams.has(track):
+## `force` re-issues the play() even for the current track — only unlock_audio()
+## needs it, see the note there.
+func play_music(track: String, force: bool = false) -> void:
+	if not _music_streams.has(track):
+		return
+	if track == _music_track and not force:
 		return
 	_music_track = track
 	_music_player.stream = _music_streams[track]

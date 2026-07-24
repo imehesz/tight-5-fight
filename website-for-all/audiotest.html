@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tight 5 FIGHT! — audio diagnostic</title>
+<style>
+body { margin: 0; padding: 1rem; background: #111; color: #eee;
+       font-family: -apple-system, system-ui, sans-serif; font-size: 15px; }
+h1 { font-size: 1.1rem; color: #ffd23f; margin: 0 0 .6rem; }
+p  { margin: .4rem 0; color: #aaa; font-size: .85rem; }
+button { font-size: 1rem; padding: .9rem 1.2rem; margin: .3rem .3rem .3rem 0;
+         background: #ffd23f; color: #000; border: 0; border-radius: .4rem;
+         font-weight: 700; }
+button.secondary { background: #444; color: #fff; }
+#log { margin-top: 1rem; white-space: pre-wrap; word-break: break-word;
+       font-family: ui-monospace, Menlo, monospace; font-size: .78rem;
+       line-height: 1.5; }
+.ok   { color: #6ee787; }
+.bad  { color: #ff7b72; }
+.warn { color: #ffd23f; }
+.dim  { color: #888; }
+</style>
+</head>
+<body>
+
+<h1>Tight 5 FIGHT! — audio diagnostic</h1>
+<p>Open this on the iPhone that has no sound. Leave the phone exactly as it was
+when you played (same ringer-switch position, same volume). Tap RUN TESTS, then
+answer the two "did you hear it?" prompts.</p>
+
+<button id="run">RUN TESTS</button>
+<button id="copy" class="secondary">COPY RESULTS</button>
+
+<div id="log"></div>
+
+<script>
+// Replicates the exact audio startup sequence of the Godot 4.4 web export so we
+// can see which step dies on iOS. Two things happen BEFORE any user gesture,
+// mirroring the engine: the AudioContext is constructed, and the position
+// worklet module is requested. Everything else runs inside the gesture.
+
+var logEl = document.getElementById('log');
+var lines = [];
+
+function log(text, cls) {
+	lines.push(text);
+	var div = document.createElement('div');
+	if (cls) { div.className = cls; }
+	div.textContent = text;
+	logEl.appendChild(div);
+}
+
+function fail(err) {
+	return (err && (err.name + ': ' + err.message)) || String(err);
+}
+
+function ask(question) {
+	return new Promise(function (resolve) {
+		var wrap = document.createElement('div');
+		wrap.style.margin = '.5rem 0';
+		var q = document.createElement('div');
+		q.className = 'warn';
+		q.textContent = question;
+		wrap.appendChild(q);
+		[['YES', true], ['NO', false]].forEach(function (pair) {
+			var b = document.createElement('button');
+			b.textContent = pair[0];
+			b.onclick = function () {
+				wrap.remove();
+				log('  ' + question + ' -> ' + pair[0], pair[1] ? 'ok' : 'bad');
+				resolve(pair[1]);
+			};
+			wrap.appendChild(b);
+		});
+		logEl.appendChild(wrap);
+	});
+}
+
+// --- pre-gesture setup, exactly like the engine does at load time -----------
+// mix_rate.web is 0 in this project, so Godot passes NO sampleRate option.
+var preCtx = null;
+var preCtxError = null;
+var preWorklet = { state: 'pending', error: null };
+
+try {
+	preCtx = new (window.AudioContext || window.webkitAudioContext)({});
+	preCtx.audioWorklet.addModule('./jax/index.audio.position.worklet.js').then(
+		function () { preWorklet.state = 'resolved'; },
+		function (err) { preWorklet.state = 'rejected'; preWorklet.error = fail(err); }
+	);
+} catch (err) {
+	preCtxError = fail(err);
+}
+
+function beep(ctx, freq) {
+	// Plain oscillator: no worklet, no decoding, no buses. If this is silent
+	// the problem is the audio session or the context itself, not Godot.
+	return new Promise(function (resolve) {
+		var osc = ctx.createOscillator();
+		var gain = ctx.createGain();
+		osc.frequency.value = freq;
+		gain.gain.value = 0.25;
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+		osc.start();
+		setTimeout(function () { osc.stop(); resolve(); }, 700);
+	});
+}
+
+async function run() {
+	document.getElementById('run').disabled = true;
+	logEl.textContent = '';
+	lines = [];
+
+	log('--- environment ---', 'dim');
+	log('UA: ' + navigator.userAgent);
+	var hasSession = !!navigator.audioSession;
+	log('navigator.audioSession: ' + (hasSession ? 'supported (type=' + navigator.audioSession.type + ')' : 'NOT supported'),
+		hasSession ? 'ok' : 'warn');
+
+	log('');
+	log('--- 1. context created BEFORE any tap (what Godot does) ---', 'dim');
+	if (preCtxError) {
+		log('FAILED to construct: ' + preCtxError, 'bad');
+	} else {
+		log('state=' + preCtx.state + '  sampleRate=' + preCtx.sampleRate, 'ok');
+		try {
+			await preCtx.resume();
+		} catch (err) {
+			log('resume() threw: ' + fail(err), 'bad');
+		}
+		log('state after resume(): ' + preCtx.state, preCtx.state === 'running' ? 'ok' : 'bad');
+		await beep(preCtx, 440);
+		var heard = await ask('Did you hear a BEEP just now?');
+		if (!heard) {
+			log('>> WebAudio itself is silent. Not a Godot problem.', 'bad');
+			if (hasSession) {
+				log('   Retrying with audioSession.type = "playback"...', 'warn');
+				navigator.audioSession.type = 'playback';
+				await beep(preCtx, 660);
+				var heard2 = await ask('Did you hear a SECOND, higher beep?');
+				log(heard2
+					? '>> CONFIRMED: the audio session / mute switch was the cause. The shell fix addresses this.'
+					: '>> Still silent even on the playback session — check volume and the ringer switch.',
+					heard2 ? 'ok' : 'bad');
+			} else {
+				log('   No audioSession API on this iOS version — check the ringer switch.', 'warn');
+			}
+		} else {
+			log('>> Plain WebAudio works. The problem is further down.', 'ok');
+		}
+	}
+
+	log('');
+	log('--- 2. position worklet (every Godot sound waits on this) ---', 'dim');
+	// Give a still-pending promise a moment now that the context is running.
+	if (preWorklet.state === 'pending') {
+		await new Promise(function (r) { setTimeout(r, 1500); });
+	}
+	if (preWorklet.state === 'resolved') {
+		log('addModule() resolved.', 'ok');
+	} else if (preWorklet.state === 'rejected') {
+		log('addModule() REJECTED: ' + preWorklet.error, 'bad');
+		log('>> This alone makes the whole game silent: Godot never calls', 'bad');
+		log('   start() on a sample until this promise resolves.', 'bad');
+	} else {
+		log('addModule() STILL PENDING after the gesture.', 'bad');
+		log('>> Same effect as a rejection — every sound is stuck waiting.', 'bad');
+	}
+
+	if (preCtx && preWorklet.state === 'resolved') {
+		try {
+			new AudioWorkletNode(preCtx, 'godot-position-reporting-processor');
+			log('AudioWorkletNode constructed.', 'ok');
+		} catch (err) {
+			log('AudioWorkletNode FAILED: ' + fail(err), 'bad');
+		}
+	}
+
+	log('');
+	log('--- 3. same worklet, requested inside the gesture ---', 'dim');
+	try {
+		var postCtx = new (window.AudioContext || window.webkitAudioContext)({});
+		await postCtx.resume();
+		await postCtx.audioWorklet.addModule('./jax/index.audio.position.worklet.js');
+		log('addModule() resolved on a post-gesture context.', 'ok');
+		if (preWorklet.state !== 'resolved') {
+			log('>> So the failure is TIMING: the module must be loaded after a tap.', 'warn');
+		}
+	} catch (err) {
+		log('addModule() failed here too: ' + fail(err), 'bad');
+		log('>> Check that index.audio.position.worklet.js is served as', 'warn');
+		log('   Content-Type: text/javascript from /tight5fight/jax/.', 'warn');
+	}
+
+	log('');
+	log('--- done. Tap COPY RESULTS and paste them back. ---', 'warn');
+}
+
+document.getElementById('run').onclick = run;
+document.getElementById('copy').onclick = function () {
+	var text = lines.join('\n');
+	if (navigator.clipboard) {
+		navigator.clipboard.writeText(text).then(
+			function () { alert('Copied.'); },
+			function () { window.prompt('Copy this:', text); }
+		);
+	} else {
+		window.prompt('Copy this:', text);
+	}
+};
+</script>
+</body>
+</html>
