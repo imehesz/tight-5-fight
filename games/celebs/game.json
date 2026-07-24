@@ -19,6 +19,14 @@
 
   "projectileSprite": "assets/misc/bottle.png",
 
+  "planeBanners": [
+    "TWO DRINK MINIMUM!",
+    "PHONES IN THE POUCH!",
+    "IT'S A TIGHT 5, I SWEAR!",
+    "SORRY, ROOM WAS COLD!",
+    "I'M HUGE IN MONTREAL!"
+  ],
+
   "boss": {
     "headSprite": "assets/misc/boss_head.png"
   }

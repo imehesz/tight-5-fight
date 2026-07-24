@@ -2,7 +2,11 @@
 *.import
 export.cfg
 export_presets.cfg
-build
+# ignore build OUTPUT but keep .gdignore tracked: build/ lives inside the Godot
+# project, so without it the editor imports the last export's index.png and the
+# next export packs it back into the .pck (~3.5MB of compounding bloat).
+build/*
+!build/.gdignore
 deployScriptPROD.sh
 rsync_exclude.txt
 
@@ -21,3 +25,4 @@ helper-tools/.cache/
 helper-tools/__pycache__/
 
 requirements/
+build/
