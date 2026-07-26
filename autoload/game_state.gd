@@ -89,22 +89,50 @@ const SFX_POOL_SIZE := 6
 ## throw is occasional. play_sfx() resolves the alias AFTER the mute check, so
 ## "swing" can be silenced without silencing the bottle throw it borrows from.
 const SFX_ALIASES := {"swing": "throw"}
-## Sounds the player's own actions fire, silenced on iOS. An on-device bisect
-## (2026-07-26, testers working through iphonetest.html) pinned the iPhone
-## reload-in-place to punch/kick/swing: every run with them audible crashed,
-## every run without them survived. "throw" joined them by owner's call — it is
-## the same sample as "swing", so leaving it audible left the sample itself
-## reachable, and the rule he wants is simply "nothing the player triggers
-## directly".
+## EVERY sound effect, silenced on iOS — music keeps playing. This is the one
+## configuration testers proved survives on device (?nosfx=1 never crashed,
+## ?nomusic=1 with SFX on always did). A narrower attempt at just the player's
+## attack sounds was tried first and did NOT stop the crashes, so this is the
+## deliberate blunt instrument until the real cause is found.
 ##
-## Silenced by SAMPLE, which means an ENEMY's punch is quiet too. That is
-## deliberate: it is exactly the configuration the testers proved survives
-## (?sfxoff= suppresses by name, not by who acted), and enemy attacks run the
-## same pool path, so sparing them would leave the crash reachable.
+## Silenced by SAMPLE, so an ENEMY's punch is quiet too — that is exactly the
+## configuration that was proven, since ?sfxoff= suppresses by name and not by
+## who acted.
 ##
-## A MITIGATION, not a fix — the WebKit-side cause is still unknown.
-## ?iosaudio=1 puts them back for anyone picking the hunt up again.
-const IOS_SILENT_SFX := ["punch", "kick", "swing", "throw"]
+## ─── TESTING SOUNDS ONE BY ONE ───────────────────────────────────────────
+## Easiest, NO rebuild needed: open the game with ?sfxonly=punch (any name
+## below). That lets exactly one sound through and silences the rest, on any
+## device. website-for-all/iphonetest.html lists a ready-made link per sound.
+## By hand: comment out a line below and re-export to let that one through.
+## Whole mitigation off: ?iosaudio=1 · force it on a non-iPhone: ?iosmute=1
+## ─────────────────────────────────────────────────────────────────────────
+##
+## Keep in sync with SFX_NAMES + CROWD_NAMES + STINGER_NAMES above, plus the
+## two self-managed sounds (plane, bomb-drop). Music is deliberately absent.
+const IOS_SILENT_SFX := [
+	# player + fighter actions — the original (wrong) suspects
+	"punch",
+	"kick",
+	"swing",
+	"throw",
+	# other combat
+	"hurt",
+	"defeat",
+	"smash",
+	"clear",
+	# menus
+	"click",
+	# crowd reactions
+	"boo",
+	"cheer",
+	"laugh",
+	# death stingers
+	"cricket",
+	"curb",
+	# airplane — these two use their own players, not the shared pool
+	"plane",
+	"bomb-drop",
+]
 ## User-supplied crowd sounds use hyphen filenames (sfx-cricket.wav) —
 ## deliberately outside the sfx_ pool naming above.
 const HYPHEN_SFX_BASE := "res://shared/assets/sfx/sfx-"
@@ -247,6 +275,11 @@ var _ios_audio_forced := false
 ## iPhone, so this is the only way to hear what the mitigation does without
 ## borrowing one. Detection itself still needs a real device.
 var _ios_mute_forced := false
+## ?sfxonly=punch — let exactly ONE sound through and silence every other,
+## overriding even the iOS mitigation. Built for testing the silenced sounds
+## back in one at a time on a borrowed iPhone, with no rebuild between runs.
+## Music is unaffected: it is proven safe and confirms audio is alive at all.
+var _sfx_only := ""
 ## ?nopool=1 — give every sound its OWN player with its stream assigned once at
 ## load, instead of six shared players whose `stream` is reassigned (often
 ## mid-playback) several times a second during a fight. Tests whether the churn
@@ -688,6 +721,7 @@ func _apply_debug_flags(search: String) -> void:
 	_no_pool = str(flags.get("nopool", "")) == "1"
 	_ios_audio_forced = str(flags.get("iosaudio", "")) == "1"
 	_ios_mute_forced = str(flags.get("iosmute", "")) == "1"
+	_sfx_only = str(flags.get("sfxonly", ""))
 	if _no_sfx or _no_music or _no_shake or not _sfx_off.is_empty() \
 			or not _music_off.is_empty():
 		print("[diag] sfx_off=%s music_off=%s shake_off=%s suppressed=%s tracks_off=%s" % [
@@ -862,6 +896,10 @@ func has_sfx(sfx_name: String) -> bool:
 ## The ONE funnel every sound suppression goes through: the ?nosfx/?sfxoff
 ## diagnostics and the standing iOS attack-sound mitigation.
 func is_sfx_muted(sfx_name: String) -> bool:
+	# ?sfxonly= wins over everything, including the iOS mitigation — its whole
+	# job is letting a silenced sound back in for one test run.
+	if _sfx_only != "":
+		return sfx_name != _sfx_only
 	if _ios_silence and IOS_SILENT_SFX.has(sfx_name):
 		return true
 	return _no_sfx or _sfx_off.has(sfx_name)
@@ -942,7 +980,7 @@ func play_death_stinger() -> void:
 	# safety timer to bring it back.
 	var choices: Array = []
 	for stinger_name in _stinger_streams:
-		if not _sfx_off.has(stinger_name):
+		if not is_sfx_muted(stinger_name):
 			choices.append(_stinger_streams[stinger_name])
 	if choices.is_empty():
 		return

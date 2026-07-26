@@ -130,6 +130,17 @@
     background: var(--pink); color: #1a0a14; border-radius: .5rem;
   }
   a.play:active { background: #e04bb4; }
+  a.solo {
+    display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+    min-height: 52px; padding: .6rem .9rem; text-decoration: none;
+    background: var(--panel); color: var(--paper);
+    border: 1px solid var(--edge); border-top: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #solo a.solo:first-child { border-top: 1px solid var(--edge); border-radius: .6rem .6rem 0 0; }
+  #solo a.solo:last-child { border-radius: 0 0 .6rem .6rem; }
+  a.solo:active { background: var(--edge); }
+  a.solo .go { flex: none; font-size: .78rem; font-weight: 700; color: var(--pink); }
   .url {
     margin-top: .8rem; padding: .6rem;
     background: #0d0819; border: 1px solid var(--edge); border-radius: .4rem;
@@ -168,6 +179,14 @@ technical.</p>
 result even when nothing goes wrong.</p>
 
 <div id="recipes"></div>
+
+<h2>Test ONE sound at a time</h2>
+<p>iPhones currently play <b>no sound effects at all</b> — music only. Each link
+below puts back <b>exactly one</b> sound and keeps the rest silent, so you can
+work through them on a borrowed iPhone without rebuilding anything. Play a few
+minutes on each.</p>
+
+<div id="solo"></div>
 
 <h2>Or pick sounds by hand</h2>
 <p>Tick a sound to <b>turn it OFF</b>. The link at the bottom updates as you go.</p>
@@ -340,6 +359,28 @@ function half(which) {
 	return ALL.filter(function (s, i) { return which === 0 ? i < cut : i >= cut; })
 		.map(function (s) { return s.id; });
 }
+
+// ---------------------------------------------------------------- solo links
+// One ?sfxonly= link per sound effect. Independent of every control below —
+// the flag overrides the iOS mitigation and the checkboxes alike, so these
+// links are always "just this one sound, plus music".
+var soloEl = document.getElementById('solo');
+ALL.forEach(function (s) {
+	if (s.kind === 'music') { return; }  // music is never silenced on iOS
+	var a = document.createElement('a');
+	a.className = 'solo';
+	a.href = GAME_URL + '?sfxonly=' + s.id;
+	a.target = '_blank';
+	a.rel = 'noopener';
+	var label = document.createElement('span');
+	label.textContent = s.name;
+	var go = document.createElement('span');
+	go.className = 'go';
+	go.textContent = 'PLAY ▶';
+	a.appendChild(label);
+	a.appendChild(go);
+	soloEl.appendChild(a);
+});
 
 var recipesEl = document.getElementById('recipes');
 var groupsEl  = document.getElementById('groups');
