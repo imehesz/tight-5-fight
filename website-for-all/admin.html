@@ -143,6 +143,11 @@
   th { color: var(--dim); font-weight: normal; text-align: left; }
   td { text-align: left; color: var(--paper); }
   th.num, td.num { text-align: right; }
+  /* The crash table carries far more columns than the boards. Let it size to
+     its content and scroll inside .board (overflow-x: auto) rather than
+     squeezing every column and wrapping the timestamp onto three lines. */
+  table.crash { width: auto; min-width: 100%; }
+  table.crash th, table.crash td { white-space: nowrap; }
   td.num { color: var(--gold); }
   tr:last-child th, tr:last-child td { border-bottom: none; }
   .empty { color: var(--dim); font-size: clamp(9px, 2.3vw, 10px); }
@@ -197,6 +202,25 @@
     if (cls) n.className = cls;
     if (text !== undefined) n.textContent = text;
     return n;
+  }
+
+  // The two DB drivers hand back timestamps differently: SQLite (dev) stores
+  // "YYYY-MM-DD HH:MM:SS" in UTC, while MySQL (prod) comes through JSON as a
+  // real ISO string. Accept both, and fall back to showing it raw.
+  function crashWhen(at) {
+    if (!at) return "?";
+    var raw = String(at);
+    var iso = raw.indexOf("T") === -1 ? raw.replace(" ", "T") + "Z" : raw;
+    var when = new Date(iso);
+    return isNaN(when.getTime()) ? raw : when.toLocaleString();
+  }
+
+  // Byte counts read as megabytes here — the crash panel compares footprints,
+  // and nobody eyeballs a difference in a ten-digit number.
+  function mb(bytes) {
+    var n = Number(bytes);
+    if (!n) return "0";
+    return Math.round(n / 1048576) + "M";
   }
 
   // rows: [[label, value], ...] with a header pair first.
@@ -304,6 +328,96 @@
         boardsWrap.appendChild(box);
         section.appendChild(boardsWrap);
         main.appendChild(section);
+      }
+
+      // Crash reports — the iPhone "it restarts itself" hunt. One row per
+      // browser session that went down mid-play and came back on its own.
+      // Guarded like the blocks above: absent on an older backend.
+      if (data.crashes) {
+        var crashSection = el("section", "game");
+        var crashH2 = el("h2", null, "CRASH REPORTS");
+        crashH2.appendChild(el("small", null,
+          data.crashes.total + " on file · " + data.crashes.week + " in the last 7 days"));
+        crashSection.appendChild(crashH2);
+
+        var crashBox = el("div", "board");
+        if (data.crashes.rows.length === 0) {
+          crashBox.appendChild(el("p", "empty", "no crashes reported yet"));
+        } else {
+          var ct = el("table", "crash");
+          var chead = el("tr");
+          ["when", "game", "scene", "why", "device"].forEach(function (h) {
+            chead.appendChild(el("th", null, h));
+          });
+          // Every number the recorder collects, on screen rather than in the
+          // DB — this panel is a temporary investigation tool, so breadth beats
+          // tidiness. Trim it back once the iPhone question is settled.
+          // "hidden" sits up front deliberately: it counts times the page went
+          // into the background, so 0 means the tab died while the player was
+          // looking at it, and 1+ means iOS may simply have discarded a
+          // backgrounded tab — a different bug with a different fix.
+          ["alive", "hidden", "venues", "heap", "tex", "nodes", "objects",
+           "resources", "orphans", "fps", "boots"].forEach(function (h) {
+            chead.appendChild(el("th", "num", h));
+          });
+          ct.appendChild(chead);
+
+          data.crashes.rows.forEach(function (c) {
+            var row = el("tr");
+            row.appendChild(el("td", null, crashWhen(c.at)));
+            row.appendChild(el("td", null, c.gameId));
+            row.appendChild(el("td", null, c.scene || "?"));
+            // reason is only set when something actually fired (a JS error, a
+            // lost GL context). Blank is the interesting case: the tab died
+            // without a word, which is what a memory kill looks like.
+            var why = el("td", null, c.reason || "silent");
+            // The leftovers that do not earn a column of their own. memStatic
+            // reads 0 on the web export (Godot does not report that monitor
+            // there), so it is context, not a measurement.
+            why.title = (c.events || "") +
+              "\nnav: " + (c.navType || "?") +
+              " · cores: " + c.cores +
+              " · memStatic: " + mb(c.memStatic) +
+              "\n" + (c.ua || "");
+            row.appendChild(why);
+            var device = el("td", null, c.screen + " @" + c.dpr + "x");
+            device.title = c.ua || "";
+            row.appendChild(device);
+            row.appendChild(el("td", "num", Math.floor(c.uptime / 60) + "m" + (c.uptime % 60) + "s"));
+            row.appendChild(el("td", "num", String(c.hidden)));
+            row.appendChild(el("td", "num", String(c.venues)));
+            row.appendChild(el("td", "num", mb(c.heap)));
+            row.appendChild(el("td", "num", mb(c.texMem)));
+            row.appendChild(el("td", "num", String(c.nodes)));
+            row.appendChild(el("td", "num", String(c.objects)));
+            row.appendChild(el("td", "num", String(c.resources)));
+            row.appendChild(el("td", "num", String(c.orphans)));
+            row.appendChild(el("td", "num", String(c.fps)));
+            row.appendChild(el("td", "num", String(c.boots)));
+            ct.appendChild(row);
+          });
+          crashBox.appendChild(ct);
+        }
+
+        var crashWrap = el("div", "boards");
+        crashWrap.appendChild(crashBox);
+        crashSection.appendChild(crashWrap);
+        crashSection.appendChild(el("p", "totals-caption",
+          "ALL NUMBERS ARE FROM THE LAST HEARTBEAT BEFORE THE TAB DIED. " +
+          "READ \"HIDDEN\" FIRST: 0 MEANS THE TAB DIED WHILE THE PLAYER WAS " +
+          "LOOKING AT IT (A REAL CRASH); 1+ MEANS IT HAD BEEN BACKGROUNDED, " +
+          "AND iOS MAY SIMPLY HAVE DISCARDED IT. THEN \"WHY\": " +
+          "\"WEBGLCONTEXTLOST\" IS A GPU PROBLEM, NOT A MEMORY ONE. " +
+          "MEASURED ON DESKTOP 2026-07-25 OVER 4 VENUES / 285s: WASM HEAP " +
+          "NEVER MOVED OFF 93M — THE GAME DOES NOT LEAK HEAP — WHILE TEX " +
+          "CLIMBED 19M TO 33M WITH VENUE DEPTH AND DID NOT COME BACK. " +
+          "SO TEX IS THE ONE NUMBER THAT RATCHETS. NODES / OBJECTS / " +
+          "RESOURCES RISE DURING A RUN AND FALL AT GAME OVER: THAT IS " +
+          "HEALTHY TEARDOWN. ORPHANS SHOULD ALWAYS BE 0. \"BOOTS\" COUNTS " +
+          "RELOADS IN THAT TAB — 2 IS ONE DEATH, HIGHER MEANS IT DIED " +
+          "REPEATEDLY IN ONE SITTING. HOVER \"WHY\" FOR THE EVENT LOG, NAV " +
+          "TYPE AND USER AGENT."));
+        main.appendChild(crashSection);
       }
     })
     .catch(function (e) {

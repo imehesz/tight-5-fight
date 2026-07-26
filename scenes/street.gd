@@ -41,14 +41,34 @@ const PLANE_WAIT_MAX := 40.0
 ## sponsor roster has anyone active for this game). WHICH sponsor fills the
 ## slot is Sponsors.pick_weighted().
 const BILLBOARD_CHANCE := 0.75
+## How far off-camera venue and billboard NODES are allowed to live.
+##
+## The street never ends, so anything built per-venue and kept forever grows
+## without bound for as long as the player keeps walking — and on iOS Safari,
+## which kills a tab on its memory footprint, "without bound" eventually means
+## the whole page dies and restarts itself. So the records (where a venue is,
+## which one it is, whether it's been cleared) are kept for the entire run —
+## they are a few bytes each — while the nodes behind them are built on
+## approach and freed on the way out. A marathon run now costs the same as the
+## first minute.
+##
+## The gap between the two is hysteresis: with a single threshold, standing
+## exactly on the line would rebuild and free the same venue every frame. The
+## camera sees ±320, so even STREAM_IN_X is well out of sight.
+const STREAM_IN_X := 640.0
+const STREAM_OUT_X := 900.0
 
 var player: Player
 var camera: Camera2D
 var hud: Hud
 
 var _tiles: Array = []
-var _doors: Array = []  # [{x, data, cleared, sign}]
-var _billboards: Array = []  # Billboard nodes, in spawn order
+## [{x, data, cleared, ext, sign, tape}] — the node fields are null whenever
+## the venue is streamed out. Never pruned: the player can always walk back.
+var _doors: Array = []
+## [{x, id, sponsor, counted, variant, tilt, node}] — same contract, node null
+## while streamed out.
+var _billboards: Array = []
 var _next_venue_x := FIRST_VENUE_X
 var _venue_index := 0
 var _spawn_timer := 2.0
@@ -85,14 +105,18 @@ func _ready() -> void:
 		# Returning from a venue: rebuild the street exactly as it was.
 		_next_venue_x = float(saved.next_venue_x)
 		_venue_index = int(saved.venue_index)
+		# Records only — not one node. Whatever is actually near the player
+		# gets built by the streaming pass at the end of _ready(), so coming
+		# back out of the tenth venue costs the same as coming out of the
+		# first (it used to rebuild every venue of the run, all at once).
 		for d in saved.doors:
-			_add_venue(float(d.x), d.data, bool(d.cleared))
+			_place_venue(float(d.x), d.data, bool(d.cleared))
 		# Billboards restore with their counted flag, so a re-walk past a
 		# restored board never bills a second impression.
 		for b in saved.get("billboards", []):
 			var sponsor: Dictionary = Sponsors.by_id(String(b.id))
 			if not sponsor.is_empty():
-				_add_billboard(float(b.x), sponsor, bool(b.counted),
+				_place_billboard(float(b.x), sponsor, bool(b.counted),
 						String(b.get("variant", "")), float(b.get("tilt", 0.0)))
 		_spawn_player(Vector2(float(saved.player_x), GROUND_Y))
 		# Mid-run pacing is untouched: no fast spawn, no forced aggression.
@@ -106,6 +130,9 @@ func _ready() -> void:
 			_spawn_hint_sign()
 	camera.position = Vector2(maxf(player.position.x, 320.0), 180.0)
 	camera.reset_smoothing()
+	# Before the first frame is drawn, so a restored street opens with its
+	# scenery already standing instead of popping in a frame later.
+	_stream_props()
 
 
 func _process(delta: float) -> void:
@@ -113,6 +140,7 @@ func _process(delta: float) -> void:
 		player.position.x = maxf(player.position.x, 20.0)
 		camera.position = Vector2(maxf(player.position.x, 320.0), 180.0)
 	_recycle_tiles()
+	_stream_props()
 	_maybe_spawn_venue()
 	_maybe_spawn_heckler(delta)
 	_maybe_spawn_beer(delta)
@@ -146,7 +174,7 @@ func _maybe_spawn_venue() -> void:
 	if camera.position.x + 700.0 < _next_venue_x:
 		return
 	var placed_x := _next_venue_x
-	_add_venue(placed_x, GameState.venue_data_for_index(_venue_index), false)
+	_place_venue(placed_x, GameState.venue_data_for_index(_venue_index), false)
 	_venue_index += 1
 	_next_venue_x += randf_range(VENUE_SPACING_MIN, VENUE_SPACING_MAX)
 	_maybe_spawn_billboard(placed_x, _next_venue_x)
@@ -162,19 +190,81 @@ func _maybe_spawn_billboard(gap_start: float, gap_end: float) -> void:
 	var sponsor: Dictionary = Sponsors.pick_weighted()
 	if sponsor.is_empty():
 		return
-	_add_billboard((gap_start + gap_end) / 2.0 + randf_range(-80.0, 80.0), sponsor, false)
+	_place_billboard((gap_start + gap_end) / 2.0 + randf_range(-80.0, 80.0), sponsor, false)
 
 
-func _add_billboard(bx: float, sponsor: Dictionary, counted: bool,
+# ---------------------------------------------------------------- streaming
+## Record a billboard's existence. Nothing is built until the camera nears it.
+func _place_billboard(bx: float, sponsor: Dictionary, counted: bool,
 		variant := "", tilt := 0.0) -> void:
+	_billboards.append({
+		"x": bx,
+		"id": String(sponsor.get("id", "")),
+		"sponsor": sponsor,
+		"counted": counted,
+		"variant": variant,
+		"tilt": tilt,
+		"node": null,
+	})
+
+
+## Record a venue's existence. Same deal — the door works off this record, so
+## a venue the player can reach is never merely "not built yet".
+func _place_venue(vx: float, data: Dictionary, cleared: bool) -> void:
+	_doors.append({
+		"x": vx, "data": data, "cleared": cleared,
+		"ext": null, "sign": null, "tape": null,
+	})
+
+
+## Build and free scenery as the camera comes and goes. This is the whole
+## point of the records above: node count on the street is now a function of
+## how much is on screen, not of how far the player has walked.
+func _stream_props() -> void:
+	var cam := camera.position.x
+	for d in _doors:
+		var dist := absf(float(d.x) - cam)
+		if dist <= STREAM_IN_X:
+			if d.ext == null:
+				_build_venue_nodes(d)
+		elif dist > STREAM_OUT_X and d.ext != null:
+			_free_venue_nodes(d)
+	for b in _billboards:
+		var dist := absf(float(b.x) - cam)
+		if dist <= STREAM_IN_X:
+			if b.node == null:
+				_build_billboard_node(b)
+		elif dist > STREAM_OUT_X and b.node != null:
+			_free_billboard_node(b)
+
+
+func _build_billboard_node(b: Dictionary) -> void:
 	var board := Billboard.new()
-	board.configure(sponsor, counted, variant, tilt)
-	board.position = Vector2(bx, GROUND_Y)
+	board.configure(b.sponsor, bool(b.counted), String(b.variant), float(b.tilt))
+	board.position = Vector2(float(b.x), GROUND_Y)
 	add_child(board)
-	_billboards.append(board)
+	# configure() rolls the variant and tilt itself the first time it sees a
+	# board. Keep what it chose, or a billboard that streams out and back in
+	# would be a different billboard every time.
+	b.variant = board.variant
+	b.tilt = board.tilt_deg
+	b.node = board
 
 
-func _add_venue(vx: float, data: Dictionary, cleared: bool) -> void:
+func _free_billboard_node(b: Dictionary) -> void:
+	var board: Billboard = b.node
+	if is_instance_valid(board):
+		# The impression flag lives on the node while it exists; take it back
+		# before the node goes, or a re-streamed board would bill its sponsor
+		# a second time for the same walk-by.
+		b.counted = board.counted
+		board.queue_free()
+	b.node = null
+
+
+func _build_venue_nodes(d: Dictionary) -> void:
+	var vx := float(d.x)
+	var data: Dictionary = d.data
 	var ext := Sprite2D.new()
 	var path := String(data.get("ExteriorSpritePath", ""))
 	if ResourceLoader.exists(path):
@@ -193,12 +283,20 @@ func _add_venue(vx: float, data: Dictionary, cleared: bool) -> void:
 
 	var sign := _make_enter_sign()
 	sign.position = Vector2(vx, SIGN_Y)
-	sign.visible = not cleared
+	sign.visible = not d.cleared
 	add_child(sign)
 
-	if cleared:
-		_add_cancelled_tape(vx)
-	_doors.append({"x": vx, "data": data, "cleared": cleared, "sign": sign})
+	d.ext = ext
+	d.sign = sign
+	d.tape = _make_cancelled_tape(vx) if d.cleared else null
+
+
+func _free_venue_nodes(d: Dictionary) -> void:
+	for key in ["ext", "sign", "tape"]:
+		var node: Node = d[key]
+		if is_instance_valid(node):
+			node.queue_free()
+		d[key] = null
 
 
 ## A little neon box sign: dark panel framed by a pink "tube" border, the
@@ -277,7 +375,9 @@ func _spawn_hint_sign() -> void:
 			tw.tween_callback(sign.queue_free))
 
 
-func _add_cancelled_tape(vx: float) -> void:
+## The CANCELLED banner across a venue the player has already cleared. Returns
+## the node so the venue that owns it can free it when it streams out.
+func _make_cancelled_tape(vx: float) -> Node2D:
 	var tape := Node2D.new()
 	tape.position = Vector2(vx, GROUND_Y - 95.0)
 	tape.rotation = deg_to_rad(-8.0)
@@ -297,6 +397,7 @@ func _add_cancelled_tape(vx: float) -> void:
 	txt.add_theme_color_override("font_color", Color(0.82, 0.08, 0.08))
 	tape.add_child(txt)
 	add_child(tape)
+	return tape
 
 
 ## Bob every active venue's sign up and down (phase-offset by its x so
@@ -310,6 +411,9 @@ func _update_door_signs() -> void:
 		_hint_sign.position.y = SIGN_Y + sin(t * 4.0 + _hint_sign.position.x) * SIGN_BOB
 	for d in _doors:
 		var sign: Node2D = d.sign
+		# Streamed out: there is nothing to bob or brighten.
+		if not is_instance_valid(sign):
+			continue
 		if d.cleared:
 			sign.visible = false
 			continue
@@ -447,9 +551,11 @@ func _capture_state() -> Dictionary:
 		doors.append({"x": d.x, "data": d.data, "cleared": d.cleared})
 	var billboards: Array = []
 	for b in _billboards:
-		if is_instance_valid(b):
-			billboards.append({"x": b.position.x, "id": b.sponsor_id,
-					"counted": b.counted, "variant": b.variant, "tilt": b.tilt_deg})
+		# A streamed-in board's `counted` flag is live on the node; the record
+		# only becomes authoritative again once the node is freed.
+		var counted: bool = b.node.counted if is_instance_valid(b.node) else bool(b.counted)
+		billboards.append({"x": b.x, "id": b.id, "counted": counted,
+				"variant": b.variant, "tilt": b.tilt})
 	return {
 		"player_x": player.position.x,
 		"next_venue_x": _next_venue_x,

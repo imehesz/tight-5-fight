@@ -331,6 +331,124 @@ async function postPlay(req, res) {
   json(res, 200, { ok: true });
 }
 
+// ---------------------------------------------------------------- crashes
+// POST /crash { gameId, uptime, heap, scene, nodes, ... } -> { ok: true }
+//
+// One row per browser session that DIED mid-play: the tab went down and came
+// back on its own, which the client detects from its own boot bookkeeping (see
+// web/shell.html). Chasing the iPhone-only "the game restarts itself" report.
+//
+// Deliberately NOT gated on a known uuid, unlike /play: a session that crashes
+// before it ever banks a play has no id, and those are precisely the reports
+// worth having. The per-IP cap is therefore the only limit, backed by the hard
+// row ceiling the prune sweep enforces — the worst a flood can do is fill a
+// bounded table with junk that ages out.
+//
+// Everything below is clamped rather than trusted. These numbers are read by
+// one person on an admin page, so a liar wastes a row and nothing else.
+function clampInt(value, max) {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, max);
+}
+
+function clampFloat(value, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, max);
+}
+
+// Printable ASCII only: these end up in an HTML table, and control characters
+// have no business in a scene name or a user agent.
+function shortText(value, max) {
+  if (typeof value !== "string") return "";
+  return value.replace(/[^\x20-\x7E]/g, "").slice(0, max);
+}
+
+// The client's event ring, rebuilt field by field rather than stored as it
+// arrived — the column holds our JSON, never the client's.
+function cleanEvents(events) {
+  if (!Array.isArray(events) || events.length === 0) return "";
+  return JSON.stringify(
+    events.slice(0, 8).map((e) => ({
+      t: clampInt(e && e.t, 86400),
+      r: shortText(e && e.r, 32),
+      d: shortText(e && e.d, 120),
+    }))
+  );
+}
+
+// Prune sweeps are throttled: once an hour, or every PRUNE_EVERY reports,
+// whichever comes first. No point re-running two DELETEs for every row.
+const PRUNE_EVERY = 50;
+const PRUNE_INTERVAL_MS = 3600_000;
+let crashesSincePrune = 0;
+let lastPruneAt = 0;
+
+async function postCrash(req, res) {
+  const ip = clientIp(req);
+  let body;
+  try {
+    // A full report with its event ring runs ~1.5 KB; the default ceiling
+    // leaves room rather than 400-ing a crash we only get told about once.
+    body = await readBody(req);
+  } catch (e) {
+    return json(res, 400, { error: e.message });
+  }
+
+  const { gameId } = body;
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
+  if (overLimit("crash", ip, config.limits.crashesPerHourPerIp)) {
+    return json(res, 429, { error: "too many crash reports from this address" });
+  }
+
+  const uuid = typeof body.uuid === "string" && /^[0-9a-f-]{36}$/i.test(body.uuid) ? body.uuid : "";
+  await db.recordCrash({
+    game_id: gameId,
+    player_uuid: uuid,
+    reason: shortText(body.reason, 32),
+    scene: shortText(body.scene, 32),
+    nav_type: shortText(body.navType, 16),
+    // A session longer than 24h is a clock the browser lied about, not a run.
+    uptime_sec: clampInt(body.uptime, 86400),
+    heap_bytes: clampInt(body.heap, 8589934592),
+    mem_static: clampInt(body.memStatic, 8589934592),
+    tex_bytes: clampInt(body.texMem, 8589934592),
+    nodes: clampInt(body.nodes, 1000000),
+    objects: clampInt(body.objects, 10000000),
+    orphans: clampInt(body.orphans, 1000000),
+    resources: clampInt(body.resources, 1000000),
+    fps: clampInt(body.fps, 1000),
+    venues: clampInt(body.venues, 100000),
+    boots: clampInt(body.boots, 100000),
+    hidden_count: clampInt(body.hidden, 100000),
+    dpr: clampFloat(body.dpr, 10),
+    screen_w: clampInt(body.sw, 100000),
+    screen_h: clampInt(body.sh, 100000),
+    cores: clampInt(body.cores, 1024),
+    // Straight from the request, never the body: the client cannot dress its
+    // iPhone up as something else here.
+    user_agent: shortText(req.headers["user-agent"], 255),
+    events: cleanEvents(body.events),
+  });
+  chargeHit("crash", ip);
+
+  if (crashesSincePrune++ >= PRUNE_EVERY || Date.now() - lastPruneAt > PRUNE_INTERVAL_MS) {
+    crashesSincePrune = 0;
+    lastPruneAt = Date.now();
+    try {
+      await db.pruneCrashes({
+        retentionDays: config.crashRetentionDays,
+        maxRows: config.crashMaxRows,
+      });
+    } catch (e) {
+      // Housekeeping is not the caller's problem — the row is already in.
+      console.error("crash prune failed:", e);
+    }
+  }
+  json(res, 200, { ok: true });
+}
+
 // GET /leaderboard?gameId=tight5&page=0
 //   -> { page, pageCount, total, rows:     [{ rank, character, best, plays }],
 //                          beatTotal, beatRows: [{ rank, character, kos }] }
@@ -480,6 +598,10 @@ async function getTrends(req, res, url) {
 // unset means the endpoint is disabled, not open.
 const GAME_LABELS = { tight5: "JAX" }; // historical id — JAX shipped first, as plain "tight5"
 
+// How many recent crash reports the admin page gets. Enough to see a pattern
+// across devices without turning /stats into a big response.
+const CRASH_ROWS = 25;
+
 async function getStats(req, res, url) {
   if (!config.adminPwd || url.searchParams.get("pwd") !== config.adminPwd) {
     return json(res, 403, { error: "forbidden" });
@@ -520,7 +642,38 @@ async function getStats(req, res, url) {
     month: Number(r.month_total),
     allTime: Number(r.all_time),
   }));
-  json(res, 200, { generatedAt: new Date().toISOString(), totals, games, sponsors });
+  // Crash reports, newest first — the iPhone-restart investigation's whole
+  // read side. Behind the same admin password as everything else here.
+  const crashTotals = await db.crashTotals();
+  const crashes = {
+    total: crashTotals.total,
+    week: crashTotals.week,
+    rows: (await db.recentCrashes(CRASH_ROWS)).map((r) => ({
+      at: r.created_at,
+      gameId: r.game_id,
+      scene: r.scene,
+      reason: r.reason,
+      navType: r.nav_type,
+      uptime: Number(r.uptime_sec),
+      heap: Number(r.heap_bytes),
+      memStatic: Number(r.mem_static),
+      texMem: Number(r.tex_bytes),
+      nodes: Number(r.nodes),
+      objects: Number(r.objects),
+      orphans: Number(r.orphans),
+      resources: Number(r.resources),
+      fps: Number(r.fps),
+      venues: Number(r.venues),
+      boots: Number(r.boots),
+      hidden: Number(r.hidden_count),
+      dpr: Number(r.dpr),
+      screen: `${Number(r.screen_w)}x${Number(r.screen_h)}`,
+      cores: Number(r.cores),
+      ua: r.user_agent,
+      events: r.events,
+    })),
+  };
+  json(res, 200, { generatedAt: new Date().toISOString(), totals, games, sponsors, crashes });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -535,6 +688,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "POST" && route === "/player") return await postPlayer(req, res);
     if (req.method === "POST" && route === "/play") return await postPlay(req, res);
+    if (req.method === "POST" && route === "/crash") return await postCrash(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
     if (req.method === "GET" && route === "/podium") return await getPodium(req, res, url);

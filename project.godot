@@ -21,6 +21,7 @@ config/icon="res://shared/assets/icon.png"
 GameState="*res://autoload/game_state.gd"
 Leaderboard="*res://autoload/leaderboard.gd"
 Sponsors="*res://autoload/sponsors.gd"
+CrashDiag="*res://autoload/crash_diag.gd"
 
 [display]
 

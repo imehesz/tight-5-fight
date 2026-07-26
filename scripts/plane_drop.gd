@@ -114,6 +114,8 @@ func _set_tex(path: String, width: float) -> void:
 
 
 func _start_whistle() -> void:
+	if GameState.is_sfx_muted("bomb-drop"):
+		return
 	if not ResourceLoader.exists(WHISTLE):
 		return
 	_whistle = AudioStreamPlayer.new()

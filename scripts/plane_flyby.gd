@@ -98,7 +98,8 @@ func _ready() -> void:
 	_engine = AudioStreamPlayer.new()
 	_engine.bus = "SFX"
 	add_child(_engine)
-	if ResourceLoader.exists("res://shared/assets/sfx/plane.ogg"):
+	if not GameState.is_sfx_muted("plane") \
+			and ResourceLoader.exists("res://shared/assets/sfx/plane.ogg"):
 		var s: AudioStream = load("res://shared/assets/sfx/plane.ogg")
 		if s is AudioStreamOggVorbis:
 			s.loop = true

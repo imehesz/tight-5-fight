@@ -36,7 +36,17 @@ const base = {
     // scripted attack — the UUID cooldown above only stops double-taps.
     playsPerHourPerIp: 10,
     mintsPerHourPerIp: 20,
+    // Crash reports (POST /crash). One is written per session that died, so a
+    // player would have to crash 12 times in an hour to hit this — and a
+    // scripted flood is bounded by it AND by crashMaxRows below.
+    crashesPerHourPerIp: 12,
   },
+
+  // Disk ceiling for the crash table. A row is ~300 bytes, so the cap below
+  // is a couple of MB at worst, forever — the table can never become the
+  // reason the VPS runs out of space. Both sweeps run on insert.
+  crashRetentionDays: 45,
+  crashMaxRows: 5000,
 
   db: {
     driver: "sqlite", // "sqlite" | "mysql" (prod)

@@ -370,6 +370,358 @@ body {
 	window.addEventListener('pageshow', unlock);
 }());
 
+// --- Crash flight recorder ------------------------------------------------
+// Chasing the iPhone-only "the game randomly restarts itself" report. Nothing
+// in the game can restart it — there is exactly one change_scene call in the
+// project and it is the venue door — so the page itself must be going down
+// and coming back. On iOS that is almost always Safari's WebContent process
+// being killed (memory pressure) and silently re-navigated: no error fires,
+// because the process that would report it is already gone.
+//
+// So the evidence has to survive the crash ON the device. Every couple of
+// seconds CrashDiag (autoload/crash_diag.gd) hands us a snapshot, which we
+// mirror into localStorage. On the next boot we look at what the previous
+// life left behind:
+//
+//   - pagehide fired (clean=1)  -> the player navigated away or closed the
+//                                  tab. Normal. No report.
+//   - no pagehide, boots > 1    -> the page went down where it stood and came
+//                                  back on its own. THAT is the crash, and the
+//                                  final snapshot is what it was doing.
+//
+// The record is handed to CrashDiag, which POSTs it once and deletes it, so
+// this costs the server one small row per crash — not a telemetry stream.
+(function () {
+	const LIVE = 't5diag.live';
+	const PENDING = 't5diag.pending';
+	const BOOTS = 't5diag.boots';
+	const MAX_EVENTS = 6;
+	const HEARTBEAT_KEYS_MAX = 40;
+
+	// Safari in private mode gives storage a zero quota and THROWS on write,
+	// so every access here is best-effort. Losing the recorder must never
+	// cost anyone their game.
+	function readJson(store, key) {
+		try {
+			const raw = store.getItem(key);
+			return raw ? JSON.parse(raw) : null;
+		} catch (err) {
+			return null;
+		}
+	}
+
+	function writeJson(store, key, value) {
+		try {
+			store.setItem(key, JSON.stringify(value));
+		} catch (err) {
+			/* private mode / quota: run without the recorder */
+		}
+	}
+
+	function drop(store, key) {
+		try {
+			store.removeItem(key);
+		} catch (err) {
+			/* as above */
+		}
+	}
+
+	// The WASM heap is the number that decides this question. iOS kills a tab
+	// on its process footprint, and for a Godot build the heap IS most of that
+	// footprint — but nothing exposes it to the page. So intercept the module
+	// as it is instantiated and keep its exported memory: heap bytes are then
+	// just buffer.byteLength, live, for free, forever.
+	//
+	// This has to be installed before engine.startGame() below, and it is.
+	let wasmMemory = null;
+	function captureMemory(result) {
+		try {
+			// instantiate() resolves to {module, instance} for a buffer and to
+			// a bare Instance for an already-compiled Module. Handle both.
+			const instance = result && result.instance ? result.instance : result;
+			const memory = instance && instance.exports && instance.exports.memory;
+			if (memory && memory.buffer) {
+				wasmMemory = memory;
+			}
+		} catch (err) {
+			/* not the shape we expected; heap simply reports 0 */
+		}
+		return result;
+	}
+	['instantiate', 'instantiateStreaming'].forEach(function (name) {
+		const native = WebAssembly[name];
+		if (typeof native !== 'function') {
+			return;
+		}
+		WebAssembly[name] = function () {
+			return native.apply(WebAssembly, arguments).then(captureMemory);
+		};
+	});
+
+	// sessionStorage is scoped to the tab and Safari deliberately preserves it
+	// across a WebContent crash so it can restore the tab — which is exactly
+	// what makes it able to tell "reloaded in place" from "opened fresh".
+	let boots = 1;
+	try {
+		boots = (parseInt(sessionStorage.getItem(BOOTS), 10) || 0) + 1;
+		sessionStorage.setItem(BOOTS, String(boots));
+	} catch (err) {
+		/* no sessionStorage: boots stays 1 and we simply never report */
+	}
+
+	function navigationType() {
+		try {
+			const nav = performance.getEntriesByType('navigation')[0];
+			return nav && nav.type ? String(nav.type) : '';
+		} catch (err) {
+			return '';
+		}
+	}
+
+	// Hand the previous life's last words to CrashDiag, if it died mid-play.
+	const previous = readJson(localStorage, LIVE);
+	drop(localStorage, LIVE);
+	if (previous && boots > 1 && !previous.clean) {
+		previous.navType = navigationType();
+		previous.boots = boots;
+		writeJson(localStorage, PENDING, previous);
+	}
+
+	const started = Date.now();
+	const live = {
+		v: 1,
+		reason: '',
+		events: [],
+		hidden: 0,
+		// Static device shape. All iPhones report "iPhone" in the UA, so the
+		// screen and core count are what actually separate an SE from a Pro —
+		// and RAM is what decides when iOS pulls the trigger.
+		dpr: window.devicePixelRatio || 1,
+		sw: (window.screen && window.screen.width) || 0,
+		sh: (window.screen && window.screen.height) || 0,
+		cores: navigator.hardwareConcurrency || 0,
+	};
+
+	function uptime() {
+		return Math.round((Date.now() - started) / 1000);
+	}
+
+	function persist() {
+		live.uptime = uptime();
+		live.heap = wasmMemory ? wasmMemory.buffer.byteLength : 0;
+		writeJson(localStorage, LIVE, live);
+	}
+
+	// A short ring of anything notable that happened before the end. Capped so
+	// a page that spews errors can't grow the record without bound.
+	function note(reason, detail) {
+		if (live.events.length < MAX_EVENTS) {
+			live.events.push({
+				t: uptime(),
+				r: reason,
+				d: String(detail === undefined || detail === null ? '' : detail).slice(0, 120),
+			});
+		}
+		live.reason = reason;
+		persist();
+	}
+
+	window.addEventListener('error', function (e) {
+		note('error', e && e.message);
+	});
+	window.addEventListener('unhandledrejection', function (e) {
+		note('rejection', e && e.reason);
+	});
+
+	const canvas = document.getElementById('canvas');
+	if (canvas) {
+		// If Safari drops the GL context instead of killing the process, the
+		// engine has no recovery path — this is the other candidate, and it
+		// leaves a fingerprint the memory theory doesn't.
+		canvas.addEventListener('webglcontextlost', function () {
+			note('webglcontextlost', '');
+		});
+		canvas.addEventListener('webglcontextcreationerror', function (e) {
+			note('webglcontextcreationerror', e && e.statusMessage);
+		});
+	}
+
+	// Like note(), but for facts rather than failures. It must NOT set
+	// live.reason: the crash panel's "why" column reading "silent" is the
+	// single most important signal we have, and a device fact must never
+	// masquerade as a cause of death.
+	function mark(reason, detail) {
+		if (live.events.length < MAX_EVENTS) {
+			live.events.push({
+				t: uptime(),
+				r: reason,
+				d: String(detail === undefined || detail === null ? '' : detail).slice(0, 120),
+			});
+		}
+		persist();
+	}
+
+	// One-shot device facts, captured on the first heartbeat — by then the
+	// engine has sized its canvas and created the GL context. These ride into
+	// the crash record as an EVENT rather than as new fields, so the backend,
+	// the crashes table and the admin page all need no change whatsoever;
+	// they show up under the "why" hover.
+	//
+	// The drawing-buffer size is the number that matters: it is the real
+	// framebuffer the GPU process has to hold, it scales with the square of
+	// the pixel ratio, and NOTHING in the engine-side snapshot can see it
+	// (texMem counts textures, not render targets).
+	let factsDone = false;
+	function captureFacts() {
+		if (factsDone) {
+			return;
+		}
+		factsDone = true;
+		const bits = [];
+		const ratio = window.__t5dpr || { real: window.devicePixelRatio || 1 };
+		bits.push('dpr ' + ratio.real + '->' + (ratio.effective || ratio.real));
+		try {
+			// getContext returns the EXISTING context when the canvas already
+			// has one, so this reads Godot's context rather than allocating a
+			// second — which on a GPU-pressure hunt would be self-defeating.
+			const gl = canvas && (canvas.getContext('webgl2') || canvas.getContext('webgl'));
+			if (!gl) {
+				bits.push('no gl');
+			} else {
+				bits.push('buf ' + gl.drawingBufferWidth + 'x' + gl.drawingBufferHeight);
+				bits.push('maxtex ' + gl.getParameter(gl.MAX_TEXTURE_SIZE));
+				let name = '';
+				const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+				if (dbg) {
+					name = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+				}
+				if (!name) {
+					name = gl.getParameter(gl.RENDERER);
+				}
+				if (name) {
+					bits.push(String(name));
+				}
+			}
+		} catch (err) {
+			bits.push('gl read failed');
+		}
+		mark('gl', bits.join(' | '));
+	}
+
+	// The asymmetry the whole diagnosis rests on: a graceful leave fires
+	// pagehide, a process kill fires nothing at all.
+	window.addEventListener('pagehide', function () {
+		live.clean = 1;
+		persist();
+	});
+	window.addEventListener('pageshow', function () {
+		// Restored from the back/forward cache: this life is running again, so
+		// it is no longer "cleanly ended".
+		live.clean = 0;
+		persist();
+	});
+	document.addEventListener('visibilitychange', function () {
+		if (document.hidden) {
+			live.hidden += 1;
+			persist();
+		}
+	});
+
+	window.__t5diag = {
+		// Called by CrashDiag with a JSON object of engine-side fields.
+		beat: function (json) {
+			let fields;
+			try {
+				fields = JSON.parse(json);
+			} catch (err) {
+				return;
+			}
+			if (!fields || typeof fields !== 'object') {
+				return;
+			}
+			let n = 0;
+			for (const key in fields) {
+				if (n++ >= HEARTBEAT_KEYS_MAX) {
+					break;
+				}
+				live[key] = fields[key];
+			}
+			// A first beat means the engine is up and the canvas is sized.
+			captureFacts();
+			persist();
+		},
+		// The previous life's final snapshot as JSON, or '' if it ended well.
+		pending: function () {
+			const row = readJson(localStorage, PENDING);
+			return row ? JSON.stringify(row) : '';
+		},
+		clearPending: function () {
+			drop(localStorage, PENDING);
+		},
+	};
+
+	persist();
+}());
+
+// ------------------------------------------------------- pixel-ratio cap
+// Godot sizes its canvas by window.devicePixelRatio. On a 3x phone that means
+// an 852x393 CSS canvas is rendered at 2556x1179 — about 3.0 million pixels,
+// MORE than a 1080p desktop — inside WebKit's separate GPU process, which has
+// far tighter limits than the page's own memory. None of that is visible to
+// the flight recorder above: texMem counts textures, not framebuffers, so a
+// GPU-side ceiling looks exactly like what we measured on 2026-07-25 — every
+// engine number flat, 60fps to the last heartbeat, then the page reloads in
+// place with no crash log and no jetsam event.
+//
+// This is a 640x360 pixel-art game, so even 1x on a phone is above the design
+// resolution and the visual cost is close to nothing.
+//
+// MUST run before `new Engine()`, and deliberately runs AFTER the recorder so
+// that live.dpr still records the device's REAL ratio — the crash panel's
+// "device" column has to keep identifying the hardware honestly. The
+// effective value is reported separately in the "gl" event.
+//
+//   ?dpr=native  device value, i.e. the old behaviour   (A/B against this build)
+//   ?dpr=2       middle setting
+//   default      capped at DEFAULT_MAX_DPR
+(function () {
+	const real = window.devicePixelRatio || 1;
+	// Tested on an iPhone 15 on 2026-07-25: capping to 1x changed NOTHING
+	// (crashes landed at the same 2m3s as native), so the cap is not the fix
+	// and players keep the sharp canvas. The switch stays for A/B use.
+	let effective = real;
+	try {
+		const want = new URLSearchParams(window.location.search).get('dpr');
+		if (want === 'native') {
+			effective = real;
+		} else if (want) {
+			const n = parseFloat(want);
+			if (!isNaN(n) && n > 0) {
+				effective = n;
+			}
+		}
+	} catch (err) {
+		/* no URLSearchParams, or a URL it refuses to parse: keep the default */
+	}
+	// Never scale UP — asking a 1x desktop for 3x would be a pure own goal.
+	effective = Math.min(real, Math.max(1, effective));
+	window.__t5dpr = { real: real, effective: effective };
+	if (effective === real) {
+		return;
+	}
+	try {
+		// An own property on window shadows the prototype getter, which is
+		// what the engine reads through godot_js_display_pixel_ratio_get.
+		Object.defineProperty(window, 'devicePixelRatio', {
+			configurable: true,
+			get: function () { return effective; },
+		});
+	} catch (err) {
+		// Non-configurable on this browser: play at native rather than fail.
+		window.__t5dpr.effective = real;
+	}
+}());
+
 const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 const engine = new Engine(GODOT_CONFIG);

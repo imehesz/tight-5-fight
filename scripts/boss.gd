@@ -222,7 +222,7 @@ func _start_stool() -> void:
 	if _rest_stool:
 		_rest_stool.visible = false
 	_body.play("punch")
-	GameState.play_sfx("swing" if GameState.has_sfx("swing") else "throw")
+	GameState.play_sfx("swing")  # borrows the throw sample; see SFX_ALIASES
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -160),
 			STOOL_LINES.pick_random(), Color.WHITE, true)
 	var sw := StoolSwing.new()

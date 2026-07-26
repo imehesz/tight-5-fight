@@ -83,6 +83,28 @@ const STREAK_MAX_MULT := 5
 const SFX_BASE := "res://shared/assets/sfx/sfx_"
 const SFX_NAMES := ["punch", "kick", "hurt", "defeat", "smash", "clear", "click", "throw", "swing"]
 const SFX_POOL_SIZE := 6
+## Logical sound names that borrow another sample until a file of their own
+## exists. The mic-stand swing has no sfx_swing file and plays the throw
+## sample — but it is its OWN action, fired on every swing input, where the
+## throw is occasional. play_sfx() resolves the alias AFTER the mute check, so
+## "swing" can be silenced without silencing the bottle throw it borrows from.
+const SFX_ALIASES := {"swing": "throw"}
+## Sounds the player's own actions fire, silenced on iOS. An on-device bisect
+## (2026-07-26, testers working through iphonetest.html) pinned the iPhone
+## reload-in-place to punch/kick/swing: every run with them audible crashed,
+## every run without them survived. "throw" joined them by owner's call — it is
+## the same sample as "swing", so leaving it audible left the sample itself
+## reachable, and the rule he wants is simply "nothing the player triggers
+## directly".
+##
+## Silenced by SAMPLE, which means an ENEMY's punch is quiet too. That is
+## deliberate: it is exactly the configuration the testers proved survives
+## (?sfxoff= suppresses by name, not by who acted), and enemy attacks run the
+## same pool path, so sparing them would leave the crash reachable.
+##
+## A MITIGATION, not a fix — the WebKit-side cause is still unknown.
+## ?iosaudio=1 puts them back for anyone picking the hunt up again.
+const IOS_SILENT_SFX := ["punch", "kick", "swing", "throw"]
 ## User-supplied crowd sounds use hyphen filenames (sfx-cricket.wav) —
 ## deliberately outside the sfx_ pool naming above.
 const HYPHEN_SFX_BASE := "res://shared/assets/sfx/sfx-"
@@ -175,7 +197,9 @@ var _music_track := ""
 var _sfx_streams := {}
 var _sfx_pool: Array = []
 var _sfx_next := 0
-var _stinger_streams: Array = []
+## Keyed by stinger name (not a bare Array) so ?sfxoff=cricket can drop one
+## without dropping the other.
+var _stinger_streams := {}
 var _stinger_player: AudioStreamPlayer
 var _stinger_active := false
 ## The music player's own volume, saved across a stinger. Player-level, NOT
@@ -190,9 +214,51 @@ var _crowd_last_ms := {}
 ## Web only: whether the first user gesture has been seen. See unlock_audio().
 var _audio_unlocked := false
 
+## TEMPORARY diagnostic kill switches for the iPhone reload-in-place hunt
+## (2026-07-25). Set from the page URL on web builds only, so one deployed
+## build can be A/B'd on a borrowed device with no redeploy between runs:
+##
+##   ?noaudio=1   no music, no SFX, no crowd, no stinger
+##   ?nosfx=1     no SFX/crowd/stinger, music still plays
+##   ?nomusic=1   music off, SFX still play
+##   ?noshake=1   no screen shake
+##
+## Every switch is a guard at a single funnel, so nothing else in the game
+## needs to know these exist. Delete the whole block once the cause is found.
+var _no_sfx := false
+var _no_music := false
+var _no_shake := false
+## Names suppressed by ?sfxoff=punch,hurt — lets a single sound (or a group
+## sharing a sample rate) be bisected on a borrowed device with no redeploy.
+## Covers EVERY non-music sound in the game by name: play_sfx names, play_crowd
+## names, the death stingers (cricket, curb), and the two sounds that build
+## their own players outside this autoload (plane, bomb-drop — see
+## is_sfx_muted(), which plane_flyby.gd and plane_drop.gd call).
+var _sfx_off: PackedStringArray = []
+## Tracks suppressed by ?musicoff=main,venue — the per-track counterpart to
+## ?nomusic=1, so the menu tune and the venue tune can be bisected separately.
+var _music_off: PackedStringArray = []
+## Whether IOS_SILENT_SFX is in force: set at boot on iOS web builds only.
+var _ios_silence := false
+## ?iosaudio=1 — opt back INTO the attack sounds on iOS, for working on a
+## real fix. Read before _ios_silence is decided.
+var _ios_audio_forced := false
+## ?iosmute=1 — apply the iOS mitigation on ANY device. The owner has no
+## iPhone, so this is the only way to hear what the mitigation does without
+## borrowing one. Detection itself still needs a real device.
+var _ios_mute_forced := false
+## ?nopool=1 — give every sound its OWN player with its stream assigned once at
+## load, instead of six shared players whose `stream` is reassigned (often
+## mid-playback) several times a second during a fight. Tests whether the churn
+## is the problem rather than the decoding. Trade-off while it is on: a sound
+## cannot overlap itself, it restarts.
+var _no_pool := false
+var _sfx_players := {}
+
 
 func _ready() -> void:
 	randomize()
+	_read_debug_flags()
 	_register_input_actions()
 	_load_active_game()
 	get_window().title = game_title()
@@ -564,7 +630,68 @@ func hitstop(duration := HITSTOP_TIME, frozen_scale := HITSTOP_SCALE) -> void:
 
 
 func request_shake(pixels := 3.0) -> void:
+	if _no_shake:
+		return
 	shake_requested.emit(pixels)
+
+
+## Read the temporary ?noaudio/?nosfx/?nomusic/?noshake switches off the page
+## URL. Web only — desktop and the editor have no location to read, and the
+## flags stay false there, so nothing changes for normal play. Deliberately
+## tolerant: an unparseable query string simply leaves every switch off.
+func _read_debug_flags() -> void:
+	if not OS.has_feature("web"):
+		return
+	var raw: Variant = JavaScriptBridge.eval("window.location.search || ''", true)
+	if raw != null:
+		_apply_debug_flags(str(raw))
+	# Decided AFTER the flags, so ?iosaudio=1 can opt back in. Runs even when
+	# the query string is unreadable — the mitigation must not depend on it.
+	_ios_silence = not _ios_audio_forced and (_ios_mute_forced or _is_ios_browser())
+	if _ios_silence:
+		print("[audio] attack SFX disabled (%s): %s" % [
+				"forced" if _ios_mute_forced else "iOS detected", IOS_SILENT_SFX])
+
+
+## iPhone/iPad/iPod, including iPadOS 13+, which reports itself as "MacIntel"
+## and is only distinguishable from a real Mac by having touch points. iPads
+## share the WebKit audio path the crash lives in, so they get the mitigation
+## too even though every report came from an iPhone.
+func _is_ios_browser() -> bool:
+	var js := "(/iPad|iPhone|iPod/.test(navigator.userAgent)" \
+			+ " || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))" \
+			+ " ? 1 : 0"
+	var r: Variant = JavaScriptBridge.eval(js, true)
+	return r != null and int(r) == 1
+
+
+## Split out from _read_debug_flags purely so the parsing can be exercised
+## headlessly, with no browser and no JavaScriptBridge.
+func _apply_debug_flags(search: String) -> void:
+	if search == "":
+		return
+	var flags := {}
+	for part in search.lstrip("?").split("&", false):
+		var kv := part.split("=", true, 1)
+		if kv.size() > 0 and kv[0] != "":
+			flags[kv[0]] = "1" if kv.size() < 2 else kv[1]
+	var all_off: bool = str(flags.get("noaudio", "")) == "1"
+	_no_sfx = all_off or str(flags.get("nosfx", "")) == "1"
+	_no_music = all_off or str(flags.get("nomusic", "")) == "1"
+	_no_shake = str(flags.get("noshake", "")) == "1"
+	var off := str(flags.get("sfxoff", ""))
+	if off != "":
+		_sfx_off = off.split(",", false)
+	var moff := str(flags.get("musicoff", ""))
+	if moff != "":
+		_music_off = moff.split(",", false)
+	_no_pool = str(flags.get("nopool", "")) == "1"
+	_ios_audio_forced = str(flags.get("iosaudio", "")) == "1"
+	_ios_mute_forced = str(flags.get("iosmute", "")) == "1"
+	if _no_sfx or _no_music or _no_shake or not _sfx_off.is_empty() \
+			or not _music_off.is_empty():
+		print("[diag] sfx_off=%s music_off=%s shake_off=%s suppressed=%s tracks_off=%s" % [
+				_no_sfx, _no_music, _no_shake, _sfx_off, _music_off])
 
 
 # ---------------------------------------------------------------- data access
@@ -641,11 +768,21 @@ func _setup_audio() -> void:
 	for stinger_name in STINGER_NAMES:
 		var s := _load_stream(HYPHEN_SFX_BASE + stinger_name)
 		if s:
-			_stinger_streams.append(s)
+			_stinger_streams[stinger_name] = s
 	for crowd_name in CROWD_NAMES:
 		var s := _load_stream(HYPHEN_SFX_BASE + crowd_name)
 		if s:
 			_crowd_streams[crowd_name] = s
+	# ?nopool only: one player per sound, stream assigned ONCE here so that
+	# playing a sound is nothing but a play() call.
+	if _no_pool:
+		for source in [_sfx_streams, _crowd_streams]:
+			for sound_name in source:
+				var p := AudioStreamPlayer.new()
+				p.bus = "SFX"
+				p.stream = source[sound_name]
+				add_child(p)
+				_sfx_players[sound_name] = p
 	# Dedicated player, not the pool: pool voices get recycled by combat SFX,
 	# which would cut the stinger short and strand the music paused.
 	_stinger_player = AudioStreamPlayer.new()
@@ -695,6 +832,8 @@ func unlock_audio() -> void:
 ## `force` re-issues the play() even for the current track — only unlock_audio()
 ## needs it, see the note there.
 func play_music(track: String, force: bool = false) -> void:
+	if _no_music or _music_off.has(track):
+		return
 	if not _music_streams.has(track):
 		return
 	if track == _music_track and not force:
@@ -715,24 +854,53 @@ func has_sfx(sfx_name: String) -> bool:
 	return _sfx_streams.has(sfx_name)
 
 
+## Diagnostic check for the two sounds that build their own AudioStreamPlayer
+## instead of going through play_sfx() — the plane engine loop and the bomb
+## whistle. They are the only sounds this autoload cannot gate itself, and
+## they are prime suspects (extra players, created mid-fight), so ?sfxoff=
+## has to reach them too. See _sfx_off.
+## The ONE funnel every sound suppression goes through: the ?nosfx/?sfxoff
+## diagnostics and the standing iOS attack-sound mitigation.
+func is_sfx_muted(sfx_name: String) -> bool:
+	if _ios_silence and IOS_SILENT_SFX.has(sfx_name):
+		return true
+	return _no_sfx or _sfx_off.has(sfx_name)
+
+
 func play_sfx(sfx_name: String) -> void:
-	if not _sfx_streams.has(sfx_name):
+	if is_sfx_muted(sfx_name):
+		return
+	# Alias resolution happens HERE, after the mute check, so a borrowed sample
+	# can be silenced for one action without silencing the other. See
+	# SFX_ALIASES; a real sfx_swing file would take over automatically.
+	var stream_name := sfx_name
+	if not _sfx_streams.has(stream_name):
+		stream_name = str(SFX_ALIASES.get(sfx_name, sfx_name))
+	if not _sfx_streams.has(stream_name):
+		return
+	if _no_pool:
+		_sfx_players[stream_name].play()
 		return
 	var p: AudioStreamPlayer = _sfx_pool[_sfx_next]
 	_sfx_next = (_sfx_next + 1) % _sfx_pool.size()
-	p.stream = _sfx_streams[sfx_name]
+	p.stream = _sfx_streams[stream_name]
 	p.play()
 
 
 ## Venue-crowd one-shot, rate-limited per name so e.g. a double KO whose
 ## rolls both pass can't stack two cheers. Missing files no-op like play_sfx.
 func play_crowd(crowd_name: String) -> void:
+	if is_sfx_muted(crowd_name):
+		return
 	if not _crowd_streams.has(crowd_name):
 		return
 	var now := Time.get_ticks_msec()
 	if now - int(_crowd_last_ms.get(crowd_name, -CROWD_GAP_MS)) < CROWD_GAP_MS:
 		return
 	_crowd_last_ms[crowd_name] = now
+	if _no_pool:
+		_sfx_players[crowd_name].play()
+		return
 	var p: AudioStreamPlayer = _sfx_pool[_sfx_next]
 	_sfx_next = (_sfx_next + 1) % _sfx_pool.size()
 	p.stream = _crowd_streams[crowd_name]
@@ -762,7 +930,21 @@ const STINGER_MAX_SEC := 6.0
 
 
 func play_death_stinger() -> void:
+	# Skipped whole under ?nosfx: the music duck it performs is only there to
+	# make room for a stinger that will not be playing.
+	if _no_sfx:
+		return
 	if _stinger_streams.is_empty() or _stinger_active:
+		return
+	# Pick from the stingers ?sfxoff= has left alive. Done BEFORE the music
+	# duck below: suppressing every stinger must skip the whole routine, not
+	# duck the music for a stinger that will never play and then wait out the
+	# safety timer to bring it back.
+	var choices: Array = []
+	for stinger_name in _stinger_streams:
+		if not _sfx_off.has(stinger_name):
+			choices.append(_stinger_streams[stinger_name])
+	if choices.is_empty():
 		return
 	_stinger_active = true
 	_stinger_token += 1
@@ -770,7 +952,7 @@ func play_death_stinger() -> void:
 	_music_volume_db = _music_player.volume_db
 	_music_player.volume_db = MUTED_DB
 	_music_player.stream_paused = true
-	_stinger_player.stream = _stinger_streams.pick_random()
+	_stinger_player.stream = choices.pick_random()
 	_stinger_player.play()
 	get_tree().create_timer(STINGER_MAX_SEC).timeout.connect(
 			func() -> void:

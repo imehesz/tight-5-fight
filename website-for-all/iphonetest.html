@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<!--
+  TIGHT 5 FIGHT! — iPhone sound bisect helper (TEMPORARY, 2026-07-25 hunt).
+
+  For non-technical testers. Every sound in the game gets a checkbox; ticking
+  one mutes it. The page writes the ?sfxoff= / ?musicoff= / ?nopool= query
+  string that autoload/game_state.gd parses (_apply_debug_flags) and hands back
+  a plain PLAY link to the CELEBS build.
+
+  The RECIPES list is the point of the page: we do not know whether one sound
+  is at fault, a whole class of sound, or simply too many playing at once, so
+  each recipe isolates one of those axes and says in plain English what its
+  result would prove.
+
+  Sound metadata (rate/ch/secs) was measured with ffprobe on 2026-07-26 against
+  shared/assets/sfx/*.ogg and games/celebs/assets/audio/*.ogg. Re-measure if the
+  files are ever re-encoded — they were WAV/QOA until 2026-07-26, and the
+  recipes that slice by sample rate are only as good as these numbers.
+
+  Keep SOUNDS below in sync with game_state.gd:
+    SFX_NAMES / CROWD_NAMES / STINGER_NAMES, the two self-managed sounds
+    ("plane" in plane_flyby.gd, "bomb-drop" in plane_drop.gd), and the two
+    music tracks (main / venue).
+  Delete this page once the iPhone restart cause is found.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tight 5 FIGHT! — sound tester</title>
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --night:  #0b0716;
+    --panel:  #1a1130;
+    --edge:   #2e2148;
+    --pink:   #ff59cc;
+    --gold:   #ffd966;
+    --paper:  #f5eee4;
+    --dim:    #b9a8d6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { max-width: 100%; }
+  body {
+    font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+    background: var(--night);
+    color: var(--paper);
+    font-size: 16px;
+    line-height: 1.5;
+    /* Generous bottom gap: phone nav bars eat the last ~16px of the page. */
+    padding: 1.1rem 1rem 3rem;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+
+  h1 { font-size: 1.25rem; color: var(--gold); margin-bottom: .5rem; }
+  h2 {
+    font-size: .95rem; color: var(--gold);
+    margin: 1.9rem 0 .3rem; padding-top: 1.1rem;
+    border-top: 1px solid var(--edge);
+  }
+  h3 {
+    font-size: .74rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--pink); margin: 1.2rem 0 .5rem;
+  }
+  p { color: var(--dim); font-size: .92rem; margin-bottom: .6rem; }
+  p.lead { color: var(--paper); }
+
+  ol.steps { color: var(--dim); font-size: .92rem; margin: 0 0 .4rem 1.1rem; }
+  ol.steps li { margin-bottom: .35rem; }
+  ol.steps b, p b { color: var(--paper); }
+
+  /* --- recipe cards ---------------------------------------------------- */
+  .recipe {
+    display: block; width: 100%; text-align: left;
+    min-height: 56px; padding: .75rem .9rem; margin-bottom: .5rem;
+    font: inherit; color: var(--paper);
+    background: var(--panel); border: 1px solid var(--edge);
+    border-radius: .55rem; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .recipe:active { background: var(--edge); }
+  .recipe.active { border-color: var(--pink); background: #2a1440; }
+  .recipe .title { font-size: .98rem; font-weight: 700; }
+  .recipe.active .title { color: var(--pink); }
+  .recipe .why { display: block; font-size: .82rem; color: var(--dim); margin-top: .15rem; }
+
+  /* --- sound rows ------------------------------------------------------ */
+  .grouphead {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .6rem; margin: 1.2rem 0 .4rem;
+  }
+  .grouphead h3 { margin: 0; }
+  .grouphead button {
+    flex: none; min-height: 40px; padding: .35rem .8rem;
+    font: inherit; font-size: .78rem; font-weight: 600;
+    background: transparent; color: var(--gold);
+    border: 1px solid var(--edge); border-radius: .4rem; cursor: pointer;
+  }
+  .grouphead button:active { background: var(--edge); }
+
+  .group { border: 1px solid var(--edge); border-radius: .6rem; overflow: hidden; }
+  .row {
+    display: flex; align-items: center; gap: .8rem;
+    min-height: 58px; padding: .55rem .9rem;
+    background: var(--panel); cursor: pointer;
+    border-top: 1px solid var(--edge);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .row:first-child { border-top: 0; }
+  .row input { flex: none; width: 26px; height: 26px; accent-color: var(--pink); margin: 0; }
+  .row .name { font-size: .98rem; }
+  .row .tags {
+    display: block; font-size: .72rem; color: var(--dim);
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .row.on { background: #2a1440; }
+  .row.on .name { color: var(--pink); }
+
+  /* --- options + result ------------------------------------------------ */
+  .result {
+    margin-top: 1.8rem; padding: 1rem;
+    background: var(--panel); border: 1px solid var(--edge); border-radius: .6rem;
+  }
+  .summary { font-size: .9rem; color: var(--dim); margin-bottom: .8rem; }
+  .summary b { color: var(--gold); }
+  a.play {
+    display: block; text-align: center; text-decoration: none;
+    min-height: 60px; padding: 1rem;
+    font-size: 1.1rem; font-weight: 800; letter-spacing: .04em;
+    background: var(--pink); color: #1a0a14; border-radius: .5rem;
+  }
+  a.play:active { background: #e04bb4; }
+  .url {
+    margin-top: .8rem; padding: .6rem;
+    background: #0d0819; border: 1px solid var(--edge); border-radius: .4rem;
+    font-family: ui-monospace, Menlo, monospace; font-size: .72rem;
+    color: var(--dim); word-break: break-all;
+  }
+  button.copy {
+    width: 100%; min-height: 48px; margin-top: .6rem; padding: .6rem;
+    font: inherit; font-size: .9rem; font-weight: 600;
+    background: transparent; color: var(--gold);
+    border: 1px solid var(--edge); border-radius: .5rem; cursor: pointer;
+  }
+  button.copy:active { background: var(--edge); }
+  .note { font-size: .82rem; color: var(--dim); margin-top: 1.4rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Tight 5 FIGHT! — sound tester</h1>
+<p class="lead">This page helps us find why the game restarts itself on iPhone.
+We know sound is involved, but not whether it is one bad sound, one type of
+sound, or simply too many playing at once. You do not need to know anything
+technical.</p>
+
+<ol class="steps">
+  <li>Pick a <b>test</b> below (or tick sounds by hand further down).</li>
+  <li>Tap the big <b>PLAY</b> button.</li>
+  <li><b>Fight for at least 5 minutes</b> — the problem shows up during busy
+      fighting, not while walking around.</li>
+  <li>Come back and tell us: did it restart, and after how long?</li>
+</ol>
+
+<h2>Tests — work down this list</h2>
+<p>Do them in order. Each one tells us something different, so please report the
+result even when nothing goes wrong.</p>
+
+<div id="recipes"></div>
+
+<h2>Or pick sounds by hand</h2>
+<p>Tick a sound to <b>turn it OFF</b>. The link at the bottom updates as you go.</p>
+
+<div id="groups"></div>
+
+<h3>Extra options</h3>
+<div class="group" id="options"></div>
+
+<div class="result" id="result">
+  <div class="summary" id="summary"></div>
+  <a class="play" id="play" href="#" target="_blank" rel="noopener">▶ PLAY THE GAME</a>
+  <div class="url" id="url"></div>
+  <button type="button" class="copy" id="copy">Copy link</button>
+</div>
+
+<p class="note">Tip: before each new try, fully close the game tab (swipe it
+away in Safari) so the phone loads a fresh copy.</p>
+
+</div>
+
+<script>
+// The CELEBS build. Same absolute URL the landing page links to.
+var GAME_URL = 'https://games.imstandup.com/tight5fight/celebs/';
+
+// Every sound in the game.
+//   kind  'music' -> ?musicoff=, 'sfx' -> ?sfxoff=
+//   id    MUST match the name the engine uses (see the comment at the top)
+//   rate  sample rate in Hz, ch = channels, secs = length (ffprobe, 2026-07-26)
+//   fires how often it plays: constant | often | menu | rare | end | loop
+//   via   which player it uses: pool (6 shared voices) | own | stinger | music
+// NOTE: "swing" has no sound file of its own — it plays the Throw sample — but
+// it IS separately switchable, because it fires on every swing input while the
+// throw is occasional. Muting one does not mute the other.
+var SOUNDS = [
+	{ group: 'Music', kind: 'music', items: [
+		{ id: 'main',      name: 'Menu & street music',        rate: 48000, ch: 2, secs: 51.9, fires: 'loop',     via: 'music' },
+		{ id: 'venue',     name: 'Venue (indoor fight) music', rate: 48000, ch: 2, secs: 28.0, fires: 'loop',     via: 'music' }
+	]},
+	{ group: 'Fight sounds', kind: 'sfx', items: [
+		{ id: 'punch',     name: 'Punch',                      rate: 48000, ch: 2, secs: 0.23, fires: 'constant', via: 'pool' },
+		{ id: 'kick',      name: 'Kick',                       rate: 22050, ch: 1, secs: 0.25, fires: 'constant', via: 'pool' },
+		{ id: 'swing',     name: 'Mic-stand swing',            rate: 48000, ch: 1, secs: 1.10, fires: 'constant', via: 'pool' },
+		{ id: 'hurt',      name: 'Taking a hit',               rate: 44100, ch: 2, secs: 0.38, fires: 'constant', via: 'pool' },
+		{ id: 'defeat',    name: 'Knockout',                   rate: 48000, ch: 2, secs: 0.32, fires: 'often',    via: 'pool' },
+		{ id: 'smash',     name: 'Bottle smash / explosion',   rate: 22050, ch: 1, secs: 1.02, fires: 'often',    via: 'pool' },
+		{ id: 'throw',     name: 'Throw & swing',              rate: 48000, ch: 1, secs: 1.10, fires: 'often',    via: 'pool' },
+		{ id: 'clear',     name: 'Venue cleared / pickup',     rate: 22050, ch: 1, secs: 0.20, fires: 'often',    via: 'pool' },
+		{ id: 'click',     name: 'Menu button click',          rate: 22050, ch: 1, secs: 0.17, fires: 'menu',     via: 'pool' }
+	]},
+	{ group: 'Crowd', kind: 'sfx', items: [
+		{ id: 'boo',       name: 'Crowd boos',                 rate: 22050, ch: 2, secs: 2.19, fires: 'rare',     via: 'pool' },
+		{ id: 'cheer',     name: 'Crowd cheers',               rate: 22050, ch: 2, secs: 3.09, fires: 'rare',     via: 'pool' },
+		{ id: 'laugh',     name: 'Crowd laughs',               rate: 22050, ch: 2, secs: 1.97, fires: 'rare',     via: 'pool' }
+	]},
+	{ group: 'Airplane', kind: 'sfx', items: [
+		{ id: 'plane',     name: 'Airplane engine (loops)',    rate: 44100, ch: 2, secs: 8.85, fires: 'loop',     via: 'own' },
+		{ id: 'bomb-drop', name: 'Falling bomb whistle',       rate: 44100, ch: 2, secs: 1.19, fires: 'rare',     via: 'own' }
+	]},
+	{ group: 'After your last death', kind: 'sfx', items: [
+		{ id: 'cricket',   name: 'Crickets',                   rate: 22050, ch: 2, secs: 2.64, fires: 'end',      via: 'stinger' },
+		{ id: 'curb',      name: 'Curb-your-enthusiasm sting', rate: 22050, ch: 2, secs: 2.64, fires: 'end',      via: 'stinger' }
+	]}
+];
+
+// Flat list in screen order — the half-and-half recipes rely on this order.
+var ALL = [];
+SOUNDS.forEach(function (section) {
+	section.items.forEach(function (item) {
+		item.kind = section.kind;
+		ALL.push(item);
+	});
+});
+
+// Recipes. `mute` picks the sounds to silence; `nopool` additionally gives every
+// sound its own player instead of the six shared ones. Grouped by the question
+// each block answers, because "which sound" and "how many at once" are
+// different hypotheses and the tester should be able to tell them apart.
+var RECIPES = [
+	{ head: 'Start here' },
+	{
+		title: '1. Everything ON (control)',
+		why: 'Nothing muted. Confirms the phone still restarts before we change anything.',
+		mute: function () { return []; }
+	},
+	{
+		title: '2. Everything OFF',
+		why: 'Total silence. We expect this to survive — worth re-confirming once.',
+		mute: function () { return ALL.map(function (s) { return s.id; }); }
+	},
+
+	{ head: 'Is it HOW MANY sounds play at once?' },
+	{
+		title: '3. All sounds ON, but one channel each',
+		why: 'Same sounds, except each gets its own channel instead of sharing six. If this survives, the sounds are fine and the sharing is the problem.',
+		opts: ['nopool'],
+		mute: function () { return []; }
+	},
+	{
+		title: '4. No rapid-fire sounds',
+		why: 'Mutes punch, kick and taking a hit — the ones that fire many times a second. Everything else still plays.',
+		mute: function () { return pick(function (s) { return s.fires === 'constant'; }); }
+	},
+	{
+		title: '5. ONLY the rapid-fire sounds',
+		why: 'The opposite of test 4: just punch, kick and hurt, nothing else.',
+		mute: function () { return pick(function (s) { return s.fires !== 'constant'; }); }
+	},
+	{
+		title: '6. No long sounds',
+		why: 'Mutes every effect longer than a second. Those hold a channel for ages while quick punches keep needing one.',
+		mute: function () { return pick(function (s) { return s.kind === 'sfx' && s.secs >= 1.0; }); }
+	},
+
+	{ head: 'Is it a TYPE of sound?' },
+	{
+		title: '7. Only 48 kHz sounds',
+		why: 'Leaves just the sounds the iPhone can play as-is. Everything else has to be converted while it plays.',
+		mute: function () { return pick(function (s) { return s.rate !== 48000; }); }
+	},
+	{
+		title: '8. Only 22 kHz sounds',
+		why: 'The opposite of test 7: leaves only the sounds that DO need converting.',
+		mute: function () { return pick(function (s) { return s.rate !== 22050; }); }
+	},
+	{
+		title: '9. No stereo sounds',
+		why: 'Leaves only the single-channel sounds.',
+		mute: function () { return pick(function (s) { return s.ch === 2; }); }
+	},
+	{
+		title: '10. No mono sounds',
+		why: 'The opposite of test 9: leaves only the two-channel sounds.',
+		mute: function () { return pick(function (s) { return s.ch === 1; }); }
+	},
+
+	{ head: 'Check the fix' },
+	{
+		title: '13. The iPhone fix, forced on',
+		why: 'Exactly what an iPhone now gets automatically: the sounds your own moves make are silent, everything else normal. Use this to hear the fix on a phone or computer that is not an iPhone.',
+		opts: ['iosmute'],
+		mute: function () { return []; }
+	},
+	{
+		title: '14. The iPhone fix, switched off',
+		why: 'Puts the three sounds back on an iPhone. Only for checking the crash still happens without the fix.',
+		opts: ['iosaudio'],
+		mute: function () { return []; }
+	},
+
+	{ head: 'Narrow it down' },
+	{
+		title: '11. Mute the first half',
+		why: 'Plain split. If this survives, the culprit is in the second half.',
+		mute: function () { return half(0); }
+	},
+	{
+		title: '12. Mute the second half',
+		why: 'The other half.',
+		mute: function () { return half(1); }
+	}
+];
+
+function pick(fn) {
+	return ALL.filter(fn).map(function (s) { return s.id; });
+}
+
+function half(which) {
+	var cut = Math.ceil(ALL.length / 2);
+	return ALL.filter(function (s, i) { return which === 0 ? i < cut : i >= cut; })
+		.map(function (s) { return s.id; });
+}
+
+var recipesEl = document.getElementById('recipes');
+var groupsEl  = document.getElementById('groups');
+var optionsEl = document.getElementById('options');
+var summaryEl = document.getElementById('summary');
+var playEl    = document.getElementById('play');
+var urlEl     = document.getElementById('url');
+var resultEl  = document.getElementById('result');
+
+var boxes = {};          // id -> { cb, row }
+var order = [];          // ids in screen order
+var activeRecipe = null; // title of the recipe currently applied, or null
+
+// ---------------------------------------------------------------- sound rows
+SOUNDS.forEach(function (section) {
+	var head = document.createElement('div');
+	head.className = 'grouphead';
+	var h = document.createElement('h3');
+	h.textContent = section.group;
+	var btn = document.createElement('button');
+	btn.type = 'button';
+	btn.textContent = 'All / none';
+	head.appendChild(h);
+	head.appendChild(btn);
+	groupsEl.appendChild(head);
+
+	var box = document.createElement('div');
+	box.className = 'group';
+
+	section.items.forEach(function (item) {
+		// A <label> row so the whole strip is tappable, not just the checkbox.
+		var row = document.createElement('label');
+		row.className = 'row';
+
+		var cb = document.createElement('input');
+		cb.type = 'checkbox';
+		cb.dataset.id = item.id;
+		cb.addEventListener('change', function () {
+			row.classList.toggle('on', cb.checked);
+			activeRecipe = null;  // hand-edited: no longer a named recipe
+			update();
+		});
+
+		var text = document.createElement('span');
+		text.className = 'name';
+		text.textContent = item.name;
+		var tags = document.createElement('span');
+		tags.className = 'tags';
+		tags.textContent = (item.rate / 1000) + 'kHz · ' +
+			(item.ch === 1 ? 'mono' : 'stereo') + ' · ' + item.secs + 's · ' +
+			(item.via === 'pool' ? 'shared channel' : 'own channel');
+		text.appendChild(tags);
+
+		row.appendChild(cb);
+		row.appendChild(text);
+		box.appendChild(row);
+		boxes[item.id] = { cb: cb, row: row };
+		order.push(item.id);
+	});
+
+	// "All / none" flips the group as a unit: on unless every box is already on.
+	btn.addEventListener('click', function () {
+		var ids = section.items.map(function (i) { return i.id; });
+		var turnOn = ids.some(function (id) { return !boxes[id].cb.checked; });
+		ids.forEach(function (id) { setBox(id, turnOn); });
+		activeRecipe = null;
+		update();
+	});
+
+	groupsEl.appendChild(box);
+});
+
+// ---------------------------------------------------------------- options
+// Engine switches that are not mutes. Each is a real query flag parsed by
+// game_state.gd's _apply_debug_flags().
+var OPTIONS = [
+	{ id: 'nopool',   param: 'nopool=1',
+	  name: 'Give every sound its own channel',
+	  tags: 'nopool — sounds stay ON, they just stop sharing' },
+	{ id: 'iosmute',  param: 'iosmute=1',
+	  name: 'Apply the iPhone fix on THIS device',
+	  tags: 'iosmute — silences the player action sounds on any phone or computer' },
+	{ id: 'iosaudio', param: 'iosaudio=1',
+	  name: 'Undo the iPhone fix (play them anyway)',
+	  tags: 'iosaudio — puts the crashing sounds back, for testing on an iPhone' }
+];
+
+var opts = {};  // id -> { cb, row }
+OPTIONS.forEach(function (o) {
+	var row = document.createElement('label');
+	row.className = 'row';
+	var cb = document.createElement('input');
+	cb.type = 'checkbox';
+	var text = document.createElement('span');
+	text.className = 'name';
+	text.textContent = o.name;
+	var tags = document.createElement('span');
+	tags.className = 'tags';
+	tags.textContent = o.tags;
+	text.appendChild(tags);
+	row.appendChild(cb);
+	row.appendChild(text);
+	optionsEl.appendChild(row);
+	cb.addEventListener('change', function () {
+		row.classList.toggle('on', cb.checked);
+		activeRecipe = null;
+		update();
+	});
+	opts[o.id] = { cb: cb, row: row };
+});
+
+// ---------------------------------------------------------------- recipes
+RECIPES.forEach(function (r) {
+	if (r.head) {
+		var h = document.createElement('h3');
+		h.textContent = r.head;
+		recipesEl.appendChild(h);
+		return;
+	}
+	var card = document.createElement('button');
+	card.type = 'button';
+	card.className = 'recipe';
+	card.dataset.title = r.title;
+
+	var t = document.createElement('span');
+	t.className = 'title';
+	t.textContent = r.title;
+	var w = document.createElement('span');
+	w.className = 'why';
+	w.textContent = r.why;
+	card.appendChild(t);
+	card.appendChild(w);
+
+	card.addEventListener('click', function () {
+		var muted = r.mute();
+		order.forEach(function (id) { setBox(id, muted.indexOf(id) !== -1); });
+		setOpts(r.opts || []);
+		activeRecipe = r.title;
+		update();
+		// The link lives below the full sound list, so bring it into view
+		// rather than making the tester hunt for it.
+		if (resultEl.scrollIntoView) {
+			resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
+	});
+
+	recipesEl.appendChild(card);
+});
+
+function setBox(id, on) {
+	var b = boxes[id];
+	b.cb.checked = on;
+	b.row.classList.toggle('on', on);
+}
+
+function setOpts(wanted) {
+	OPTIONS.forEach(function (o) {
+		var on = wanted.indexOf(o.id) !== -1;
+		opts[o.id].cb.checked = on;
+		opts[o.id].row.classList.toggle('on', on);
+	});
+}
+
+function update() {
+	var sfx = [], music = [];
+	order.forEach(function (id) {
+		if (!boxes[id].cb.checked) { return; }
+		var sound = ALL.filter(function (s) { return s.id === id; })[0];
+		(sound.kind === 'music' ? music : sfx).push(id);
+	});
+
+	var params = [];
+	if (sfx.length)   { params.push('sfxoff=' + sfx.join(',')); }
+	if (music.length) { params.push('musicoff=' + music.join(',')); }
+	OPTIONS.forEach(function (o) {
+		if (opts[o.id].cb.checked) { params.push(o.param); }
+	});
+	var url = GAME_URL + (params.length ? '?' + params.join('&') : '');
+
+	playEl.href = url;
+	urlEl.textContent = url;
+
+	var off = sfx.length + music.length;
+	var what;
+	if (off === 0)               { what = '<b>Nothing muted</b> — every sound plays.'; }
+	else if (off === ALL.length) { what = '<b>Everything muted</b> — the game will be silent.'; }
+	else { what = '<b>' + off + ' of ' + ALL.length + '</b> sounds muted, the rest still play.'; }
+	if (opts.nopool.cb.checked)   { what += ' Each sound has its <b>own channel</b>.'; }
+	if (opts.iosmute.cb.checked)  { what += ' The <b>iPhone fix is forced ON</b>.'; }
+	if (opts.iosaudio.cb.checked) { what += ' The <b>iPhone fix is switched OFF</b>.'; }
+	summaryEl.innerHTML = (activeRecipe ? '<b>' + activeRecipe + '</b><br>' : '') + what;
+
+	// Highlight whichever recipe card is currently in effect.
+	var cards = recipesEl.querySelectorAll('.recipe');
+	for (var i = 0; i < cards.length; i++) {
+		cards[i].classList.toggle('active', cards[i].dataset.title === activeRecipe);
+	}
+}
+
+document.getElementById('copy').addEventListener('click', function () {
+	var btn = this;
+	var done = function (ok) {
+		btn.textContent = ok ? 'Copied!' : 'Press and hold the link above to copy';
+		setTimeout(function () { btn.textContent = 'Copy link'; }, 2000);
+	};
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		navigator.clipboard.writeText(urlEl.textContent)
+			.then(function () { done(true); })
+			.catch(function () { done(false); });
+	} else {
+		done(false);
+	}
+});
+
+update();
+</script>
+
+</body>
+</html>

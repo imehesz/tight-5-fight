@@ -78,6 +78,38 @@ const SCHEMA = {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_sponsor_report ON sponsor_impressions (game_id, sponsor_id)`,
     `CREATE INDEX IF NOT EXISTS idx_sponsor_uuid   ON sponsor_impressions (player_uuid, id)`,
+    // One row per session that DIED — the browser tab went down mid-play and
+    // came back on its own (see web/shell.html). Written at most once per
+    // crash, per device, and pruned by both age and row count, so this table
+    // has a hard ceiling instead of growing with the player base.
+    `CREATE TABLE IF NOT EXISTS crashes (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id      TEXT    NOT NULL,
+      player_uuid  TEXT    NOT NULL DEFAULT '',
+      reason       TEXT    NOT NULL DEFAULT '',
+      scene        TEXT    NOT NULL DEFAULT '',
+      nav_type     TEXT    NOT NULL DEFAULT '',
+      uptime_sec   INTEGER NOT NULL DEFAULT 0,
+      heap_bytes   INTEGER NOT NULL DEFAULT 0,
+      mem_static   INTEGER NOT NULL DEFAULT 0,
+      tex_bytes    INTEGER NOT NULL DEFAULT 0,
+      nodes        INTEGER NOT NULL DEFAULT 0,
+      objects      INTEGER NOT NULL DEFAULT 0,
+      orphans      INTEGER NOT NULL DEFAULT 0,
+      resources    INTEGER NOT NULL DEFAULT 0,
+      fps          INTEGER NOT NULL DEFAULT 0,
+      venues       INTEGER NOT NULL DEFAULT 0,
+      boots        INTEGER NOT NULL DEFAULT 0,
+      hidden_count INTEGER NOT NULL DEFAULT 0,
+      dpr          REAL    NOT NULL DEFAULT 0,
+      screen_w     INTEGER NOT NULL DEFAULT 0,
+      screen_h     INTEGER NOT NULL DEFAULT 0,
+      cores        INTEGER NOT NULL DEFAULT 0,
+      user_agent   TEXT    NOT NULL DEFAULT '',
+      events       TEXT    NOT NULL DEFAULT '',
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_crash_game ON crashes (game_id, id)`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -148,6 +180,37 @@ const SCHEMA = {
       KEY idx_sponsor_report (game_id, sponsor_id),
       KEY idx_sponsor_uuid (player_uuid, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    // See the SQLite copy above. user_agent is the one long column and it is
+    // never indexed, so 5.5's 767-byte index limit is not in play.
+    `CREATE TABLE IF NOT EXISTS crashes (
+      id           INT          NOT NULL AUTO_INCREMENT,
+      game_id      VARCHAR(32)  NOT NULL,
+      player_uuid  VARCHAR(36)  NOT NULL DEFAULT '',
+      reason       VARCHAR(32)  NOT NULL DEFAULT '',
+      scene        VARCHAR(32)  NOT NULL DEFAULT '',
+      nav_type     VARCHAR(16)  NOT NULL DEFAULT '',
+      uptime_sec   INT          NOT NULL DEFAULT 0,
+      heap_bytes   BIGINT       NOT NULL DEFAULT 0,
+      mem_static   BIGINT       NOT NULL DEFAULT 0,
+      tex_bytes    BIGINT       NOT NULL DEFAULT 0,
+      nodes        INT          NOT NULL DEFAULT 0,
+      objects      INT          NOT NULL DEFAULT 0,
+      orphans      INT          NOT NULL DEFAULT 0,
+      resources    INT          NOT NULL DEFAULT 0,
+      fps          INT          NOT NULL DEFAULT 0,
+      venues       INT          NOT NULL DEFAULT 0,
+      boots        INT          NOT NULL DEFAULT 0,
+      hidden_count INT          NOT NULL DEFAULT 0,
+      dpr          FLOAT        NOT NULL DEFAULT 0,
+      screen_w     INT          NOT NULL DEFAULT 0,
+      screen_h     INT          NOT NULL DEFAULT 0,
+      cores        INT          NOT NULL DEFAULT 0,
+      user_agent   VARCHAR(255) NOT NULL DEFAULT '',
+      events       TEXT,
+      created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_crash_game (game_id, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
 
@@ -155,6 +218,13 @@ const SCHEMA = {
 const AGE_SEC = {
   sqlite: "(strftime('%s','now') - strftime('%s', created_at))",
   mysql: "TIMESTAMPDIFF(SECOND, created_at, NOW())",
+};
+
+// "created_at is older than N days", for the retention sweeps. N is always an
+// integer this module coerced itself, never a caller's string.
+const OLDER_THAN_DAYS = {
+  sqlite: (days) => `created_at < datetime('now', '-${Number(days)} days')`,
+  mysql: (days) => `created_at < DATE_SUB(NOW(), INTERVAL ${Number(days)} DAY)`,
 };
 
 async function init() {
@@ -535,8 +605,76 @@ async function dailyVenueVisits(gameId, names) {
   );
 }
 
+// ---------------------------------------------------------------- crashes
+// The columns, in one place, so the INSERT and its parameter list can't drift
+// apart silently.
+const CRASH_COLUMNS = [
+  "game_id", "player_uuid", "reason", "scene", "nav_type",
+  "uptime_sec", "heap_bytes", "mem_static", "tex_bytes",
+  "nodes", "objects", "orphans", "resources",
+  "fps", "venues", "boots", "hidden_count",
+  "dpr", "screen_w", "screen_h", "cores",
+  "user_agent", "events",
+];
+
+async function recordCrash(row) {
+  await run(
+    `INSERT INTO crashes (${CRASH_COLUMNS.join(", ")})
+     VALUES (${CRASH_COLUMNS.map(() => "?").join(", ")})`,
+    CRASH_COLUMNS.map((c) => row[c])
+  );
+}
+
+// Keep this table's size bounded from both ends: nothing older than
+// retentionDays, and never more than maxRows in total. The row cap is the one
+// that actually guarantees a ceiling — a bad week can't outrun it.
+//
+// The derived-table wrapper around the LIMIT subquery is not decoration:
+// MySQL 5.5 refuses a subquery that reads the same table a DELETE is writing
+// unless it goes through a temporary table like this. With fewer than maxRows
+// rows the subquery is NULL and `id < NULL` matches nothing, which is exactly
+// the no-op we want.
+async function pruneCrashes({ retentionDays, maxRows }) {
+  if (retentionDays > 0) {
+    await run(`DELETE FROM crashes WHERE ${OLDER_THAN_DAYS[DRIVER](retentionDays)}`);
+  }
+  if (maxRows > 0) {
+    await run(
+      `DELETE FROM crashes WHERE id < (
+         SELECT cut FROM (
+           SELECT id AS cut FROM crashes ORDER BY id DESC LIMIT 1 OFFSET ${Number(maxRows) - 1}
+         ) keep
+       )`
+    );
+  }
+}
+
+// Headline counts for the admin page: how many crashes are on file, and how
+// many arrived in the last 7 days (i.e. is this still happening?).
+async function crashTotals() {
+  const row = await get(
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN ${AGE_SEC[DRIVER]} < 604800 THEN 1 ELSE 0 END) AS week
+       FROM crashes`
+  );
+  return {
+    total: Number(row ? row.total : 0),
+    week: Number(row && row.week ? row.week : 0),
+  };
+}
+
+async function recentCrashes(limit) {
+  return all(
+    `SELECT * FROM crashes ORDER BY id DESC LIMIT ${Number(limit)}`
+  );
+}
+
 module.exports = {
   init,
+  recordCrash,
+  pruneCrashes,
+  crashTotals,
+  recentCrashes,
   createPlayer,
   playerExists,
   secondsSinceLastPlay,

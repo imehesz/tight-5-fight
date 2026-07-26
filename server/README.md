@@ -43,6 +43,7 @@ The copy in this repo is a placeholder and is gitignored.
 | POST   | `/player`                        | Mint an anonymous player uuid    |
 | POST   | `/play`                          | Bank one play (`{gameId, character, uuid, kos?}`) |
 | GET    | `/leaderboard?gameId=&page=`     | One page of both boards          |
+| POST   | `/crash`                         | One report from a session that died |
 | GET    | `/health`                        | Liveness                         |
 
 `/play` optionally carries `kos`, the run's KO tally (`{"Character Name":
@@ -52,6 +53,23 @@ never fatal (same mid-season-roster grace as plays). `/leaderboard` returns
 the most-played board in `rows`/`total` and the most-beat-up board in
 `beatRows`/`beatTotal`; `pageCount` spans whichever board is longer, so one
 pager drives both panels in the game.
+
+`/crash` exists for one investigation: iPhone players reporting that the game
+randomly restarts itself mid-run. Nothing in the game can do that, so the tab
+itself must be going down and coming back — most likely iOS killing the
+WebContent process for memory. The web build keeps a flight recorder in
+`localStorage` (see `web/shell.html` and `autoload/crash_diag.gd`) and posts
+the previous session's final snapshot here, **once**, if and only if that
+session died mid-play. It is not a telemetry stream: the heartbeat never
+leaves the device, and a session that ends normally reports nothing at all.
+
+Unlike `/play`, `/crash` does not require a minted uuid — a session that dies
+before banking a play has no id, and those are exactly the reports worth
+having — so a per-IP cap is the only rate limit. Every field is clamped, and
+the table is swept on insert by both age (`crashRetentionDays`) and row count
+(`crashMaxRows`), so it has a hard ceiling of a few MB rather than growing
+with the player base. Read the reports on `admin.html`, which gets them from
+`/stats` behind the usual admin password.
 
 The game page (imstandup.com) and this server (games.mehesz.net) are always
 different origins, so every response carries CORS headers. Nothing sensitive is
@@ -119,7 +137,10 @@ All SQL lives in `db.js`, which implements the same async API on two drivers
   GRANT ALL PRIVILEGES ON tight5fight_db.* TO 'tight5fight'@'localhost';
   ```
 
-Two tables: `players` (anonymous minted ids) and `plays` (one row per play).
+Two core tables: `players` (anonymous minted ids) and `plays` (one row per
+play), plus the per-board tallies and `crashes` (one row per browser session
+that died mid-play — the only table with a hard size cap, since it is
+diagnostics rather than data anyone plays for).
 
 ### Why one table and not one per theme
 

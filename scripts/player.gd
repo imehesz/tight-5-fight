@@ -242,7 +242,7 @@ func _try_swing() -> bool:
 	_swing_box.position = Vector2(SWING_BOX_X * facing, -30)
 	_swing_box.monitoring = true
 	_play("punch")  # reuse the wind-up pose; the swoosh arc sells the swing
-	GameState.play_sfx("swing" if GameState.has_sfx("swing") else "throw")
+	GameState.play_sfx("swing")  # borrows the throw sample; see SFX_ALIASES
 	var sw := SwingSwoosh.new()
 	sw.facing = facing
 	sw.duration = SWING_TIME

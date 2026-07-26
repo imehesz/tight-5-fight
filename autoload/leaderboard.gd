@@ -76,6 +76,14 @@ static func base_url() -> String:
 
 
 # ---------------------------------------------------------------- public API
+## This device's minted id, or "" if it has never banked a play. Read-only on
+## purpose: callers may tag something with an id we already have, but nobody
+## outside this file gets to trigger a mint.
+func known_player_id() -> String:
+	return _player_uuid
+
+
+
 ## Bank one play for the character the player just used. Called from
 ## GameState.finish_run(), i.e. when a run ENDS — a fabricated play therefore
 ## costs a real run's worth of time. Fire-and-forget: a refusal (offline, or
