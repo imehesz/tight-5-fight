@@ -4,6 +4,35 @@ extends Control
 ## title/button helpers. Menus build their UI in code in _ready().
 
 
+## The share glyph, drawn rather than imported — three nodes joined by two
+## arms, the mark everyone already reads as "send this to someone". Sits on
+## top of its Button and passes every click straight through to it.
+class ShareIcon extends Control:
+	const INK := Color(0.97, 0.92, 1.0)
+	const DOT := 3.0
+	const ARM := 1.6
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size / 2.0
+		var left := c + Vector2(-7, 0)
+		var top := c + Vector2(7, -6)
+		var bottom := c + Vector2(7, 6)
+		draw_line(left, top, INK, ARM, true)
+		draw_line(left, bottom, INK, ARM, true)
+		for p in [left, top, bottom]:
+			draw_circle(p, DOT, INK)
+
+
+## Square share target, sized for a thumb. Captionless: the glyph is the label.
+const SHARE_SIZE := Vector2(44, 44)
+
+var _toast_label: Label
+var _toast_tween: Tween
+
+
 ## Passing "" (the default) uses the active game's menu background from the
 ## manifest, so every menu screen shares one per-game backdrop.
 func build_backdrop(bg_path := "") -> VBoxContainer:
@@ -70,6 +99,82 @@ func add_button(box: Container, text: String, cb: Callable) -> Button:
 	b.pressed.connect(cb)
 	box.add_child(b)
 	return b
+
+
+## SHARE wears the same violet tube border as FIGHT! but stays hollow, so a
+## primary button and this one read as a single control group without
+## competing for the primary action. Character select and game over both use
+## it, which is what keeps the two screens' share affordance identical.
+func add_share_button(box: Container, cb: Callable) -> Button:
+	var b := add_button(box, "", cb)
+	b.custom_minimum_size = SHARE_SIZE
+	b.tooltip_text = "Share this comedian"
+	var fills := {
+		"normal": Color(0.16, 0.10, 0.24),
+		"hover": Color(0.30, 0.17, 0.45),
+		"pressed": Color(0.12, 0.07, 0.18),
+		"focus": Color(0.16, 0.10, 0.24),
+	}
+	for state in fills:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = fills[state]
+		sb.set_corner_radius_all(3)
+		sb.set_border_width_all(2)
+		sb.border_color = Color(0.85, 0.6, 1.0)
+		b.add_theme_stylebox_override(state, sb)
+	var icon := ShareIcon.new()
+	# anchors AND offsets — anchors alone leaves the old offsets behind.
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	b.add_child(icon)
+	return b
+
+
+## Buttons do not dim their children, so the glyph is faded by hand.
+func set_share_enabled(b: Button, on: bool) -> void:
+	b.disabled = not on
+	for c in b.get_children():
+		if c is ShareIcon:
+			c.modulate.a = 1.0 if on else 0.3
+
+
+## Reserved strip under the share button: always present, so confirming a copy
+## never nudges the layout by appearing.
+func add_share_toast(box: Container, width: float) -> Label:
+	_toast_label = add_text(box, "", 8, Color(0.55, 1.0, 0.7))
+	_toast_label.custom_minimum_size = Vector2(width, 12)
+	_toast_label.modulate.a = 0.0
+	return _toast_label
+
+
+func flash_toast(msg: String, color: Color) -> void:
+	if _toast_label == null:
+		return
+	_toast_label.text = msg
+	_toast_label.add_theme_color_override("font_color", color)
+	_toast_label.modulate.a = 1.0
+	if _toast_tween and _toast_tween.is_valid():
+		_toast_tween.kill()
+	_toast_tween = create_tween()
+	_toast_tween.tween_interval(1.2)
+	_toast_tween.tween_property(_toast_label, "modulate:a", 0.0, 0.5)
+
+
+## The one place a comedian's share link is built and handed to the OS, so the
+## toast wording is the same wherever sharing lives. `msg` is the screen's own
+## pitch; false back means there was nothing shareable to send.
+func share_character(cfg: Dictionary, msg: String) -> bool:
+	var id := String(cfg.get("CharacterId", ""))
+	if id == "":
+		flash_toast("NO SHARE ID", Color(1.0, 0.6, 0.5))
+		return false
+	match GameState.share_link(GameState.share_url(id), msg):
+		GameState.SHARE_NATIVE:
+			pass  # the OS sheet is its own confirmation
+		GameState.SHARE_COPIED:
+			flash_toast("LINK COPIED!", Color(0.55, 1.0, 0.7))
+		_:
+			flash_toast("SHARE FAILED", Color(1.0, 0.6, 0.5))
+	return true
 
 
 func add_spacer(box: Container, h := 8) -> void:

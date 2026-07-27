@@ -95,6 +95,7 @@ func _ready() -> void:
 	add_child(TouchControls.new())
 	# Auto-disconnected when this scene is freed; no manual cleanup needed.
 	GameState.shake_requested.connect(_on_shake)
+	GameState.time_expired.connect(_on_time_expired)
 
 	# Best-effort retry: a boot-time fetch failure (offline blip) shouldn't
 	# cost the whole session its billboards.
@@ -133,6 +134,11 @@ func _ready() -> void:
 	# Before the first frame is drawn, so a restored street opens with its
 	# scenery already standing instead of popping in a frame later.
 	_stream_props()
+	# Walking back out of a venue with the clock already at 0:00 (it can expire
+	# during the "YOU SURVIVED!" beat): the signal fired while this scene did
+	# not exist yet, so collapse the player on arrival instead.
+	if GameState.time_up():
+		_on_time_expired()
 
 
 func _process(delta: float) -> void:
@@ -563,6 +569,14 @@ func _capture_state() -> Dictionary:
 		"doors": doors,
 		"billboards": billboards,
 	}
+
+
+## 0:00 — the player drops where they stand. Nothing else to do: `died` fires
+## from kill(), _on_player_died() runs as usual and lose_life() reports the run
+## over because the clock is out, so it lands on the normal game-over flow.
+func _on_time_expired() -> void:
+	if is_instance_valid(player):
+		player.kill()
 
 
 func _on_player_died(_f: Fighter) -> void:

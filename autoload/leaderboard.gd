@@ -99,6 +99,7 @@ func record_play() -> void:
 	var billboards: Dictionary = GameState.run_billboards.duplicate()
 	var venue_kos: Dictionary = GameState.run_venue_kos.duplicate()
 	var run_score := GameState.score
+	var run_secs := GameState.run_seconds()
 	var game_id := GameState.active_game
 	if character == "":
 		return
@@ -116,6 +117,11 @@ func record_play() -> void:
 			# This run's final score, for the TOP SCORE board (the server
 			# keeps MAX(score) per character). Old servers just ignore it.
 			"score": run_score,
+			# How many seconds the run lasted, for the run-length stats: did
+			# the player go the full five minutes or bail early? Always sent
+			# (0 is a legitimate value AND the old-client default, so it can't
+			# be omit-when-empty like the tallies below).
+			"seconds": run_secs,
 		}
 		# Who this run beat up, for the MOST BEAT UP board. Omitted when empty
 		# so the payload (and the server's validation) stays the old shape.

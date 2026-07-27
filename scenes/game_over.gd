@@ -20,11 +20,17 @@ const MIC_SCALE := 1.2
 const MIC_HALF_H := 48.0 * MIC_SCALE
 const MIC_HALF_W := 24.0 * MIC_SCALE
 const SHAKE_PX := 5.0
+## PLAY AGAIN and SHARE ride one row, the same pairing character select uses
+## for FIGHT! + SHARE. The row keeps the column's usual 220 width: the primary
+## button gives up exactly the share square and the gap between them.
+const ROW_W := 220.0
+const ACTION_GAP := 6
 
 var _box: VBoxContainer
 var _title: Label
 var _dancer: Dancer
 var _back_btn: Button
+var _share_btn: Button
 var _mic: Sprite2D
 
 
@@ -43,10 +49,26 @@ func _ready() -> void:
 	add_spacer(_box, 14)
 	# One-tap retry: straight back to the street as the same comedian (or a
 	# fresh roll if the "?" card is the active pick). Roster detours are the
-	# CHANGE COMEDIAN button's job now.
-	add_button(_box, "PLAY AGAIN", func(): GameState.start_new_game(GameState.fight_character_index()))
+	# CHANGE COMEDIAN button's job now. SHARE sits beside it: whoever the
+	# player just bombed with is a real, named comedian — even a "?" run
+	# resolved to one when it started — so there is always someone to share.
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", ACTION_GAP)
+	_box.add_child(actions)
+	var again := add_button(actions, "PLAY AGAIN",
+			func(): GameState.start_new_game(GameState.fight_character_index()))
+	again.custom_minimum_size = Vector2(ROW_W - SHARE_SIZE.x - ACTION_GAP, SHARE_SIZE.y)
+	again.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_share_btn = add_share_button(actions, _on_share)
+	# A roster with no CharacterId can never produce a link — dim it up front
+	# rather than letting the tap fail into a toast.
+	set_share_enabled(_share_btn,
+			String(GameState.selected_character_data().get("CharacterId", "")) != "")
 	add_button(_box, "CHANGE COMEDIAN", func(): GameState.change_scene(GameState.SCENE_CHARACTER_SELECT))
 	add_button(_box, "SCOREBOARD", func(): GameState.change_scene(GameState.SCENE_SCOREBOARD))
+	# Copy confirmation, under the whole column (the share button's own row is
+	# the one it belongs to, but a reserved strip there would split the pair).
+	add_share_toast(_box, ROW_W)
 	# Leaving to the main menu is the corner BACK now, like every other
 	# screen. It hangs off the root rather than _box, so it has to be hidden
 	# and revealed by hand with the rest (see _reveal) — a tap during the mic
@@ -65,6 +87,17 @@ func _ready() -> void:
 	_dancer.visible = false
 	_back_btn.visible = false
 	_drop_the_mic()
+
+
+## Share the comedian the player just bombed with, score and all. The pick is
+## always a real roster entry by now — start_new_game() resolves a "?" run to
+## one before the street even loads — so unlike character select there is no
+## "nothing selected yet" case to guard, only a roster with no share IDs.
+func _on_share() -> void:
+	var cfg := GameState.selected_character_data()
+	share_character(cfg, "I scored %d as %s in %s. Think you can do better?" % [
+			GameState.score, String(cfg.get("CharacterName", "this comedian")),
+			GameState.game_title()])
 
 
 ## Fall → thud (smash + shake) → bounce, tipping over → land flat → reveal.

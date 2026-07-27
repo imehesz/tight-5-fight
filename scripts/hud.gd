@@ -19,6 +19,23 @@ const FLY_S := 0.7
 const FLY_FADE_S := 0.3
 const FLY_GOLD := Color(1.0, 0.85, 0.4)
 const FLY_GREEN := Color(0.3, 0.9, 0.35)
+## THE TIGHT 5 CLOCK, right under the venue/street banner: white on a colored
+## box that gets angrier as the run burns down — dark green, orange under 2:00,
+## red under 1:00, flipping black/red on every whole second under 0:10, and the
+## whole box swelling under 0:05. GameState owns the countdown itself; this is
+## purely the readout, polled every frame in _process.
+const CLOCK_SIZE := Vector2(76, 26)
+const CLOCK_TOP := 22.0
+const CLOCK_FONT := 14
+const CLOCK_ORANGE_AT := 120.0
+const CLOCK_RED_AT := 60.0
+const CLOCK_BLINK_AT := 10.0
+const CLOCK_PANIC_AT := 5.0
+const CLOCK_PANIC_SCALE := 1.45
+const CLOCK_GREEN := Color(0.05, 0.32, 0.12)
+const CLOCK_ORANGE := Color(0.85, 0.45, 0.05)
+const CLOCK_RED := Color(0.72, 0.08, 0.06)
+const CLOCK_BLACK := Color(0.04, 0.04, 0.04)
 
 var _health_fill: ColorRect
 var _lives_label: Label
@@ -26,6 +43,9 @@ var _bosses_label: Label
 var _score_label: Label
 var _streak_label: Label
 var _venue_label: Label
+var _clock_panel: Panel
+var _clock_style: StyleBoxFlat
+var _clock_label: Label
 var _center_label: Label
 var _portrait: TextureRect
 var _portrait_style: StyleBoxFlat
@@ -108,6 +128,7 @@ func _ready() -> void:
 	_venue_label.offset_left = -150.0
 	_venue_label.offset_right = 150.0
 	_venue_label.offset_top = 8.0
+	_build_clock()
 	_center_label = _label(Vector2(0, 110), 14, 400, HORIZONTAL_ALIGNMENT_CENTER)
 	_center_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_center_label.offset_left = -200.0
@@ -128,6 +149,60 @@ func _ready() -> void:
 ## polled here rather than driven by streak_changed alone.
 func _process(_delta: float) -> void:
 	_streak_label.visible = GameState.streak_active()
+	_update_clock()
+
+
+## Centered under the banner. The panel is anchored to the LIVE viewport center
+## (never design-width 320 — wide phones would sit it left of center) and its
+## pivot is the box center, so the under-0:05 swell grows in place.
+func _build_clock() -> void:
+	_clock_style = StyleBoxFlat.new()
+	_clock_style.bg_color = CLOCK_GREEN
+	_clock_style.border_color = Color(0, 0, 0, 0.85)
+	_clock_style.set_border_width_all(2)
+	_clock_style.set_corner_radius_all(3)
+	_clock_panel = Panel.new()
+	_clock_panel.add_theme_stylebox_override("panel", _clock_style)
+	_clock_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_clock_panel.offset_left = -CLOCK_SIZE.x / 2.0
+	_clock_panel.offset_right = CLOCK_SIZE.x / 2.0
+	_clock_panel.offset_top = CLOCK_TOP
+	_clock_panel.offset_bottom = CLOCK_TOP + CLOCK_SIZE.y
+	_clock_panel.pivot_offset = CLOCK_SIZE / 2.0
+	add_child(_clock_panel)
+
+	_clock_label = Label.new()
+	_clock_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_clock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_clock_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_clock_label.add_theme_font_size_override("font_size", CLOCK_FONT)
+	_clock_label.add_theme_color_override("font_color", Color.WHITE)
+	_clock_panel.add_child(_clock_label)
+	_update_clock()
+
+
+func _update_clock() -> void:
+	var left := GameState.run_time_left
+	_clock_label.text = GameState.time_text()
+	_clock_style.bg_color = _clock_color(left)
+	# Under 0:05 the whole box swells, with a small pop on each second tick
+	# that eases back down — the last five seconds should feel like a hook.
+	var scale_now := 1.0
+	if left <= CLOCK_PANIC_AT:
+		scale_now = CLOCK_PANIC_SCALE * (1.0 + 0.09 * fmod(left, 1.0))
+	_clock_panel.scale = Vector2(scale_now, scale_now)
+
+
+func _clock_color(left: float) -> Color:
+	if left > CLOCK_ORANGE_AT:
+		return CLOCK_GREEN
+	if left > CLOCK_RED_AT:
+		return CLOCK_ORANGE
+	if left > CLOCK_BLINK_AT:
+		return CLOCK_RED
+	# Final ten seconds: alternate on every whole second (…0:08 red, 0:07
+	# black…), so the box itself is ticking.
+	return CLOCK_RED if int(ceilf(left)) % 2 == 0 else CLOCK_BLACK
 
 
 func bind_player(p: Fighter) -> void:

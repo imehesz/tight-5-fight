@@ -46,6 +46,12 @@ The copy in this repo is a placeholder and is gitignored.
 | POST   | `/crash`                         | One report from a session that died |
 | GET    | `/health`                        | Liveness                         |
 
+`/play` also carries `seconds`, how long the run lasted on the game's 5:00
+clock — banked on the play row so the stats can tell a run that went the
+distance from one that ended early (`/stats` reports the average and the
+share that ran the clock out, per window). Rows banked before the column
+existed hold 0 and are left out of those averages.
+
 `/play` optionally carries `kos`, the run's KO tally (`{"Character Name":
 count, …}`) — who this run beat up, feeding the MOST BEAT UP board. Counts
 are capped per character per run; names the roster doesn't know are dropped,

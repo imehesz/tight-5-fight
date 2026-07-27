@@ -60,7 +60,12 @@ func _ready() -> void:
 	add_child(TouchControls.new())
 	# Auto-disconnected when this scene is freed; no manual cleanup needed.
 	GameState.shake_requested.connect(_on_shake)
+	GameState.time_expired.connect(_on_time_expired)
 	_spawn_player()
+	# The clock can run out on the doorstep, between scenes — collapse on
+	# arrival, since the signal fired before this scene existed to hear it.
+	if GameState.time_up():
+		_on_time_expired()
 
 	if _boss_stage:
 		var ordinal := _level / GameState.BOSS_EVERY
@@ -271,12 +276,20 @@ func _boss_survived() -> void:
 	GameState.change_scene(GameState.SCENE_STREET)
 
 
+## 0:00 — the player drops where they stand and the normal death flow (which
+## lose_life() now reports as run-ending) carries it to game over.
+func _on_time_expired() -> void:
+	if is_instance_valid(player):
+		player.kill()
+
+
 func _on_player_died(_f: Fighter) -> void:
 	# Boo the knockdown as the player collapses — but only when a respawn is
-	# coming (lives > 1 here: lose_life() hasn't decremented yet). The FINAL
-	# death gets the cricket/curb stinger instead, never a boo. Venue-only by
+	# coming (lives > 1 here: lose_life() hasn't decremented yet, and a clock
+	# that has run out ends the run whatever the lives say). The FINAL death
+	# gets the cricket/curb stinger instead, never a boo. Venue-only by
 	# placement; street.gd's handler deliberately has no crowd.
-	if GameState.lives > 1:
+	if GameState.lives > 1 and not GameState.time_up():
 		GameState.play_crowd("boo")
 		GameState.crowd_reaction.emit("boo")
 	await get_tree().create_timer(1.4).timeout

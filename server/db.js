@@ -34,6 +34,7 @@ const SCHEMA = {
       character_name TEXT NOT NULL,
       player_uuid    TEXT NOT NULL,
       score          INTEGER NOT NULL DEFAULT 0,
+      seconds        INTEGER NOT NULL DEFAULT 0,
       created_at     TEXT NOT NULL DEFAULT (datetime('now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_board ON plays (game_id, character_name)`,
@@ -131,6 +132,7 @@ const SCHEMA = {
       character_name VARCHAR(64) NOT NULL,
       player_uuid    CHAR(36)    NOT NULL,
       score          INT         NOT NULL DEFAULT 0,
+      seconds        INT         NOT NULL DEFAULT 0,
       created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_board (game_id, character_name),
@@ -256,7 +258,13 @@ async function init() {
 // Neither MySQL 5.5 nor SQLite has ADD COLUMN IF NOT EXISTS, so the
 // duplicate-column error on re-runs is the expected no-op signal.
 async function migrate() {
-  const alters = ["ALTER TABLE plays ADD COLUMN score INT NOT NULL DEFAULT 0"];
+  const alters = [
+    "ALTER TABLE plays ADD COLUMN score INT NOT NULL DEFAULT 0",
+    // How long the run lasted. 0 on every row banked before this column
+    // existed (and by any client too old to send it), which is why the
+    // averages below ignore zeros rather than counting them as instant deaths.
+    "ALTER TABLE plays ADD COLUMN seconds INT NOT NULL DEFAULT 0",
+  ];
   for (const sql of alters) {
     try {
       if (DRIVER === "sqlite") sqlite.exec(sql);
@@ -311,10 +319,11 @@ async function secondsSinceLastPlay(uuid) {
   return row ? Number(row.age) : null;
 }
 
-async function recordPlay({ gameId, characterName, playerUuid, score }) {
+async function recordPlay({ gameId, characterName, playerUuid, score, seconds }) {
   await run(
-    "INSERT INTO plays (game_id, character_name, player_uuid, score) VALUES (?, ?, ?, ?)",
-    [gameId, characterName, playerUuid, score || 0]
+    `INSERT INTO plays (game_id, character_name, player_uuid, score, seconds)
+     VALUES (?, ?, ?, ?, ?)`,
+    [gameId, characterName, playerUuid, score || 0, seconds || 0]
   );
 }
 
@@ -449,22 +458,52 @@ const DAY = {
   mysql: "DATE_FORMAT(created_at, '%Y-%m-%d')",
 };
 
+// A run at or past this many seconds went the distance — the player was still
+// standing when the clock hit 0:00. The game's own limit is 300s (GameState.
+// RUN_TIME); the few seconds of slack absorb rounding and any future trim of
+// the run length, and cost nothing: nothing else lands in that band.
+const FULL_RUN_SEC = 295;
+
+// Run-length columns for one window's WHERE clause. Zeros are EXCLUDED from
+// the average on purpose: they are rows banked before the client sent a
+// duration, not five-second runs. `timed` is how many of the rows that DO
+// carry a duration ran the clock all the way out.
+const RUN_LEN_COLS = `
+  AVG(NULLIF(seconds, 0))                                     AS avg_sec,
+  SUM(CASE WHEN seconds > 0 THEN 1 ELSE 0 END)                AS timed_rows,
+  SUM(CASE WHEN seconds >= ${FULL_RUN_SEC} THEN 1 ELSE 0 END) AS full_runs`;
+
+function volumeRow(row) {
+  return {
+    plays: Number(row.plays),
+    players: Number(row.players),
+    // null (not 0) when no row in the window carries a duration yet, so the
+    // admin page can say "no data" instead of "0s".
+    avgSeconds: row.avg_sec == null ? null : Math.round(Number(row.avg_sec)),
+    timedRuns: Number(row.timed_rows || 0),
+    fullRuns: Number(row.full_runs || 0),
+  };
+}
+
 async function playVolume(gameId) {
   const out = {};
   for (const window of ["today", "week", "month"]) {
     const row = await get(
-      `SELECT COUNT(*) AS plays, COUNT(DISTINCT player_uuid) AS players
+      `SELECT COUNT(*) AS plays, COUNT(DISTINCT player_uuid) AS players,
+              ${RUN_LEN_COLS}
          FROM plays
         WHERE game_id = ? AND created_at >= ${SINCE[DRIVER][window]}`,
       [gameId]
     );
-    out[window] = { plays: Number(row.plays), players: Number(row.players) };
+    out[window] = volumeRow(row);
   }
   const row = await get(
-    "SELECT COUNT(*) AS plays, COUNT(DISTINCT player_uuid) AS players FROM plays WHERE game_id = ?",
+    `SELECT COUNT(*) AS plays, COUNT(DISTINCT player_uuid) AS players,
+            ${RUN_LEN_COLS}
+       FROM plays WHERE game_id = ?`,
     [gameId]
   );
-  out.allTime = { plays: Number(row.plays), players: Number(row.players) };
+  out.allTime = volumeRow(row);
   return out;
 }
 

@@ -256,6 +256,17 @@ func take_hit(damage: float, from_x: float) -> void:
 	GameState.play_sfx("hurt")
 
 
+## Drop where you stand, no damage involved — the run clock hitting 0:00.
+## Goes through _die() so the collapse, the KO shake and the `died` signal are
+## the ordinary ones, and every death handler already wired up still runs.
+func kill() -> void:
+	if state == FState.DEAD:
+		return
+	health = 0.0
+	health_changed.emit(health, max_health)
+	_die()
+
+
 ## Blink the whole fighter (body + head + wheelchair) white for a moment.
 ## Modulating self covers all child sprites; values above 1.0 saturate the
 ## bright pixels toward white, which is exactly the arcade "hit blink".

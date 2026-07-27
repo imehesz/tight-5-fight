@@ -226,6 +226,13 @@
   }
 
   // rows: [[label, value], ...] with a header pair first.
+  // Seconds as "4m 07s" — run lengths are read against a 5:00 clock, so
+  // minutes are the unit the number means something in.
+  function mmss(secs) {
+    var s = Math.max(0, Math.round(Number(secs) || 0));
+    return Math.floor(s / 60) + "m " + ("0" + (s % 60)).slice(-2) + "s";
+  }
+
   function board(title, header, rows) {
     var box = el("div", "board");
     box.appendChild(el("h3", null, title));
@@ -294,6 +301,18 @@
           ["last 30 days", v.month.plays   + " / " + v.month.players],
           ["all time",     v.allTime.plays + " / " + v.allTime.players],
         ]));
+        // How long runs actually last: the 5:00 clock means a full run reads
+        // ~5m, so anything well under it is a player who died early and
+        // anything at it is a player who ran the clock out. Rows are skipped
+        // entirely on an older backend (or before any timed run is banked).
+        boards.appendChild(board("RUN LENGTH", ["window", "avg · ran the clock out"],
+          [["today", v.today], ["last 7 days", v.week],
+           ["last 30 days", v.month], ["all time", v.allTime]]
+            .filter(function (w) { return w[1] && w[1].avgSeconds != null; })
+            .map(function (w) {
+              var d = w[1];
+              return [w[0], mmss(d.avgSeconds) + " · " + d.fullRuns + " / " + d.timedRuns];
+            })));
         boards.appendChild(board("TOP 5 MOST PLAYED", ["comedian", "plays"],
           g.topPlayed.map(function (r) { return [r.character, r.plays]; })));
         boards.appendChild(board("TOP 5 MOST BEAT UP", ["comedian", "KOs"],

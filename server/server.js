@@ -267,10 +267,11 @@ async function postPlayer(req, res) {
   json(res, 200, { uuid });
 }
 
-// POST /play { gameId, character, uuid, score? } -> { ok: true }
+// POST /play { gameId, character, uuid, score?, seconds? } -> { ok: true }
 // Records one play (with the run's final score, feeding the per-character
-// TOP SCORE board). Called when a run ENDS (see GameState.finish_run), so a
-// fake play costs a real run's worth of time.
+// TOP SCORE board, and how many seconds the run lasted, feeding the run-length
+// stats). Called when a run ENDS (see GameState.finish_run), so a fake play
+// costs a real run's worth of time.
 async function postPlay(req, res) {
   const ip = clientIp(req);
   let body;
@@ -280,7 +281,7 @@ async function postPlay(req, res) {
     return json(res, 400, { error: e.message });
   }
 
-  const { gameId, character, uuid, kos, venues, venueKos, billboards, score } = body;
+  const { gameId, character, uuid, kos, venues, venueKos, billboards, score, seconds } = body;
   if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
   // Optional (older clients don't send it). Clamped, not trusted: like the
   // rest of this board there are no names attached, so a lie only pollutes
@@ -289,6 +290,12 @@ async function postPlay(req, res) {
     return json(res, 400, { error: "bad score" });
   }
   const runScore = Math.min(Math.max(Math.floor(score || 0), 0), 99999999);
+  // Same deal as score: optional, clamped rather than trusted. A day is far
+  // past any real run, and keeps a garbage value from poisoning AVG().
+  if (seconds !== undefined && typeof seconds !== "number") {
+    return json(res, 400, { error: "bad seconds" });
+  }
+  const runSeconds = Math.min(Math.max(Math.floor(seconds || 0), 0), 86400);
   if (typeof uuid !== "string" || !/^[0-9a-f-]{36}$/i.test(uuid)) {
     return json(res, 400, { error: "bad uuid" });
   }
@@ -314,7 +321,13 @@ async function postPlay(req, res) {
     return json(res, 429, { error: "slow down", retryAfterSec: config.limits.playCooldownSec - age });
   }
 
-  await db.recordPlay({ gameId, characterName: character, playerUuid: uuid, score: runScore });
+  await db.recordPlay({
+    gameId,
+    characterName: character,
+    playerUuid: uuid,
+    score: runScore,
+    seconds: runSeconds,
+  });
   if (Object.keys(koCounts).length > 0) {
     await db.recordBeatdowns({ gameId, playerUuid: uuid, counts: koCounts });
   }
@@ -589,6 +602,10 @@ async function getTrends(req, res, url) {
 //                                                     // (Tony is in 2 editions
 //                                                     //  and counts twice)
 //        games: [{ gameId, label, volume, topPlayed, topBeat, topVenues }] }
+// volume is per window (today/week/month/allTime):
+//   { plays, players, avgSeconds, timedRuns, fullRuns } — avgSeconds is null
+//   until some row in the window carries a duration, timedRuns is how many do,
+//   and fullRuns is how many of those ran the 5:00 clock all the way out.
 // Read-only aggregates for website-for-all/admin.html: play volume per
 // recency window plus the top-5 slice of each board, one block per game.
 // Guarded by the shared secret in config.adminPwd — admin.html forwards the

@@ -18,6 +18,9 @@ signal shake_requested(pixels: float)
 ## "celebrate" (venue cleared). Broadcast from the fight call sites alongside
 ## the crowd SFX; scenes with no CrowdRow just ignore it.
 signal crowd_reaction(kind: String)
+## The run clock hit 0:00. Whichever scene is up drops the player where they
+## stand; the ordinary death flow carries it to game over from there.
+signal time_expired
 
 ## Dead zone along the bottom edge, in design pixels (the viewport is 360
 ## tall, so this is also roughly CSS pixels on a phone in landscape). Android
@@ -77,6 +80,12 @@ const STRENGTH_PER_BOSS := 0.10
 ## KO score — venue clear and boss survival bonuses stay on plain add_score().
 const STREAK_WINDOW_MS := 5000
 const STREAK_MAX_MULT := 5
+## THE TIGHT 5: a run is five minutes, full stop. The clock starts with the
+## run and keeps ticking through venues, doors and boss fights alike — the
+## street is not a place to farm points forever, it is the walk between sets.
+## At 0:00 the player collapses where they stand and the run is over, however
+## many lives are banked (see lose_life()).
+const RUN_TIME := 300.0
 
 ## Looping background tracks come from the active game's manifest (main +
 ## venue). SFX are shared engine chrome. See _music_tracks()/_setup_audio().
@@ -182,6 +191,12 @@ var venues_entered := 0
 ## Bosses cleared so far, and beer bottles currently carried (0..MAX_BOTTLES).
 var bosses_defeated := 0
 var beer_bottles := 0
+## Seconds left on the run clock, and whether it is ticking. Only gameplay
+## scenes run it (see change_scene) — menus, character select and game over
+## leave it frozen. The HUD polls run_time_left rather than listening on a
+## per-second signal: it redraws every frame anyway.
+var run_time_left := RUN_TIME
+var _clock_running := false
 var pending_venue: Dictionary = {}
 ## Street layout persisted across venue visits (see street.gd) and the index
 ## of the door being entered, so it can be marked CANCELLED once cleared.
@@ -489,6 +504,7 @@ func start_new_game(character_index: int, remember := true) -> void:
 	run_venue_kos = {}
 	_shuffle_venues()  # every run sees the venues in a fresh order
 	reset_streak()  # a new run never inherits a streak
+	start_clock()  # the tight 5 starts here and runs until 0:00
 	change_scene(SCENE_STREET)
 
 
@@ -628,8 +644,48 @@ func count_ko(char_name: String) -> void:
 				int(run_venue_kos.get(current_venue_name, 0)) + 1
 
 
-## Returns true when the run is over (no lives left).
+# ------------------------------------------------------------------ run clock
+## Ticks on the scaled delta on purpose: hitstop (and any future pause) freezes
+## the clock exactly like it freezes the fight.
+func _process(delta: float) -> void:
+	if not _clock_running:
+		return
+	run_time_left = maxf(run_time_left - delta, 0.0)
+	if run_time_left > 0.0:
+		return
+	_clock_running = false
+	time_expired.emit()
+
+
+func start_clock() -> void:
+	run_time_left = RUN_TIME
+	_clock_running = true
+
+
+func time_up() -> bool:
+	return run_time_left <= 0.0
+
+
+## How long this run lasted, in whole seconds — the clock read backwards.
+## Banked with the play at game over (Leaderboard.record_play), so the stats
+## can tell a run that went the distance (RUN_TIME exactly, the player was
+## still standing at 0:00) from one that ended early.
+func run_seconds() -> int:
+	return int(roundf(clampf(RUN_TIME - run_time_left, 0.0, RUN_TIME)))
+
+
+## "4:07" for the HUD. Rounds UP, so a fresh run reads 5:00 on its first frame
+## instead of 4:59, and 0:00 appears only when the time is genuinely gone.
+func time_text() -> String:
+	var secs := int(ceilf(run_time_left))
+	return "%d:%02d" % [secs / 60, secs % 60]
+
+
+## Returns true when the run is over — out of lives, OR the clock ran out.
+## A timeout ends the run outright: banked lives buy nothing once time's up.
 func lose_life() -> bool:
+	if time_up():
+		return true
 	lives -= 1
 	lives_changed.emit(lives)
 	return lives <= 0
@@ -649,6 +705,12 @@ func change_scene(path: String) -> void:
 	# Leaving the venue (street, game over, menu) ends venue-KO attribution.
 	if path != SCENE_VENUE:
 		current_venue_name = ""
+	# The clock runs in gameplay only, so game over / menus freeze it — and an
+	# already-expired clock is never restarted here: it would emit time_expired
+	# into the gap before the incoming scene has connected. Scenes handle that
+	# case themselves on _ready (see street.gd/venue.gd _on_time_expired).
+	_clock_running = not time_up() \
+			and (path == SCENE_STREET or path == SCENE_VENUE)
 	play_music("venue" if path == SCENE_VENUE else "main")
 	get_tree().call_deferred("change_scene_to_file", path)
 
