@@ -244,6 +244,32 @@ func add_edge_arrow(text: String, on_right: bool, cb: Callable, min_size := Vect
 const BACK_SIZE := Vector2(48, 48)
 
 
+## The app's plain GRAY button skin: same rounded corners (3) and 2px tube
+## border as FIGHT!, SHARE and BACK, just without a colour shouting for
+## attention. Static so non-menu screens can wear it too — the in-game PAUSE
+## button in hud.gd does, which is what keeps it from looking like a stray
+## default-theme control sitting on the HUD.
+const BUTTON_RADIUS := 3
+const BUTTON_BORDER := 2
+const GRAY_BORDER := Color(0.72, 0.72, 0.80)
+
+
+static func style_gray_button(b: Button) -> void:
+	var fills := {
+		"normal": Color(0.16, 0.16, 0.19),
+		"hover": Color(0.26, 0.26, 0.30),
+		"pressed": Color(0.11, 0.11, 0.13),
+		"focus": Color(0.16, 0.16, 0.19),
+	}
+	for state in fills:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = fills[state]
+		sb.set_corner_radius_all(BUTTON_RADIUS)
+		sb.set_border_width_all(BUTTON_BORDER)
+		sb.border_color = GRAY_BORDER
+		b.add_theme_stylebox_override(state, sb)
+
+
 ## The BACK button's look and behaviour without the corner: builds the square
 ## red button, wires the click SFX and the callback, and leaves placement to
 ## the caller. Static, so things that are not menu screens can wear the same

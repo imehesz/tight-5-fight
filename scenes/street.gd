@@ -558,7 +558,6 @@ func _on_shake(px: float) -> void:
 ## reading it; whether it is owed at all is GameState.venue_hint_due()
 ## (always, in the editor — once ever, in a real build).
 func _maybe_show_venue_hint() -> void:
-	_debug_hint_state()  # TEMP — delete with _debug_hint_state() itself
 	# is_instance_valid, not a null check: queue_free leaves the reference
 	# pointing at a freed object rather than nulling it.
 	if _busy or _hint_shown or is_instance_valid(_hint_popup) \
@@ -589,51 +588,6 @@ func _maybe_show_venue_hint() -> void:
 			_hint_popup.closed.connect(func():
 				if is_instance_valid(c):
 					c.visible = true)
-
-
-## TEMPORARY diagnostic for the doorway popup — DELETE THIS FUNCTION and its
-## call once the popup is confirmed working on the owner's machine. Says out
-## loud, in the editor's Output panel, why the lesson is or isn't firing. Only
-## prints when the answer CHANGES, so it is a handful of lines per run, not a
-## flood.
-var _hint_debug_last := ""
-
-
-func _debug_hint_state() -> void:
-	# `key` is what decides whether to print (the category alone, or the line
-	# would repeat every frame as the player walks); `msg` carries the numbers.
-	var key := ""
-	var msg := ""
-	if not GameState.venue_hint_due():
-		key = "notdue"
-		msg = "NOT DUE — the save says it has been seen. Reset venueHintSeen in " \
-				+ "the settings JSON, or add hints=1 to Main Run Args."
-	elif _busy:
-		key = "busy"
-		msg = "street busy (entering a venue / player dying)"
-	elif is_instance_valid(_hint_popup):
-		key = "up"
-		msg = "popup is up"
-	elif _hint_shown:
-		key = "spent"
-		msg = "already shown on this street"
-	elif not is_instance_valid(player):
-		key = "noplayer"
-		msg = "no player yet"
-	elif not _at_open_door():
-		key = "walking"
-		var best := 999999.0
-		for d in _doors:
-			if not d.cleared:
-				best = minf(best, absf(player.position.x - float(d.x)))
-		msg = "walking — nearest door %s" % ("not built yet" if _doors.is_empty() \
-				else "%.0fpx away (need <= %.0f)" % [best, DOOR_HALF_WIDTH])
-	else:
-		key = "go"
-		msg = "ALL CLEAR — showing the popup now"
-	if key != _hint_debug_last:
-		_hint_debug_last = key
-		print("[venue hint] ", msg)
 
 
 func _at_open_door() -> bool:

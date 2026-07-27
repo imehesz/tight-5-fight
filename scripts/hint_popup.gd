@@ -69,7 +69,10 @@ func _ready() -> void:
 	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_panel.add_child(col)
 	_add_label(col, title_text, 12, Color(1.0, 0.85, 0.4))
-	_add_label(col, body_text, 9, Color(0.92, 0.92, 0.97))
+	# Title-only popups (PAUSE) skip the body entirely rather than reserving an
+	# empty line under the heading.
+	if body_text != "":
+		_add_label(col, body_text, 9, Color(0.92, 0.92, 0.97))
 
 	# The app's own corner BACK button, hung off the panel's top-right like a
 	# dialog's close box — big, red, and the one control the player has already

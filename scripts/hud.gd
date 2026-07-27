@@ -41,6 +41,35 @@ const CLOCK_BLACK := Color(0.04, 0.04, 0.04)
 const CLOCK_GAIN := Color(0.35, 0.95, 0.45)
 const CLOCK_GAIN_S := 0.5
 const CLOCK_GAIN_POP := 1.5
+## PAUSE button, right edge under the score (and under the streak chip, which
+## shares that corner). Plain theme gray like every other button in the app;
+## the glyph is drawn rather than typed, so it is the chunky universal pause
+## mark at any size instead of two thin pipes from the pixel font.
+const PAUSE_SIZE := Vector2(44, 44)
+const PAUSE_TOP := 42.0
+const PAUSE_MARGIN := 10.0
+
+## The two bars of the universal pause mark, drawn to the button's size and
+## passing every click through to the Button underneath (same trick as the
+## share glyph in menu_base.gd).
+class PauseIcon extends Control:
+	const INK := Color(0.92, 0.92, 0.95)
+	const BAR_W := 0.16  # of the control's width
+	const BAR_H := 0.42  # of its height
+	const GAP := 0.12
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var w := size.x * BAR_W
+		var h := size.y * BAR_H
+		var gap := size.x * GAP
+		var y := (size.y - h) / 2.0
+		var x := (size.x - (w * 2.0 + gap)) / 2.0
+		draw_rect(Rect2(x, y, w, h), INK)
+		draw_rect(Rect2(x + w + gap, y, w, h), INK)
+
 
 var _health_fill: ColorRect
 var _lives_label: Label
@@ -51,6 +80,7 @@ var _venue_label: Label
 var _clock_panel: Panel
 var _clock_style: StyleBoxFlat
 var _clock_label: Label
+var _pause_btn: Button
 ## Seconds left on the green "+Ns" flash; 0 when the box is showing its
 ## normal countdown color.
 var _clock_gain := 0.0
@@ -136,6 +166,7 @@ func _ready() -> void:
 	_venue_label.offset_left = -150.0
 	_venue_label.offset_right = 150.0
 	_venue_label.offset_top = 8.0
+	_build_pause_button()
 	_build_clock()
 	_center_label = _label(Vector2(0, 110), 14, 400, HORIZONTAL_ALIGNMENT_CENTER)
 	_center_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -160,6 +191,42 @@ func _process(delta: float) -> void:
 	_streak_label.visible = GameState.streak_active()
 	_clock_gain = maxf(_clock_gain - delta, 0.0)
 	_update_clock()
+
+
+## Pinned to the LIVE right edge with the same 10px margin the score keeps, so
+## it stays under the score on any width.
+func _build_pause_button() -> void:
+	_pause_btn = Button.new()
+	_pause_btn.custom_minimum_size = PAUSE_SIZE
+	_pause_btn.tooltip_text = "Pause"
+	_pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_pause_btn.offset_left = -PAUSE_MARGIN - PAUSE_SIZE.x
+	_pause_btn.offset_right = -PAUSE_MARGIN
+	_pause_btn.offset_top = PAUSE_TOP
+	_pause_btn.offset_bottom = PAUSE_TOP + PAUSE_SIZE.y
+	# The shared gray skin, so it wears the same rounded corners and tube
+	# border as every other button in the app instead of the default theme's.
+	MenuBase.style_gray_button(_pause_btn)
+	_pause_btn.pressed.connect(_on_pause)
+	add_child(_pause_btn)
+	var icon := PauseIcon.new()
+	# anchors AND offsets — anchors alone leaves the old offsets behind.
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pause_btn.add_child(icon)
+
+
+## Freeze the game behind the same popup the doorway lesson uses — the click
+## SFX goes first, since pausing mutes the buses it would play on. The HUD is
+## pausable, so this button goes inert the moment it fires: the popup's BACK
+## button is the only way back, exactly like every other popup.
+func _on_pause() -> void:
+	if GameState.game_paused:
+		return
+	GameState.play_sfx("click")
+	var popup := HintPopup.new()
+	popup.title_text = "GAME PAUSED"
+	GameState.set_paused(true)
+	add_child(popup)
 
 
 ## Centered under the banner. The panel is anchored to the LIVE viewport center
