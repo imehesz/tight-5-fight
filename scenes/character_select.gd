@@ -14,6 +14,11 @@ const PAGE_SIZE := 9
 ## the moment FIGHT! is pressed.
 const RANDOM := -1
 const PREVIEW_SIZE := Vector2(150, 170)
+## FIGHT! and SHARE share one row. 44 rather than the old 40 so the square
+## SHARE target stays comfortably thumb-sized on a phone.
+const ACTION_H := 44
+const SHARE_W := 44
+const ACTION_GAP := 6
 ## 1.5x the in-game fighter size.
 const PREVIEW_SCALE := Fighter.BODY_SCALE * 1.5
 ## Pop-in zoom on selection: born this fraction of full size, grown back
@@ -29,6 +34,10 @@ var _dancer: Dancer
 var _preview_question: Label
 var _preview_name: Label
 var _fight_btn: Button
+var _share_btn: Button
+var _share_icon: Control
+var _share_toast: Label
+var _toast_tween: Tween
 var _orbit: SelectionOrbit
 var _zoom: Tween
 
@@ -73,7 +82,32 @@ class SelectionOrbit extends Control:
 		return size / 2.0 + Vector2.from_angle(t * TAU - PI / 2.0) * radius
 
 
+## The share glyph, drawn rather than imported — three nodes joined by two
+## arms, the mark everyone already reads as "send this to someone". Sits on
+## top of its Button and passes every click straight through to it.
+class ShareIcon extends Control:
+	const INK := Color(0.97, 0.92, 1.0)
+	const DOT := 3.0
+	const ARM := 1.6
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size / 2.0
+		var left := c + Vector2(-7, 0)
+		var top := c + Vector2(7, -6)
+		var bottom := c + Vector2(7, 6)
+		draw_line(left, top, INK, ARM, true)
+		draw_line(left, bottom, INK, ARM, true)
+		for p in [left, top, bottom]:
+			draw_circle(p, DOT, INK)
+
+
 func _ready() -> void:
+	# If a shared link borrowed the slot for the last run, hand the player
+	# their own comedian back before anything reads the selection.
+	GameState.restore_own_pick()
 	var box := build_backdrop()
 	add_title(box, "CHOOSE YOUR COMEDIAN", 14)
 	add_spacer(box, 6)
@@ -117,6 +151,7 @@ func _ready() -> void:
 
 	if GameState.playable.is_empty():
 		_fight_btn.disabled = true
+		_set_share_enabled(false)
 	else:
 		_select(RANDOM if GameState.random_select else GameState.selected_character)
 
@@ -149,6 +184,56 @@ func _style_fight_button(b: Button) -> void:
 		b.add_theme_stylebox_override(state, sb)
 	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(state, Color(0.97, 0.92, 1.0))
+
+
+## SHARE wears the same violet tube border as FIGHT! but stays hollow, so the
+## pair reads as one control group without competing for the primary action.
+func _style_share_button(b: Button) -> void:
+	var fills := {
+		"normal": Color(0.16, 0.10, 0.24),
+		"hover": Color(0.30, 0.17, 0.45),
+		"pressed": Color(0.12, 0.07, 0.18),
+		"focus": Color(0.16, 0.10, 0.24),
+	}
+	for state in fills:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = fills[state]
+		sb.set_corner_radius_all(3)
+		sb.set_border_width_all(2)
+		sb.border_color = Color(0.85, 0.6, 1.0)
+		b.add_theme_stylebox_override(state, sb)
+
+
+## Hand the highlighted comedian's link to the OS. Never reachable on the "?"
+## card — there is no comedian to share until one is picked.
+func _on_share() -> void:
+	if _selected == RANDOM or _selected < 0 or _selected >= GameState.characters.size():
+		return
+	var cfg: Dictionary = GameState.characters[_selected]
+	var id := String(cfg.get("CharacterId", ""))
+	if id == "":
+		_flash_toast("NO SHARE ID", Color(1.0, 0.6, 0.5))
+		return
+	var msg := "Think you can do better? Fight as %s in %s!" % [
+			String(cfg.get("CharacterName", "this comedian")), GameState.game_title()]
+	match GameState.share_link(GameState.share_url(id), msg):
+		GameState.SHARE_NATIVE:
+			pass  # the OS sheet is its own confirmation
+		GameState.SHARE_COPIED:
+			_flash_toast("LINK COPIED!", Color(0.55, 1.0, 0.7))
+		_:
+			_flash_toast("SHARE FAILED", Color(1.0, 0.6, 0.5))
+
+
+func _flash_toast(msg: String, color: Color) -> void:
+	_share_toast.text = msg
+	_share_toast.add_theme_color_override("font_color", color)
+	_share_toast.modulate.a = 1.0
+	if _toast_tween and _toast_tween.is_valid():
+		_toast_tween.kill()
+	_toast_tween = create_tween()
+	_toast_tween.tween_interval(1.2)
+	_toast_tween.tween_property(_share_toast, "modulate:a", 0.0, 0.5)
 
 
 func _build_preview() -> Control:
@@ -184,9 +269,27 @@ func _build_preview() -> Control:
 	# the commit in one place, instead of a button row across the bottom.
 	# Sized to the preview column so the panel width never jumps.
 	add_spacer(panel, 6)
-	_fight_btn = add_button(panel, "FIGHT!", _start_fight)
-	_fight_btn.custom_minimum_size = Vector2(PREVIEW_SIZE.x, 40)
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", ACTION_GAP)
+	panel.add_child(actions)
+	_fight_btn = add_button(actions, "FIGHT!", _start_fight)
+	_fight_btn.custom_minimum_size = Vector2(PREVIEW_SIZE.x - SHARE_W - ACTION_GAP, ACTION_H)
+	_fight_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_style_fight_button(_fight_btn)
+	# Square, quieter than FIGHT!, and captionless — the glyph is the label.
+	_share_btn = add_button(actions, "", _on_share)
+	_share_btn.custom_minimum_size = Vector2(SHARE_W, ACTION_H)
+	_share_btn.tooltip_text = "Share this comedian"
+	_style_share_button(_share_btn)
+	_share_icon = ShareIcon.new()
+	# anchors AND offsets — anchors alone leaves the old offsets behind.
+	_share_icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_share_btn.add_child(_share_icon)
+	# Reserved strip under the buttons: always present so confirming a copy
+	# never nudges the layout.
+	_share_toast = add_text(panel, "", 8, Color(0.55, 1.0, 0.7))
+	_share_toast.custom_minimum_size = Vector2(PREVIEW_SIZE.x, 12)
+	_share_toast.modulate.a = 0.0
 	return panel
 
 
@@ -207,7 +310,16 @@ func _select(index: int) -> void:
 		_pop_preview(_dancer, Vector2.ONE * PREVIEW_SCALE)
 		_preview_name.text = String(cfg.get("CharacterName", "?"))
 	_fight_btn.disabled = false
+	# Nothing to share on the "?" card: the comedian is not decided until the
+	# run starts, so there is no link to hand out yet.
+	_set_share_enabled(index != RANDOM)
 	_update_highlights()
+
+
+func _set_share_enabled(on: bool) -> void:
+	_share_btn.disabled = not on
+	# Buttons do not dim their children, so the glyph is faded by hand.
+	_share_icon.modulate.a = 1.0 if on else 0.3
 
 
 ## The freshly picked comedian (or the "?") pops in: born tiny, zooming

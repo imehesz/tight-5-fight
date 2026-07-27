@@ -280,6 +280,16 @@ var _ios_mute_forced := false
 ## back in one at a time on a borrowed iPhone, with no rebuild between runs.
 ## Music is unaffected: it is proven safe and confirms audio is alive at all.
 var _sfx_only := ""
+## ?fighter=<CharacterId> — a shared comedian link, produced by the SHARE
+## button on the roster. NOT a debug switch: it is the one query flag real
+## players see. Captured raw at boot because flags are read before the roster
+## exists; resolved (and consumed) by start_deeplink_fight().
+var _deeplink_fighter := ""
+## The player's OWN pick, parked here while a shared link borrows the slot, so
+## their favorite is restored the moment they open the roster and is never
+## written over in the save file.
+var _pick_before_deeplink := -1
+var _random_before_deeplink := false
 ## ?nopool=1 — give every sound its OWN player with its stream assigned once at
 ## load, instead of six shared players whose `stream` is reassigned (often
 ## mid-playback) several times a second during a fight. Tests whether the churn
@@ -456,8 +466,14 @@ func fight_character_index() -> int:
 	return selected_character
 
 
-func start_new_game(character_index: int) -> void:
-	set_selected_character(character_index)
+## `remember` false starts the run WITHOUT persisting the pick — used by a
+## shared ?fighter= link, where the comedian is borrowed for one run and the
+## player's own saved favorite has to survive it untouched.
+func start_new_game(character_index: int, remember := true) -> void:
+	if remember:
+		set_selected_character(character_index)
+	else:
+		selected_character = clampi(character_index, 0, maxi(characters.size() - 1, 0))
 	score = 0
 	venues_entered = 0
 	bosses_defeated = 0
@@ -722,6 +738,10 @@ func _apply_debug_flags(search: String) -> void:
 	_ios_audio_forced = str(flags.get("iosaudio", "")) == "1"
 	_ios_mute_forced = str(flags.get("iosmute", "")) == "1"
 	_sfx_only = str(flags.get("sfxonly", ""))
+	# Decoded because it is the one flag a stranger's link supplies. Ids are
+	# plain ASCII so this is normally a no-op, but a hand-mangled %2D should
+	# still find its comedian.
+	_deeplink_fighter = str(flags.get("fighter", "")).uri_decode()
 	if _no_sfx or _no_music or _no_shake or not _sfx_off.is_empty() \
 			or not _music_off.is_empty():
 		print("[diag] sfx_off=%s music_off=%s shake_off=%s suppressed=%s tracks_off=%s" % [
@@ -743,6 +763,133 @@ func character_index_by_name(char_name: String) -> int:
 		if String(characters[i].get("CharacterName", "")) == char_name:
 			return i
 	return 0
+
+
+## Roster position of a CharacterId, or -1 when nothing matches. Unlike
+## character_index_by_name, callers here MUST be able to tell "no such
+## comedian" apart from "the first comedian", so this does not fall back.
+func character_index_by_id(id: String) -> int:
+	if id == "":
+		return -1
+	for i in characters.size():
+		if String(characters[i].get("CharacterId", "")) == id:
+			return i
+	return -1
+
+
+# ---------------------------------------------------------------- share links
+## Where this game lives in the public URL. Almost always the game id — the
+## exception is tight5, which ships at /jax/. Only the desktop and editor
+## fallback needs it; on web the page's own address is the authority.
+func public_folder() -> String:
+	return String(manifest.get("publicFolder", active_game))
+
+
+## Prefix for the composed (non-web) share link. Web never uses this.
+const SHARE_BASE := "https://games.imstandup.com/tight5fight/"
+
+## The link the SHARE button hands out. On web it is derived from the page's
+## OWN url, so a LAN playtest shares a LAN link, prod shares prod, and the
+## jax/tight5 folder mismatch cannot produce a 404. Everywhere else it is
+## composed from SHARE_BASE + public_folder().
+func share_url(character_id: String) -> String:
+	var base := SHARE_BASE + public_folder() + "/"
+	if OS.has_feature("web"):
+		# Strip whatever follows the last slash (index.html, or nothing) so the
+		# result is always the directory the build is served from.
+		var here: Variant = JavaScriptBridge.eval(
+				"location.origin + location.pathname.replace(/[^\\/]*$/, '')", true)
+		if here != null and str(here) != "":
+			base = str(here)
+	return "%s?fighter=%s" % [base, character_id.uri_encode()]
+
+
+## Outcome of share_link() — the caller only needs to say something when the
+## link went somewhere invisible.
+enum { SHARE_FAILED = 0, SHARE_NATIVE = 1, SHARE_COPIED = 2 }
+
+## Push a share link at the OS: the native share sheet where there is one
+## (every phone, which is the case that matters), the clipboard otherwise.
+##
+## navigator.share needs transient user activation. Godot handles input on its
+## own frame rather than inside the DOM event handler, but the activation
+## window is seconds wide, so a button press still qualifies — the same reason
+## the audio unlock tap works. Deliberately NOT awaited: the promise settles
+## long after eval() returns, and a player dismissing the sheet is not an
+## error worth reporting.
+func share_link(url: String, text: String) -> int:
+	if not OS.has_feature("web"):
+		DisplayServer.clipboard_set(url)
+		return SHARE_COPIED
+	var js := """(function (u, t, title) {
+		try {
+			if (navigator.share) {
+				navigator.share({title: title, text: t, url: u}).catch(function () {});
+				return 1;
+			}
+		} catch (e) {}
+		try {
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(t + " " + u).catch(function () {});
+				return 2;
+			}
+		} catch (e) {}
+		try {
+			var ta = document.createElement('textarea');
+			ta.value = t + " " + u;
+			ta.style.position = 'fixed';
+			ta.style.opacity = '0';
+			document.body.appendChild(ta);
+			ta.select();
+			var ok = document.execCommand('copy');
+			document.body.removeChild(ta);
+			return ok ? 2 : 0;
+		} catch (e) {}
+		return 0;
+	})(%s, %s, %s)""" % [JSON.stringify(url), JSON.stringify(text), JSON.stringify(game_title())]
+	var r: Variant = JavaScriptBridge.eval(js, true)
+	return int(r) if r != null else SHARE_FAILED
+
+
+## True while a ?fighter= link from this page load is still unspent. Splash
+## checks it to decide between the main menu and going straight to the fight.
+func has_deeplink_fighter() -> bool:
+	return _deeplink_fighter != ""
+
+
+## Resolve the pending ?fighter= id and start its run, CONSUMING the link so
+## it fires exactly once per page load — otherwise CHANGE COMEDIAN would keep
+## yanking the player back into the shared fighter. An id matching nothing, or
+## matching a benched comedian, rolls a random one rather than failing: a dead
+## link should still open a game.
+func start_deeplink_fight() -> void:
+	var id := _deeplink_fighter
+	_deeplink_fighter = ""
+	if playable.is_empty():
+		change_scene(SCENE_MAIN_MENU)
+		return
+	var idx := character_index_by_id(id)
+	if idx == -1 or not playable.has(idx):
+		idx = playable[randi() % playable.size()]
+		print("[share] fighter '%s' is unknown or benched — rolled %s instead" % [
+				id, characters[idx].get("CharacterName", "?")])
+	# The shared comedian is BORROWED for this run: stashed here, handed back
+	# by the roster screen, never written to the save file.
+	_pick_before_deeplink = selected_character
+	_random_before_deeplink = random_select
+	random_select = false
+	start_new_game(idx, false)
+
+
+## Give the player their own comedian back after a shared link borrowed the
+## slot. Called by the roster screen, so the pick it opens on is the one they
+## actually chose. A no-op when no link was followed.
+func restore_own_pick() -> void:
+	if _pick_before_deeplink == -1:
+		return
+	selected_character = _pick_before_deeplink
+	random_select = _random_before_deeplink
+	_pick_before_deeplink = -1
 
 
 ## Random enemy configs pulled from the roster, excluding the player's pick.
@@ -1109,13 +1256,18 @@ func _load_settings() -> void:
 
 
 func _save_settings() -> void:
+	# A comedian borrowed from a ?fighter= link must never reach the save file,
+	# no matter what triggers the write — nudging the volume between a shared
+	# run and opening the roster would otherwise adopt someone else's pick.
+	var borrowed := _pick_before_deeplink != -1
+	var own := _pick_before_deeplink if borrowed else selected_character
 	_save_json(_settings_file, {
 		"music": music_volume,
 		"sfx": sfx_volume,
 		"outfit": outfit,
 		"character": "" if characters.is_empty() \
-				else String(selected_character_data().get("CharacterName", "")),
-		"random": random_select,
+				else String(characters[clampi(own, 0, characters.size() - 1)].get("CharacterName", "")),
+		"random": _random_before_deeplink if borrowed else random_select,
 	})
 
 

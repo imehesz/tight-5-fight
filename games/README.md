@@ -46,6 +46,7 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 |-------|----------|---------------|
 | `id` (must equal folder name) | ✅ | — |
 | `title`, `menuTitle` | ✅ | — |
+| `publicFolder` (URL segment under `/tight5fight/`) | only if ≠ `id` | `id` |
 | `characters`, `venues` | ✅ | `characters.json` / `venues.json` |
 | `backgrounds.splash` / `.menu` / `.streetTile` | ✅ | `assets/backgrounds/{splash,menu_bg,street_tile}.png` |
 | `boss.headSprite` | optional | placeholder head (a colored square) |
@@ -84,6 +85,29 @@ Rules:
 Note the id is currently **inert** — the client still reports names to the
 leaderboard and the server still validates against names. Adding the field
 breaks nothing; switching the pipeline over to it is a separate step.
+
+### Sharing a comedian (`?fighter=`)
+
+The roster's SHARE button (square, next to FIGHT!) hands the OS a link to the
+highlighted comedian, built from their `CharacterId`:
+
+```
+https://games.imstandup.com/tight5fight/jax/?fighter=marcus-crespo
+```
+
+Opening that link shows the splash, and the **first tap goes straight into the
+fight** as that comedian — no menu, no roster. (The tap stays because it is
+also what unlocks audio in the browser.)
+
+- **The URL is read from the page itself on web**, never composed, so a LAN
+  playtest shares a LAN link. `publicFolder` above only feeds the desktop and
+  editor fallback — but keep it correct anyway. Note `/tight5/` would 404;
+  JAX ships at `/jax/`.
+- **A dead link still opens a game.** An id matching no comedian, or matching a
+  benched (`isDisabled`) one, silently rolls a random comedian instead.
+- **SHARE is disabled on the "?" card** — a random pick has no comedian to share.
+- **A shared comedian is borrowed, not adopted.** The run does not overwrite
+  the recipient's own saved favorite; opening the roster hands it straight back.
 
 ### Benching a comedian or a venue (`characters.json` / `venues.json`)
 

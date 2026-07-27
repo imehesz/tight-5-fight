@@ -2,6 +2,7 @@
   "id": "tight5",
   "title": "Tight 5 FIGHT!",
   "menuTitle": "TIGHT 5 FIGHT!",
+  "publicFolder": "jax",
 
   "characters": "characters.json",
   "venues": "venues.json",

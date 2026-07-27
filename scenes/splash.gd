@@ -51,4 +51,10 @@ func _input(event: InputEvent) -> void:
 	if pressed and not _done:
 		_done = true
 		GameState.play_sfx("click")
-		GameState.change_scene(GameState.SCENE_MAIN_MENU)
+		# A shared ?fighter= link skips the menu and the roster entirely —
+		# landing in the fight is the whole point of sharing one. The tap still
+		# happens, because it is also the gesture that unlocks web audio.
+		if GameState.has_deeplink_fighter():
+			GameState.start_deeplink_fight()
+		else:
+			GameState.change_scene(GameState.SCENE_MAIN_MENU)
