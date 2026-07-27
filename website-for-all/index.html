@@ -1,19 +1,14 @@
 <!doctype html>
 <!--
-  TIGHT 5 FIGHT! — landing page for the bare domain https://games.imstandup.com/
-
-  DEPLOY (owner runs this himself, from src/open-mic-night/):
-      ./deployScriptPRODWEB.sh        dry-run
-      ./deployScriptPRODWEB.sh go     real deploy
-  or the one-liner:
-      rsync -az website-for-all/ imehesz@172.245.91.173:/var/www/imstandup.com/games/
-  It lands NEXT TO the tight5fight/ build folders and touches nothing else.
+  TIGHT 5 FIGHT! — landing page.
 
   ADD A THEME (60-second edit):
     1. Copy one <div class="card"> ... </div> block below (marked THEME CARD).
-    2. Change the two hrefs (PLAY -> the game build, STATS -> stats/<theme>/),
-       the name, and the description (keep it to ~3 lines / ~70 characters —
-       the description box is fixed-height so titles align).
+    2. Change the three hrefs (PLAY -> the game build, STATS -> stats/<theme>/,
+       MORE INFO -> info/<theme>/), the name, and the description (keep it to
+       ~3 lines / ~70 characters — the description box is fixed-height so
+       titles align). Both stats/ and info/ pages are generated for you by
+       helper-tools/sync_stats_assets.sh.
     3. Optional splash background: drop imgs/card_<theme>.jpg next to this
        file (~800px wide keeps the page light) and change the url(...) at
        the END of the card's style attribute. If the image is missing the
@@ -168,16 +163,20 @@
     color: var(--dim);
     text-shadow: 1px 1px 0 #000;
   }
-  /* PLAY + STATS side by side (live cards are a <div>, each button its own
-     link — links can't nest, which is why the card isn't an <a> anymore) */
+  /* PLAY + STATS + MORE INFO side by side (live cards are a <div>, each
+     button its own link — links can't nest, which is why the card isn't an
+     <a> anymore). Three buttons don't fit one narrow card row, so the row
+     wraps and stays centered. */
   .actions {
     align-self: center;
     display: flex;
     align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 12px;
   }
   .actions a { text-decoration: none; }
-  .stats-btn {
+  .stats-btn, .info-btn {
     display: inline-flex;
     align-items: center;
     min-height: 48px;
@@ -190,7 +189,8 @@
     box-shadow: 0 0 10px #ffd96655, 0 4px 0 #6b5416;
     text-shadow: 2px 2px 0 #000;
   }
-  .stats-btn:hover, .stats-btn:focus-visible {
+  .stats-btn:hover, .stats-btn:focus-visible,
+  .info-btn:hover, .info-btn:focus-visible {
     box-shadow: 0 0 18px #ffd966aa, 0 4px 0 #6b5416;
     outline: none;
   }
@@ -354,6 +354,8 @@
     div.card:not(.soon):hover, div.card:focus-within { transform: none; }
   }
 </style>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="imgs/t5f-logo_mid.png">
 </head>
 <body>
 
@@ -374,6 +376,7 @@
       <span class="actions">
         <a class="play" href="https://games.imstandup.com/tight5fight/jax/">▶ PLAY</a>
         <a class="stats-btn" href="stats/jax/">STATS</a>
+        <a class="info-btn" href="info/jax/">MORE INFO</a>
       </span>
     </span>
   </div>
@@ -386,6 +389,7 @@
       <span class="actions">
         <a class="play" href="https://games.imstandup.com/tight5fight/daytona/">▶ PLAY</a>
         <a class="stats-btn" href="stats/daytona/">STATS</a>
+        <a class="info-btn" href="info/daytona/">MORE INFO</a>
       </span>
     </span>
   </div>
@@ -422,7 +426,7 @@
   </a>
 
   <!-- ==================== ADD NEW THEME CARDS ABOVE THIS LINE ====================
-       Copy a card block, change the PLAY + STATS hrefs, name, description
+       Copy a card block, change the PLAY + STATS + MORE INFO hrefs, name, description
        (+ optional image URL). Coming-soon panel: copy <div class="card soon">.
   ============================================================================== -->
 

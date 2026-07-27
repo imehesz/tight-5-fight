@@ -11,6 +11,10 @@
 #   stats/assets/               <- shared body sheets (palette-swapped by stats.js)
 #   stats/<folder>/index.html   <- created from stats/_template.html ONLY if
 #                                  missing (hand edits are never overwritten)
+#   info/<folder>/index.html    <- same deal, from info/_template.html. The
+#                                  MORE INFO pages read their rosters and art
+#                                  straight out of stats/<folder>/, so there
+#                                  is nothing else to copy for them.
 #
 # Target .png files are wiped before copying so renamed/removed art doesn't
 # linger. Only *.png is touched — Godot's .import sidecars never match.
@@ -22,6 +26,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STATS="$ROOT/website-for-all/stats"
+INFO="$ROOT/website-for-all/info"
 
 GAMES=(
   "jax=tight5"
@@ -58,11 +63,19 @@ for pair in "${GAMES[@]}"; do
   cp "$src/characters.json" "$dst/characters/characters.json"
   cp "$src/venues.json"     "$dst/venues/venues.json"
 
+  label="$(echo "$folder" | tr '[:lower:]' '[:upper:]')"
+
   if [[ ! -f "$dst/index.html" ]]; then
-    label="$(echo "$folder" | tr '[:lower:]' '[:upper:]')"
     sed -e "s/__GAME_ID__/$gid/g" -e "s/__LABEL__/$label/g" \
         "$STATS/_template.html" > "$dst/index.html"
-    echo "created $folder/index.html (label $label — edit if it should differ)"
+    echo "created stats/$folder/index.html (label $label — edit if it should differ)"
+  fi
+
+  mkdir -p "$INFO/$folder"
+  if [[ ! -f "$INFO/$folder/index.html" ]]; then
+    sed -e "s/__GAME_ID__/$gid/g" -e "s/__FOLDER__/$folder/g" -e "s/__LABEL__/$label/g" \
+        "$INFO/_template.html" > "$INFO/$folder/index.html"
+    echo "created info/$folder/index.html (label $label — edit if it should differ)"
   fi
 
   heads=$(ls "$dst/characters"/*.png 2>/dev/null | wc -l)
