@@ -14,6 +14,11 @@ extends Node2D
 ## released near the player — the bomb itself (35%), a GOOD SET BOX pushed
 ## out while the bomb stays hooked (35%), or nothing (30%). The falling
 ## payload is a PlaneDrop, spawned as a world-space sibling.
+##
+## Once the first boss is down the air war steps up: the dud share shrinks
+## (30% -> 10%), so planes actually drop something far more often, while the
+## bomb keeps its exact 35% — the extra goes into the goodie pool, which is
+## now split evenly between the GOOD SET BOX and the FREE BEER BOX.
 
 const SPEED := 140.0  # a hair above the player's 140 — you can't pace it
 const HALF_W := 320.0  # design viewport is 640x360, camera-centered
@@ -44,6 +49,9 @@ const PAYLOAD_ANCHOR := Vector2(0, 88)
 const PAYLOAD_W := 66.0
 const BOMB_CHANCE := 0.35
 const BOX_CHANCE := 0.35
+## Post-boss: same bomb odds, but only a 10% dud run — the freed 20% joins the
+## goodie pool, and the whole pool is halved between good set and free beer.
+const POST_BOSS_GOODIE_CHANCE := 0.55
 
 var banner_text := ""
 var camera: Camera2D  # set by the spawner before add_child
@@ -60,7 +68,7 @@ var _banner_x0 := 0.0  # trailing-signed x where the cloth attaches
 var _engine: AudioStreamPlayer
 var _pilot: Sprite2D
 var _payload: Sprite2D
-var _drop_kind := ""  # "bomb" | "box" | "" (dud run, carries it the whole way)
+var _drop_kind := ""  # "bomb" | "box" | "beer" | "" (dud, carries it all the way)
 var _dropped := false
 var _drop_off := randf_range(-100.0, 100.0)  # camera-local landing target x
 var _look_timer := randf_range(0.8, 2.5)
@@ -89,11 +97,7 @@ func _ready() -> void:
 	_build_banner()
 	add_child(_rig)
 
-	var roll := randf()
-	if roll < BOMB_CHANCE:
-		_drop_kind = "bomb"
-	elif roll < BOMB_CHANCE + BOX_CHANCE:
-		_drop_kind = "box"
+	_roll_payload()
 
 	_engine = AudioStreamPlayer.new()
 	_engine.bus = "SFX"
@@ -151,6 +155,25 @@ func _process(delta: float) -> void:
 		queue_free()
 
 
+## Decide this flyby's secret payload. Free beer only exists once the beer
+## mechanic itself is unlocked, so before the first boss this is the original
+## bomb / good set / dud roll.
+func _roll_payload() -> void:
+	var roll := randf()
+	if roll < BOMB_CHANCE:
+		_drop_kind = "bomb"
+		return
+	if not GameState.beer_unlocked():
+		if roll < BOMB_CHANCE + BOX_CHANCE:
+			_drop_kind = "box"
+		return
+	var goodie := roll - BOMB_CHANCE
+	if goodie < POST_BOSS_GOODIE_CHANCE / 2.0:
+		_drop_kind = "box"
+	elif goodie < POST_BOSS_GOODIE_CHANCE:
+		_drop_kind = "beer"
+
+
 func _add_pilot() -> void:
 	var roster: Array = GameState.playable
 	if roster.is_empty():
@@ -187,7 +210,7 @@ func _add_payload() -> void:
 
 ## Release the payload as a world-space sibling so it outlives this plane.
 ## A bomb run drops the visible bomb off the belly; a box run pushes a GOOD
-## SET BOX out while the bomb stays hooked.
+## SET BOX or FREE BEER BOX out while the bomb stays hooked.
 func _drop() -> void:
 	_dropped = true
 	var at := global_position + Vector2(0, PAYLOAD_ANCHOR.y * PLANE_SCALE + 10.0)

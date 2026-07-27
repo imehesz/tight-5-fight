@@ -1,12 +1,16 @@
 class_name PlaneDrop
 extends Area2D
 ## Payload released by the banner plane, living in world space as a sibling
-## of the plane so it survives the plane flying off. Two kinds:
+## of the plane so it survives the plane flying off. Three kinds:
 ##  - "bomb": whistles down ballistically and explodes on the street (or on
 ##    a direct hit); the player is slowed 25% for 4s if caught in the blast.
 ##  - "box": a GOOD SET BOX parachuting down. Touch it in the air or grab it
 ##    off the ground within 3s (1.5 resting + 1.5 blinking, then gone) for
 ##    +25% speed for 4s.
+##  - "beer": a FREE BEER BOX, which falls and expires exactly like the good
+##    set box but tops the player's beer up to the carry cap. Only ever
+##    dropped once the beer mechanic is unlocked (after the first boss); a
+##    player already carrying the cap gets nothing and the box is left alone.
 
 const GROUND_Y := 300.0  # same rest height street items (beer) use
 const BOMB_W := 66.0     # display widths — sources are large PNGs
@@ -29,9 +33,11 @@ const BOMB_TEX := "res://shared/assets/parts/t5f-bomb_med.png"
 const BOMB_TEX_RTL := "res://shared/assets/parts/t5f-bomb_med_lr.png"
 const CHUTE_TEX := "res://shared/assets/parts/t5f-good-set-box_parachute.png"
 const BOX_TEX := "res://shared/assets/parts/t5f-good-set-box_no-parachute.png"
+const BEER_CHUTE_TEX := "res://shared/assets/parts/t5f-free-beer-box_parachute.png"
+const BEER_BOX_TEX := "res://shared/assets/parts/t5f-free-beer-box_no-parachute.png"
 const WHISTLE := "res://shared/assets/sfx/sfx-bomb-drop.wav"
 
-var kind := "bomb"  # "bomb" | "box", set by the plane before add_child
+var kind := "bomb"  # "bomb" | "box" | "beer", set by the plane before add_child
 var dir := 1        # travel direction inherited from the plane
 
 var _sprite: Sprite2D
@@ -51,6 +57,16 @@ static func bomb_tex(dir_: int) -> String:
 	return BOMB_TEX
 
 
+## Both box kinds share the good-set box's art dimensions (461x680 chuted,
+## 461x323 collapsed), so they fall, land and expire on identical geometry.
+func _chute_tex() -> String:
+	return BEER_CHUTE_TEX if kind == "beer" else CHUTE_TEX
+
+
+func _box_tex() -> String:
+	return BEER_BOX_TEX if kind == "beer" else BOX_TEX
+
+
 func _ready() -> void:
 	z_index = 1  # in front of exteriors and fighters while it falls past them
 	collision_layer = 0
@@ -66,7 +82,7 @@ func _ready() -> void:
 		rs.size = Vector2(57, 27)
 		_start_whistle()
 	else:
-		_set_tex(CHUTE_TEX, BOX_W)
+		_set_tex(_chute_tex(), BOX_W)
 		# The box rides at the bottom of the chute art (origin = box bottom).
 		rs.size = Vector2(44, 32)
 		cs.position.y = -17.0
@@ -92,7 +108,7 @@ func _process(delta: float) -> void:
 			position.y = GROUND_Y
 			_landed = true
 			_age = 0.0
-			_set_tex(BOX_TEX, BOX_W)  # chute collapses on touchdown
+			_set_tex(_box_tex(), BOX_W)  # chute collapses on touchdown
 		return
 	# Grounded: fresh for BOX_REST, blinks for BOX_BLINK, then it's gone.
 	if _age > BOX_REST + BOX_BLINK:
@@ -107,7 +123,7 @@ func _set_tex(path: String, width: float) -> void:
 	_sprite.texture = load(path)
 	var s := width / _sprite.texture.get_width()
 	_sprite.scale = Vector2(s, s)
-	if kind == "box":
+	if kind != "bomb":
 		# Anchor the art's bottom edge at the node origin, so landing maths
 		# stay the same whether the chute is attached (680px) or gone (323px).
 		_sprite.offset = Vector2(0, -_sprite.texture.get_height() / 2.0)
@@ -133,8 +149,27 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 	if kind == "bomb":
 		_explode()
+	elif kind == "beer":
+		_grab_beer()
 	else:
 		_grab(area.get_meta("fighter"))
+
+
+## Tops the player's beer off to the carry cap — 0, 1 or 2 bottles all become
+## MAX_BOTTLES. A player already carrying the cap gets nothing at all, and the
+## box is left where it is (like a ground bottle) rather than eaten.
+func _grab_beer() -> void:
+	if GameState.beer_bottles >= GameState.MAX_BOTTLES:
+		return
+	_done = true
+	GameState.set_bottles(GameState.MAX_BOTTLES)
+	GameState.add_score(BOX_POINTS)
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -46),
+			"FREE BEER!", Color(1.0, 0.78, 0.25))
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -62),
+			"+%d" % BOX_POINTS, Color(1.0, 0.85, 0.35))
+	GameState.play_sfx("clear")
+	queue_free()
 
 
 func _grab(p: Player) -> void:
