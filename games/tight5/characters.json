@@ -343,7 +343,8 @@
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/imre_clean.png",
       "BodyType": "M",
-      "SkinColor": "#e9c098"
+      "SkinColor": "#e9c098",
+      "bio": "Imre has been doing comedy way too long. Book him or checkout his upcoming shows at [IMstandup.com](https://IMstandup.com)."
     },
     {
       "CharacterId": "isaiah-burns",

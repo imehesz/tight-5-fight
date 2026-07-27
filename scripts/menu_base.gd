@@ -244,7 +244,13 @@ func add_edge_arrow(text: String, on_right: bool, cb: Callable, min_size := Vect
 const BACK_SIZE := Vector2(48, 48)
 
 
-func add_back_button(cb: Callable) -> Button:
+## The BACK button's look and behaviour without the corner: builds the square
+## red button, wires the click SFX and the callback, and leaves placement to
+## the caller. Static, so things that are not menu screens can wear the same
+## control — the in-game hint popup hangs one off its own top-right as a close
+## button, and players meet exactly one "get me out of here" button in the
+## whole app instead of two that look different.
+static func make_back_button(cb: Callable) -> Button:
 	var b := Button.new()
 	b.icon = back_arrow_texture()
 	b.tooltip_text = "Back"
@@ -275,6 +281,14 @@ func add_back_button(cb: Callable) -> Button:
 	for state in ["icon_normal_color", "icon_hover_color", "icon_pressed_color",
 			"icon_focus_color"]:
 		b.add_theme_color_override(state, Color.WHITE)
+	b.pressed.connect(func():
+		GameState.play_sfx("click")
+		cb.call())
+	return b
+
+
+func add_back_button(cb: Callable) -> Button:
+	var b := make_back_button(cb)
 	# Top-left corner, growing right/down so a wider screen never moves it.
 	b.anchor_left = 0.0
 	b.anchor_right = 0.0
@@ -286,9 +300,6 @@ func add_back_button(cb: Callable) -> Button:
 	b.offset_bottom = EDGE_ARROW_MARGIN + BACK_SIZE.y
 	b.grow_horizontal = Control.GROW_DIRECTION_END
 	b.grow_vertical = Control.GROW_DIRECTION_END
-	b.pressed.connect(func():
-		GameState.play_sfx("click")
-		cb.call())
 	add_child(b)
 	return b
 

@@ -236,7 +236,10 @@ func _venue_cleared() -> void:
 	GameState.crowd_reaction.emit("celebrate")
 	var bonus := CLEAR_BONUS_PER_LEVEL * _level
 	GameState.add_score(bonus)
-	hud.set_center_text("VENUE BATTLED!  +%d" % bonus)
+	# Time back on the clock: the payoff for going through a door instead of
+	# walking the street. Announced with the score so the two read as one prize.
+	GameState.add_time(GameState.VENUE_TIME_BONUS)
+	hud.set_center_text("VENUE BATTLED!  +%d  +%ds" % [bonus, GameState.VENUE_TIME_BONUS])
 	await get_tree().create_timer(2.0).timeout
 	GameState.change_scene(GameState.SCENE_STREET)
 
@@ -266,12 +269,15 @@ func _boss_survived() -> void:
 		p.queue_free()
 	var bonus := 2 * CLEAR_BONUS_PER_LEVEL * _level
 	GameState.add_score(bonus)
+	# Surviving a boss is clearing the venue, so it pays the same clock bonus.
+	GameState.add_time(GameState.VENUE_TIME_BONUS)
 	var life_note := ""
 	if lives_granted == 1:
 		life_note = "  +1 LIFE"
 	elif lives_granted > 1:
 		life_note = "  +%d LIVES" % lives_granted
-	hud.set_center_text("YOU SURVIVED!  +%d%s" % [bonus, life_note])
+	hud.set_center_text("YOU SURVIVED!  +%d  +%ds%s" % [
+			bonus, GameState.VENUE_TIME_BONUS, life_note])
 	await get_tree().create_timer(2.0).timeout
 	GameState.change_scene(GameState.SCENE_STREET)
 

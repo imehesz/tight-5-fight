@@ -225,7 +225,6 @@
     return Math.round(n / 1048576) + "M";
   }
 
-  // rows: [[label, value], ...] with a header pair first.
   // Seconds as "4m 07s" — run lengths are read against a 5:00 clock, so
   // minutes are the unit the number means something in.
   function mmss(secs) {
@@ -233,6 +232,7 @@
     return Math.floor(s / 60) + "m " + ("0" + (s % 60)).slice(-2) + "s";
   }
 
+  // rows: [[label, value], ...] with a header pair first.
   function board(title, header, rows) {
     var box = el("div", "board");
     box.appendChild(el("h3", null, title));
@@ -301,11 +301,11 @@
           ["last 30 days", v.month.plays   + " / " + v.month.players],
           ["all time",     v.allTime.plays + " / " + v.allTime.players],
         ]));
-        // How long runs actually last: the 5:00 clock means a full run reads
-        // ~5m, so anything well under it is a player who died early and
-        // anything at it is a player who ran the clock out. Rows are skipped
-        // entirely on an older backend (or before any timed run is banked).
-        boards.appendChild(board("RUN LENGTH", ["window", "avg · ran the clock out"],
+        // How long runs actually last against the 5:00 clock: well under it
+        // is a player who died early, at or past it is a player who went the
+        // distance (venue clears and good set boxes add time back, so a run
+        // can run long). Rows are skipped entirely on an older backend.
+        boards.appendChild(board("RUN LENGTH", ["window", "avg · 5m+ runs"],
           [["today", v.today], ["last 7 days", v.week],
            ["last 30 days", v.month], ["all time", v.allTime]]
             .filter(function (w) { return w[1] && w[1].avgSeconds != null; })

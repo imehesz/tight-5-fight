@@ -458,10 +458,11 @@ const DAY = {
   mysql: "DATE_FORMAT(created_at, '%Y-%m-%d')",
 };
 
-// A run at or past this many seconds went the distance — the player was still
-// standing when the clock hit 0:00. The game's own limit is 300s (GameState.
-// RUN_TIME); the few seconds of slack absorb rounding and any future trim of
-// the run length, and cost nothing: nothing else lands in that band.
+// A run at or past this many seconds lasted the full five minutes. NOT the
+// same as "timed out": clearing a venue or catching a good set box adds
+// seconds back (GameState.VENUE_TIME_BONUS / BOX_TIME_BONUS), so a run can
+// run long and still end in a death. The game's base limit is 300s
+// (GameState.RUN_TIME); the slack absorbs rounding and any future trim.
 const FULL_RUN_SEC = 295;
 
 // Run-length columns for one window's WHERE clause. Zeros are EXCLUDED from

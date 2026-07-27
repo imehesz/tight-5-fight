@@ -21,6 +21,8 @@ signal crowd_reaction(kind: String)
 ## The run clock hit 0:00. Whichever scene is up drops the player where they
 ## stand; the ordinary death flow carries it to game over from there.
 signal time_expired
+## Seconds just banked on the clock, for the HUD to celebrate.
+signal time_added(seconds: float)
 
 ## Dead zone along the bottom edge, in design pixels (the viewport is 360
 ## tall, so this is also roughly CSS pixels on a phone in landscape). Android
@@ -86,6 +88,12 @@ const STREAK_MAX_MULT := 5
 ## At 0:00 the player collapses where they stand and the run is over, however
 ## many lives are banked (see lose_life()).
 const RUN_TIME := 300.0
+## Seconds the clock GIVES BACK, and the whole reason to stop farming the
+## street: clearing a venue is worth 20, catching a GOOD SET BOX 10. (The free
+## beer box and the bomb do not touch the clock.) Nothing caps the total — a
+## player good enough to keep earning time has earned the longer run.
+const VENUE_TIME_BONUS := 20.0
+const BOX_TIME_BONUS := 10.0
 
 ## Looping background tracks come from the active game's manifest (main +
 ## venue). SFX are shared engine chrome. See _music_tracks()/_setup_audio().
@@ -191,11 +199,22 @@ var venues_entered := 0
 ## Bosses cleared so far, and beer bottles currently carried (0..MAX_BOTTLES).
 var bosses_defeated := 0
 var beer_bottles := 0
+## True while the game is frozen behind a popup (see set_paused). Not a menu
+## state: the scene stays exactly as it was, sound and all, and resumes.
+var game_paused := false
+## First-run teaching popup: shown the first time the player ever stands in a
+## venue doorway, never again. Persisted with the settings, so it survives the
+## session — `?hints=1` on the web build forces it back for testing.
+var venue_hint_seen := false
 ## Seconds left on the run clock, and whether it is ticking. Only gameplay
 ## scenes run it (see change_scene) — menus, character select and game over
 ## leave it frozen. The HUD polls run_time_left rather than listening on a
 ## per-second signal: it redraws every frame anyway.
 var run_time_left := RUN_TIME
+## Seconds earned on top of RUN_TIME this run. Tracked separately so
+## run_seconds() can still say how long the run actually lasted — with bonus
+## time in play, elapsed is no longer RUN_TIME minus what's left.
+var run_time_earned := 0.0
 var _clock_running := false
 var pending_venue: Dictionary = {}
 ## Street layout persisted across venue visits (see street.gd) and the index
@@ -295,6 +314,10 @@ var _ios_mute_forced := false
 ## back in one at a time on a borrowed iPhone, with no rebuild between runs.
 ## Music is unaffected: it is proven safe and confirms audio is alive at all.
 var _sfx_only := ""
+## ?hints=1 — replay the first-run teaching popups on a device that has
+## already dismissed them. Never written to the save file, so it lasts exactly
+## one page load, which is what makes it a testing switch and not a reset.
+var _replay_hints := false
 ## ?fighter=<CharacterId> — a shared comedian link, produced by the SHARE
 ## button on the roster. NOT a debug switch: it is the one query flag real
 ## players see. Captured raw at boot because flags are read before the roster
@@ -644,6 +667,75 @@ func count_ko(char_name: String) -> void:
 				int(run_venue_kos.get(current_venue_name, 0)) + 1
 
 
+# ---------------------------------------------------------------------- pause
+## Freeze everything: the tree stops (so the run clock, the fighters and every
+## tween hold where they are) AND all sound goes quiet. Only nodes that set
+## process_mode = ALWAYS keep running — that is how the popup doing the pausing
+## stays alive to take the tap that closes it.
+##
+## The sound half is deliberately belt-and-braces, for the same reason the
+## death stinger is (see play_death_stinger): muting the BUSES is the part that
+## is guaranteed everywhere, including mobile web where stream_paused has been
+## seen to do nothing, and it catches sounds this autoload does not own — the
+## plane's engine loop and the bomb whistle build their own players. Pausing
+## the music player on top of that is what lets desktop resume the track where
+## it left off instead of further along.
+func set_paused(on: bool) -> void:
+	if on == game_paused:
+		return
+	game_paused = on
+	get_tree().paused = on
+	if on:
+		_silence_for_pause()
+	else:
+		_restore_after_pause()
+
+
+func _silence_for_pause() -> void:
+	for bus_name in ["Music", "SFX"]:
+		var idx := AudioServer.get_bus_index(bus_name)
+		if idx != -1:
+			AudioServer.set_bus_mute(idx, true)
+	# In-flight one-shots (the punch that landed as the popup opened) are cut
+	# rather than left to resume into a silent frame later.
+	for p in _sfx_pool:
+		p.stop()
+	for key in _sfx_players:
+		_sfx_players[key].stop()
+	# The stinger owns the music while it runs; leave its bookkeeping alone.
+	if not _stinger_active and is_instance_valid(_music_player):
+		_music_player.stream_paused = true
+
+
+func _restore_after_pause() -> void:
+	if not _stinger_active and is_instance_valid(_music_player):
+		_music_player.stream_paused = false
+	# Through _apply_volume, not a bare unmute: a bus the player has turned
+	# all the way down in settings must STAY muted.
+	_apply_volume("Music", music_volume)
+	_apply_volume("SFX", sfx_volume)
+
+
+## Whether the doorway lesson is still owed.
+##
+## IN THE EDITOR IT IS ALWAYS DUE. Testing a first-run popup must never mean
+## hand-editing a save file between attempts. `OS.has_feature("editor")` is
+## true only for an editor/debug run — exported templates, which is what the
+## browser gets, return false and fall through to the once-ever rule below.
+func venue_hint_due() -> bool:
+	if OS.has_feature("editor") or _replay_hints:
+		return true
+	return not venue_hint_seen
+
+
+## Called once, the first time the popup is shown, so it never returns.
+func mark_venue_hint_seen() -> void:
+	if venue_hint_seen:
+		return
+	venue_hint_seen = true
+	_save_settings()
+
+
 # ------------------------------------------------------------------ run clock
 ## Ticks on the scaled delta on purpose: hitstop (and any future pause) freezes
 ## the clock exactly like it freezes the fight.
@@ -659,19 +751,31 @@ func _process(delta: float) -> void:
 
 func start_clock() -> void:
 	run_time_left = RUN_TIME
+	run_time_earned = 0.0
 	_clock_running = true
+
+
+## Bank earned seconds on the clock. Refused once the clock is out: a venue
+## cleared or a box grabbed in the same frame the time ran out must not
+## resurrect a run that is already collapsing.
+func add_time(seconds: float) -> void:
+	if seconds <= 0.0 or time_up() or not _clock_running:
+		return
+	run_time_earned += seconds
+	run_time_left += seconds
+	time_added.emit(seconds)
 
 
 func time_up() -> bool:
 	return run_time_left <= 0.0
 
 
-## How long this run lasted, in whole seconds — the clock read backwards.
-## Banked with the play at game over (Leaderboard.record_play), so the stats
-## can tell a run that went the distance (RUN_TIME exactly, the player was
-## still standing at 0:00) from one that ended early.
+## How long this run lasted, in whole seconds — the clock read backwards,
+## with earned time folded in (a run can now last well past RUN_TIME).
+## Banked with the play at game over (Leaderboard.record_play).
 func run_seconds() -> int:
-	return int(roundf(clampf(RUN_TIME - run_time_left, 0.0, RUN_TIME)))
+	var total := RUN_TIME + run_time_earned
+	return int(roundf(clampf(total - run_time_left, 0.0, total)))
 
 
 ## "4:07" for the HUD. Rounds UP, so a fresh run reads 5:00 on its first frame
@@ -746,12 +850,21 @@ func request_shake(pixels := 3.0) -> void:
 	shake_requested.emit(pixels)
 
 
-## Read the temporary ?noaudio/?nosfx/?nomusic/?noshake switches off the page
-## URL. Web only — desktop and the editor have no location to read, and the
-## flags stay false there, so nothing changes for normal play. Deliberately
-## tolerant: an unparseable query string simply leaves every switch off.
+## Read the temporary ?noaudio/?nosfx/?nomusic/?noshake/?hints switches. On the
+## web they come off the page URL; on desktop and in the editor the same names
+## come off the command line, so testing a first-run popup does not mean
+## deleting the save file. Deliberately tolerant: anything unparseable simply
+## leaves every switch off.
+##
+##   godot --path . -- hints=1 nosfx=1
+##   editor: Project Settings > Editor > Run > Main Run Args  ->  hints=1
+##
+## (Everything after a bare `--` is ours; the engine ignores it.)
 func _read_debug_flags() -> void:
 	if not OS.has_feature("web"):
+		var args := OS.get_cmdline_user_args()
+		if not args.is_empty():
+			_apply_debug_flags("&".join(args))
 		return
 	var raw: Variant = JavaScriptBridge.eval("window.location.search || ''", true)
 	if raw != null:
@@ -800,6 +913,9 @@ func _apply_debug_flags(search: String) -> void:
 	_ios_audio_forced = str(flags.get("iosaudio", "")) == "1"
 	_ios_mute_forced = str(flags.get("iosmute", "")) == "1"
 	_sfx_only = str(flags.get("sfxonly", ""))
+	# ?hints=1 replays the first-run popups on a device that has already seen
+	# them — the saved flag is left alone, so this is one run only.
+	_replay_hints = str(flags.get("hints", "")) == "1"
 	# Decoded because it is the one flag a stranger's link supplies. Ids are
 	# plain ASCII so this is normally a no-op, but a hand-mangled %2D should
 	# still find its comedian.
@@ -1313,6 +1429,8 @@ func _load_settings() -> void:
 	if not playable.is_empty() and not playable.has(selected_character):
 		selected_character = playable[0]
 	random_select = bool(d.get("random", false))
+	# Sticky once true: the doorway popup is a first-run lesson, not a setting.
+	venue_hint_seen = bool(d.get("venueHintSeen", false))
 	_apply_volume("Music", music_volume)
 	_apply_volume("SFX", sfx_volume)
 
@@ -1330,6 +1448,7 @@ func _save_settings() -> void:
 		"character": "" if characters.is_empty() \
 				else String(characters[clampi(own, 0, characters.size() - 1)].get("CharacterName", "")),
 		"random": _random_before_deeplink if borrowed else random_select,
+		"venueHintSeen": venue_hint_seen,
 	})
 
 

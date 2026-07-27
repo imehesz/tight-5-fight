@@ -36,6 +36,11 @@ const CLOCK_GREEN := Color(0.05, 0.32, 0.12)
 const CLOCK_ORANGE := Color(0.85, 0.45, 0.05)
 const CLOCK_RED := Color(0.72, 0.08, 0.06)
 const CLOCK_BLACK := Color(0.04, 0.04, 0.04)
+## Earned seconds (venue cleared, good set box) flash the box green and pop
+## it, so time coming BACK is as loud as time running out.
+const CLOCK_GAIN := Color(0.35, 0.95, 0.45)
+const CLOCK_GAIN_S := 0.5
+const CLOCK_GAIN_POP := 1.5
 
 var _health_fill: ColorRect
 var _lives_label: Label
@@ -46,6 +51,9 @@ var _venue_label: Label
 var _clock_panel: Panel
 var _clock_style: StyleBoxFlat
 var _clock_label: Label
+## Seconds left on the green "+Ns" flash; 0 when the box is showing its
+## normal countdown color.
+var _clock_gain := 0.0
 var _center_label: Label
 var _portrait: TextureRect
 var _portrait_style: StyleBoxFlat
@@ -139,6 +147,7 @@ func _ready() -> void:
 	GameState.lives_changed.connect(_on_lives_changed)
 	GameState.bosses_changed.connect(_on_bosses_changed)
 	GameState.streak_changed.connect(_on_streak_changed)
+	GameState.time_added.connect(_on_time_added)
 	_on_score_changed(GameState.score)
 	_on_lives_changed(GameState.lives)
 	_on_bosses_changed(GameState.bosses_defeated)
@@ -147,8 +156,9 @@ func _ready() -> void:
 
 ## The streak window can lapse with no KO to signal it, so visibility is
 ## polled here rather than driven by streak_changed alone.
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_streak_label.visible = GameState.streak_active()
+	_clock_gain = maxf(_clock_gain - delta, 0.0)
 	_update_clock()
 
 
@@ -181,15 +191,28 @@ func _build_clock() -> void:
 	_update_clock()
 
 
+## Earned seconds: the box goes green, pops, and settles back over
+## CLOCK_GAIN_S — it reads even while the countdown colors are doing their
+## own thing, because green never appears below 2:00 otherwise.
+func _on_time_added(seconds: float) -> void:
+	_clock_gain = CLOCK_GAIN_S
+	_fly_gain("+%ds" % seconds, CLOCK_GAIN,
+			_clock_panel.get_global_rect().get_center())
+
+
 func _update_clock() -> void:
 	var left := GameState.run_time_left
 	_clock_label.text = GameState.time_text()
-	_clock_style.bg_color = _clock_color(left)
+	_clock_style.bg_color = CLOCK_GAIN if _clock_gain > 0.0 else _clock_color(left)
 	# Under 0:05 the whole box swells, with a small pop on each second tick
 	# that eases back down — the last five seconds should feel like a hook.
 	var scale_now := 1.0
 	if left <= CLOCK_PANIC_AT:
 		scale_now = CLOCK_PANIC_SCALE * (1.0 + 0.09 * fmod(left, 1.0))
+	# The gain pop rides on top of whatever scale the countdown asked for, so
+	# banking time in the last five seconds still reads.
+	if _clock_gain > 0.0:
+		scale_now *= 1.0 + (CLOCK_GAIN_POP - 1.0) * (_clock_gain / CLOCK_GAIN_S)
 	_clock_panel.scale = Vector2(scale_now, scale_now)
 
 

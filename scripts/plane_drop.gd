@@ -176,6 +176,10 @@ func _grab(p: Player) -> void:
 	_done = true
 	p.apply_speed_effect(BOOST_MULT, EFFECT_TIME)
 	GameState.add_score(BOX_POINTS)
+	# Seconds back on the run clock — chasing the box is worth the detour. The
+	# HUD flies its own "+10s" up to the clock (hud.gd _on_time_added), so no
+	# floating text for it here.
+	GameState.add_time(GameState.BOX_TIME_BONUS)
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -46),
 			"+SPEED!", Color(0.45, 1.0, 0.5))
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -62),

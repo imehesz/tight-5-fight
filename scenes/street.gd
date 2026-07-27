@@ -79,6 +79,13 @@ var _beer_timer := 3.0
 var _plane_timer := randf_range(4.0, PLANE_FIRST_WAIT_MAX)
 var _plane: PlaneFlyby
 var _hint_sign: Node2D
+## The doorway popup while it is up — non-null means the game is frozen behind
+## it, which is also what stops a second one being built every frame. The flag
+## outlives the popup: without it, an editor run (where the lesson is always
+## due) would pop it again the frame after it closes, since the player is
+## still standing in the doorway.
+var _hint_popup: HintPopup
+var _hint_shown := false
 var _busy := false
 
 
@@ -153,6 +160,7 @@ func _process(delta: float) -> void:
 	_maybe_spawn_plane(delta)
 	_cull_stragglers()
 	_update_door_signs()
+	_maybe_show_venue_hint()
 
 
 # ---------------------------------------------------------------- world
@@ -532,6 +540,107 @@ func _on_shake(px: float) -> void:
 		tw.tween_property(camera, "offset",
 				Vector2(randf_range(-px, px), randf_range(-px, px)), 0.04)
 	tw.tween_property(camera, "offset", Vector2.ZERO, 0.04)
+
+
+## The first time the player ever stands in a doorway, freeze the game and
+## explain the key — nothing on screen says a door is enterable, and a
+## first-timer can walk past every venue in the run without finding out.
+## Shown once per save (GameState persists it), never during a fight, and
+## never while the street is mid-transition.
+## The first-run doorway lesson: freeze the game and explain the UP key.
+## Deliberately as dumb as it can be — standing at an open door is the whole
+## condition. Every extra guard this had (no heckler within 150px, then 70px,
+## not mid-punch) looked sensible and, between them, kept the popup from ever
+## appearing: hecklers spawn from the run's first half-second and follow the
+## player, so one is nearly always near a door. Being frozen next to a heckler
+## is a far smaller problem than a lesson that never fires. Shown once per
+## street scene, so it does not re-fire while the player stands in the doorway
+## reading it; whether it is owed at all is GameState.venue_hint_due()
+## (always, in the editor — once ever, in a real build).
+func _maybe_show_venue_hint() -> void:
+	_debug_hint_state()  # TEMP — delete with _debug_hint_state() itself
+	# is_instance_valid, not a null check: queue_free leaves the reference
+	# pointing at a freed object rather than nulling it.
+	if _busy or _hint_shown or is_instance_valid(_hint_popup) \
+			or not GameState.venue_hint_due():
+		return
+	if not is_instance_valid(player) or not _at_open_door():
+		return
+	_hint_shown = true
+	_hint_popup = HintPopup.new()
+	_hint_popup.title_text = "THAT'S A VENUE"
+	_hint_popup.body_text = "PRESS UP (OR W) TO STEP INSIDE." \
+			+ "\n\nCLEARING A VENUE PAYS SCORE" \
+			+ "\nAND GIVES YOU AN EXTRA 20 SECONDS \nTO BOMB :P"
+	# Paused BEFORE the popup enters the tree, so the frame it appears on is
+	# already frozen — no free step through the door underneath it.
+	GameState.set_paused(true)
+	add_child(_hint_popup)
+	# Only now is the lesson spent. Marking it before the popup was really up
+	# meant any failure on the way in burned the one showing it ever gets.
+	GameState.mark_venue_hint_seen()
+	# The on-screen D-pad is inert while the tree is paused, but it is still
+	# drawn under the popup — and its UP button IS the "enter venue" control.
+	# Hiding it while the lesson is up keeps a stray tap near it from reading
+	# as "go inside" the instant the game resumes.
+	for c in get_children():
+		if c is TouchControls:
+			c.visible = false
+			_hint_popup.closed.connect(func():
+				if is_instance_valid(c):
+					c.visible = true)
+
+
+## TEMPORARY diagnostic for the doorway popup — DELETE THIS FUNCTION and its
+## call once the popup is confirmed working on the owner's machine. Says out
+## loud, in the editor's Output panel, why the lesson is or isn't firing. Only
+## prints when the answer CHANGES, so it is a handful of lines per run, not a
+## flood.
+var _hint_debug_last := ""
+
+
+func _debug_hint_state() -> void:
+	# `key` is what decides whether to print (the category alone, or the line
+	# would repeat every frame as the player walks); `msg` carries the numbers.
+	var key := ""
+	var msg := ""
+	if not GameState.venue_hint_due():
+		key = "notdue"
+		msg = "NOT DUE — the save says it has been seen. Reset venueHintSeen in " \
+				+ "the settings JSON, or add hints=1 to Main Run Args."
+	elif _busy:
+		key = "busy"
+		msg = "street busy (entering a venue / player dying)"
+	elif is_instance_valid(_hint_popup):
+		key = "up"
+		msg = "popup is up"
+	elif _hint_shown:
+		key = "spent"
+		msg = "already shown on this street"
+	elif not is_instance_valid(player):
+		key = "noplayer"
+		msg = "no player yet"
+	elif not _at_open_door():
+		key = "walking"
+		var best := 999999.0
+		for d in _doors:
+			if not d.cleared:
+				best = minf(best, absf(player.position.x - float(d.x)))
+		msg = "walking — nearest door %s" % ("not built yet" if _doors.is_empty() \
+				else "%.0fpx away (need <= %.0f)" % [best, DOOR_HALF_WIDTH])
+	else:
+		key = "go"
+		msg = "ALL CLEAR — showing the popup now"
+	if key != _hint_debug_last:
+		_hint_debug_last = key
+		print("[venue hint] ", msg)
+
+
+func _at_open_door() -> bool:
+	for d in _doors:
+		if not d.cleared and absf(player.position.x - float(d.x)) <= DOOR_HALF_WIDTH:
+			return true
+	return false
 
 
 # ---------------------------------------------------------------- events

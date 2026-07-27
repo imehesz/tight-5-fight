@@ -605,7 +605,8 @@ async function getTrends(req, res, url) {
 // volume is per window (today/week/month/allTime):
 //   { plays, players, avgSeconds, timedRuns, fullRuns } — avgSeconds is null
 //   until some row in the window carries a duration, timedRuns is how many do,
-//   and fullRuns is how many of those ran the 5:00 clock all the way out.
+//   and fullRuns is how many of those lasted 5 minutes or more (bonus time
+//   is earnable, so that is "went the distance", not strictly "timed out").
 // Read-only aggregates for website-for-all/admin.html: play volume per
 // recency window plus the top-5 slice of each board, one block per game.
 // Guarded by the shared secret in config.adminPwd — admin.html forwards the
