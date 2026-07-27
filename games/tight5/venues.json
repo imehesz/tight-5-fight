@@ -1,15 +1,15 @@
 {
   "venues": [
-	{ "VenueName": "Rain Dogs", "ExteriorSpritePath": "assets/venues/rain-dogs_ext.png", "InteriorSpritePath": "assets/venues/rain-dogs_int.png" },
-	{ "VenueName": "First Coast Comedy", "ExteriorSpritePath": "assets/venues/first-coast-comedy_ext.png", "InteriorSpritePath": "assets/venues/first-coast-comedy_int.png" },
-	{ "VenueName": "Shanty Town", "ExteriorSpritePath": "assets/venues/shnaty_640x360.png", "InteriorSpritePath": "assets/venues/shanty_int_640x360.png" },
-	{ "VenueName": "Voo Swar", "ExteriorSpritePath": "assets/venues/voo-swar_ext.png", "InteriorSpritePath": "assets/venues/voo-swar_int.png" },
-	{ "VenueName": "Comedy Zone", "ExteriorSpritePath": "assets/venues/zone_ext.png", "InteriorSpritePath": "assets/venues/comedy-zone_int.png" },
-	{ "VenueName": "Waffle House", "ExteriorSpritePath": "assets/venues/waffle-house_ext.png", "InteriorSpritePath": "assets/venues/waffle-house_int.png" },
-	{ "VenueName": "Salt Cave", "ExteriorSpritePath": "assets/venues/salt-cave_ext.png", "InteriorSpritePath": "assets/venues/salt-cave_int.png" },
-	{ "VenueName": "Bonkers", "ExteriorSpritePath": "assets/venues/bonkers_ext.png", "InteriorSpritePath": "assets/venues/bonkers_int.png" },
-	{ "VenueName": "Comedy School", "ExteriorSpritePath": "assets/venues/comedy-school_ext.png", "InteriorSpritePath": "assets/venues/comedy-school_int.png" },
-	{ "VenueName": "Bay Street Grille", "ExteriorSpritePath": "assets/venues/bay-street_ext.png", "InteriorSpritePath": "assets/venues/bay-street_int.png" },
-	{ "VenueName": "Rooftop Comedy Show", "ExteriorSpritePath": "assets/venues/rooftop_ext.png", "InteriorSpritePath": "assets/venues/rooftop_int.png" }
+	{ "VenueId": "rain-dogs", "VenueName": "Rain Dogs", "ExteriorSpritePath": "assets/venues/rain-dogs_ext.png", "InteriorSpritePath": "assets/venues/rain-dogs_int.png" },
+	{ "VenueId": "first-coast-comedy", "VenueName": "First Coast Comedy", "ExteriorSpritePath": "assets/venues/first-coast-comedy_ext.png", "InteriorSpritePath": "assets/venues/first-coast-comedy_int.png" },
+	{ "VenueId": "shanty-town", "VenueName": "Shanty Town", "ExteriorSpritePath": "assets/venues/shnaty_640x360.png", "InteriorSpritePath": "assets/venues/shanty_int_640x360.png" },
+	{ "VenueId": "voo-swar", "VenueName": "Voo Swar", "ExteriorSpritePath": "assets/venues/voo-swar_ext.png", "InteriorSpritePath": "assets/venues/voo-swar_int.png" },
+	{ "VenueId": "comedy-zone", "VenueName": "Comedy Zone", "ExteriorSpritePath": "assets/venues/zone_ext.png", "InteriorSpritePath": "assets/venues/comedy-zone_int.png" },
+	{ "VenueId": "waffle-house", "VenueName": "Waffle House", "ExteriorSpritePath": "assets/venues/waffle-house_ext.png", "InteriorSpritePath": "assets/venues/waffle-house_int.png" },
+	{ "VenueId": "salt-cave", "VenueName": "Salt Cave", "ExteriorSpritePath": "assets/venues/salt-cave_ext.png", "InteriorSpritePath": "assets/venues/salt-cave_int.png" },
+	{ "VenueId": "bonkers", "VenueName": "Bonkers", "ExteriorSpritePath": "assets/venues/bonkers_ext.png", "InteriorSpritePath": "assets/venues/bonkers_int.png" },
+	{ "VenueId": "comedy-school", "VenueName": "Comedy School", "ExteriorSpritePath": "assets/venues/comedy-school_ext.png", "InteriorSpritePath": "assets/venues/comedy-school_int.png" },
+	{ "VenueId": "bay-street-grille", "VenueName": "Bay Street Grille", "ExteriorSpritePath": "assets/venues/bay-street_ext.png", "InteriorSpritePath": "assets/venues/bay-street_int.png" },
+	{ "VenueId": "rooftop-comedy-show", "VenueName": "Rooftop Comedy Show", "ExteriorSpritePath": "assets/venues/rooftop_ext.png", "InteriorSpritePath": "assets/venues/rooftop_int.png" }
   ]
 }

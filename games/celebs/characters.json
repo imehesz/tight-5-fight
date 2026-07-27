@@ -1,6 +1,7 @@
 {
   "characters": [
     {
+      "CharacterId": "adam-sandler",
       "CharacterName": "Adam Sandler",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -9,6 +10,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "amy-schumer",
       "CharacterName": "Amy Schumer",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -17,6 +19,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "annie-lederman",
       "CharacterName": "Annie Lederman",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -25,6 +28,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "anthony-jeselnik",
       "CharacterName": "Anthony Jeselnik",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -33,6 +37,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "ari-shaffir",
       "CharacterName": "Ari Shaffir",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -41,6 +46,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "ben-palmer",
       "CharacterName": "Ben Palmer",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -49,6 +55,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "bernie-mac",
       "CharacterName": "Bernie Mac",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -57,6 +64,7 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "bert-kreischer",
       "CharacterName": "Bert Kreischer",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -65,6 +73,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "beth-stelling",
       "CharacterName": "Beth Stelling",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -73,6 +82,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "brian-regan",
       "CharacterName": "Brian Regan",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -81,6 +91,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "dane-cook",
       "CharacterName": "Dane Cook",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -89,6 +100,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "dave-attell",
       "CharacterName": "Dave Attell",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -97,6 +109,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "dave-chappelle",
       "CharacterName": "Dave Chappelle",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -105,6 +118,7 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "doug-stanhope",
       "CharacterName": "Doug Stanhope",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -113,6 +127,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "dusty-slay",
       "CharacterName": "Dusty Slay",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -121,6 +136,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "eddie-murphy",
       "CharacterName": "Eddie Murphy",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -129,6 +145,7 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "eddie-pepitone",
       "CharacterName": "Eddie Pepitone",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -137,6 +154,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "emo-philips",
       "CharacterName": "Emo Philips",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -145,6 +163,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "gary-gulman",
       "CharacterName": "Gary Gulman",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -153,6 +172,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "george-carlin",
       "CharacterName": "George Carlin",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -161,6 +181,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "jeff-ross",
       "CharacterName": "Jeff Ross",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -169,6 +190,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "jerry-seinfeld",
       "CharacterName": "Jerry Seinfeld",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -177,6 +199,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "jim-gaffigan",
       "CharacterName": "Jim Gaffigan",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -185,6 +208,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "joe-rogan",
       "CharacterName": "Joe Rogan",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -193,6 +217,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "joel-byars",
       "CharacterName": "Joel Byars",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -201,6 +226,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "kevin-hart",
       "CharacterName": "Kevin Hart",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -209,6 +235,7 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "kyle-kanine",
       "CharacterName": "Kyle Kanine",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -217,6 +244,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "lenny-bruce",
       "CharacterName": "Lenny Bruce",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -225,6 +253,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "mark-normand",
       "CharacterName": "Mark Normand",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -233,6 +262,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "michelle-wolf",
       "CharacterName": "Michelle Wolf",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -241,6 +271,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "nate-bargatze",
       "CharacterName": "Nate Bargatze",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -249,6 +280,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "nikki-glaser",
       "CharacterName": "Nikki Glaser",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -257,6 +289,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "norm-macdonald",
       "CharacterName": "Norm Macdonald",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -265,6 +298,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "richard-pryor",
       "CharacterName": "Richard Pryor",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -273,6 +307,7 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "rodney-dangerfield",
       "CharacterName": "Rodney Dangerfield",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -281,6 +316,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "sam-morril",
       "CharacterName": "Sam Morril",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -289,6 +325,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "sebastian-maniscalco",
       "CharacterName": "Sebastian Maniscalco",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -297,6 +334,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "shane-gillis",
       "CharacterName": "Shane Gillis",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -305,6 +343,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "taylor-tomlinson",
       "CharacterName": "Taylor Tomlinson",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -313,6 +352,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "todd-berry",
       "CharacterName": "Todd Berry",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -321,6 +361,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "tom-segura",
       "CharacterName": "Tom Segura",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -329,6 +370,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "tony-hinchcliffe",
       "CharacterName": "Tony Hinchcliffe",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -337,6 +379,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "trevor-noah",
       "CharacterName": "Trevor Noah",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -345,6 +388,7 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "wanda-sykes",
       "CharacterName": "Wanda Sykes",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -353,6 +397,7 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "zoltan-kaszas",
       "CharacterName": "Zoltan Kaszas",
       "HeadScale": 1,
       "HeadOffsetY": 0,

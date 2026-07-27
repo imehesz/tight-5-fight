@@ -33,7 +33,8 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 3. **Drop in art** under `games/<newid>/assets/…` (heads, venues, backgrounds,
    optional boss/prop/audio). Keep paths matching what your JSON references.
 4. **Fill in `characters.json` and `venues.json`** — sprite paths relative to the
-   game folder (e.g. `assets/heads/foo.png`).
+   game folder (e.g. `assets/heads/foo.png`). Give every entry a `CharacterId` /
+   `VenueId` (see below) — those, not the names, are what the leaderboard will key on.
 5. **Set the destination** in `games/<newid>/deploy.json`.
 6. **Test locally:** set `data/active_game.json` to `{ "active": "<newid>" }`, open the
    project in Godot (this imports your new art) and press Play.
@@ -52,6 +53,37 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 | `audio.musicMain` / `.musicVenue` | optional | no music (paths are **extensionless**) |
 | `overrides.bodyMale` / `.bodyFemale` | optional | `shared/assets/bodies/body_{male,female}.png` |
 | `planeBanners` (array of sentences) | optional | no banner-plane flybys on the street |
+
+### `CharacterId` / `VenueId` — the permanent handle
+
+Every entry carries a machine-readable id alongside its display name:
+
+```json
+{ "CharacterId": "marcus-crespo", "CharacterName": "Marcus Crespo", ... }
+```
+
+**The id never changes. The name is free to.** That's the entire point: when a
+comedian asks you to fix the spelling of their name or start going by something
+else, you edit `CharacterName` and every leaderboard row they own follows along,
+because the database is keyed on the id.
+
+Rules:
+
+- **Lowercase, digits, hyphens.** Seeded from the name (`Marcus Crespo` →
+  `marcus-crespo`), but that's a starting convention, not a rule the code enforces.
+- **Unique within one game's file.** Ids only have to be unique inside
+  `games/<id>/characters.json` — every leaderboard row is already scoped by game,
+  so JAX and DAYTONA can both have a `marcus-crespo`. Characters and venues are
+  separate namespaces too; they can't collide with each other.
+- **Same person across two cities → same id.** Not required, but do it anyway.
+  It costs nothing now and it's the only thing that makes a combined
+  career-across-all-editions view possible later.
+- **Never recycle an id** for a different person. The old rows would silently
+  merge into the new one.
+
+Note the id is currently **inert** — the client still reports names to the
+leaderboard and the server still validates against names. Adding the field
+breaks nothing; switching the pipeline over to it is a separate step.
 
 ### Benching a comedian or a venue (`characters.json` / `venues.json`)
 

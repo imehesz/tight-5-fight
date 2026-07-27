@@ -1,6 +1,6 @@
 {
   "venues": [
-    { "VenueName": "The Placeholder Club",
+    { "VenueId": "the-placeholder-club", "VenueName": "The Placeholder Club",
       "ExteriorSpritePath": "assets/venues/club_ext.png",
       "InteriorSpritePath": "assets/venues/club_int.png" }
   ]

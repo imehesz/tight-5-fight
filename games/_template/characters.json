@@ -1,6 +1,7 @@
 {
   "characters": [
     {
+      "CharacterId": "hero-one",
       "CharacterName": "Hero One",
       "HeadScale": 1,
       "HeadOffsetY": 0,
@@ -9,6 +10,7 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "hero-two",
       "CharacterName": "Hero Two",
       "HeadScale": 1,
       "HeadOffsetY": 0,
