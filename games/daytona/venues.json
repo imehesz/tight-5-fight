@@ -35,6 +35,12 @@
       "VenueName": "Cinematique",
       "ExteriorSpritePath": "assets/venues/cinematique_ext.png",
       "InteriorSpritePath": "assets/venues/cinematique_int.png" 
+    },
+    { 
+      "VenueId": "the-club",
+      "VenueName": "The Club",
+      "ExteriorSpritePath": "assets/venues/the-club_ext.png",
+      "InteriorSpritePath": "assets/venues/the-club_int.png" 
     }
   ]
 }

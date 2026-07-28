@@ -28,6 +28,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "cristy-b",
+      "CharacterName": "Cristy B",
+      "HeadScale": 1,
+      "HeadOffsetY": 3,
+      "HeadSpritePath": "assets/heads/cristy-b.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "connor-bates",
       "CharacterName": "Connor Bates",
       "HeadScale": 1,
@@ -60,6 +69,15 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/danny-esposito.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "geronimo-vela",
+      "CharacterName": "Geronimo Vela",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/geronimo-vela.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
@@ -115,6 +133,15 @@
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/matt-nagin.png",
       "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "michelle-keith",
+      "CharacterName": "Michelle Keith",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/michelle-keith.png",
+      "BodyType": "F",
       "SkinColor": "#e9c098"
     },
     {
