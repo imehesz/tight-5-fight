@@ -1,0 +1,34 @@
+{
+  "id": "orlando",
+  "title": "Tight 5 FIGHT! — Orlando Edition",
+  "menuTitle": "TIGHT 5 FIGHT!",
+
+  "characters": "characters.json",
+  "venues": "venues.json",
+
+  "backgrounds": {
+    "splash":     "assets/backgrounds/splash.png",
+    "menu":       "assets/backgrounds/menu_bg.png",
+    "streetTile": "assets/backgrounds/street_tile.png"
+  },
+
+  "audio": {
+    "musicMain":  "assets/audio/song",
+    "musicVenue": "assets/audio/song_venue"
+  },
+
+  "projectileSprite": "assets/misc/bottle.png",
+  
+  "planeBanners": [
+    "WHERE CAN I PARK?",
+    "WELCOME TO ORLANDO!",
+    "WHAT IS THAT BUILDING ON I-4!?",
+    "TOURISTS!",
+    "TOLLS!",
+    "THIS IS MAGICAL!"
+  ],
+  
+  "boss": {
+    "headSprite": "assets/misc/boss_head.png"
+  }
+}

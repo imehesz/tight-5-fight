@@ -14,7 +14,7 @@
     {
       "sponsorId": "psst-pod",
       "sponsorName": "Psst! Did You Hear That!?",
-      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "inMarkets": ["tight5", "daytona", "celebs", "killers", "orlando"],
       "dateStart": "2026-01-01",
       "dateEnd": "2026-12-31",
       "imgLink": "ads/sponsor_psst-pod.png",
@@ -23,9 +23,8 @@
     },
     {
       "sponsorId": "bizzbuzzcomics",
-      "isDisabled": true,
       "sponsorName": "BizzBuzzComics.com",
-      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "inMarkets": ["tight5", "daytona", "celebs", "killers", "orlando"],
       "dateStart": "2026-01-01",
       "dateEnd": "2026-12-31",
       "imgLink": "ads/sponsor_bizzbuzzcomics.png",
@@ -46,7 +45,7 @@
     {
       "sponsorId": "comedy-super-friends",
       "sponsorName": "Comedy Super Friends",
-      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "inMarkets": ["tight5", "daytona", "celebs", "killers", "orlando"],
       "dateStart": "2026-01-01",
       "dateEnd": "2026-12-31",
       "imgLink": "ads/sponsor_comedy-super-friends.png",
@@ -56,12 +55,24 @@
     {
       "sponsorId": "first-coast",
       "sponsorName": "First Coast Comedy",
-      "inMarkets": ["tight5", "daytona", "celebs", "killers"],
+      "inMarkets": ["tight5", "daytona", "celebs", "killers", "orlando"],
       "dateStart": "2026-01-01",
       "dateEnd": "2026-12-31",
       "imgLink": "ads/sponsor_firstcoast.png",
       "linkTo": "https://firstcoastcomedy.com/",
       "weight": 20
+    },
+    {
+      "sponsorId": "my-show-my-life",
+      "sponsorName": "My Show Also My Life",
+      "inMarkets": ["tight5", "daytona", "celebs", "killers", "orlando"],
+      "dateStart": "2026-01-01",
+      "dateEnd": "2026-12-31",
+      "imgLink": "ads/sponsor_my-show-my-life_med.png",
+      "linkTo": "https://www.youtube.com/@loremipsumerian",
+      "weight": 20
     }
+  
+
   ]
 }

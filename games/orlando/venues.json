@@ -1,0 +1,29 @@
+{
+  "venues": [
+    { 
+      "VenueId": "waffle-house",
+      "VenueName": "Waffle House",
+      "ExteriorSpritePath": "assets/venues/waffle-house_ext.png",
+      "InteriorSpritePath": "assets/venues/waffle-house_int.png" 
+    },
+    { 
+      "VenueId": "bonkers",
+      "VenueName": "Bonkers",
+      "ExteriorSpritePath": "assets/venues/bonkers_ext.png",
+      "InteriorSpritePath": "assets/venues/bonkers_int.png" 
+    },
+    { 
+      "VenueId": "comedy-school",
+      "VenueName": "Bonkers",
+      "ExteriorSpritePath": "assets/venues/comedy-school_ext.png",
+      "InteriorSpritePath": "assets/venues/comedy-school_int.png" 
+    },
+    { 
+      "VenueId": "tin-roof",
+      "VenueName": "Tin Roof",
+      "ExteriorSpritePath": "assets/venues/tin-roof_ext.png",
+      "InteriorSpritePath": "assets/venues/tin-roof_int.png" 
+    }
+
+  ]
+}
