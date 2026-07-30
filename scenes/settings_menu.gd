@@ -120,7 +120,7 @@ func _refresh_preview() -> void:
 		_dancer.set_character(GameState.selected_character_data())
 
 
-## The player's outfit color: eight swatches, 4 per row. Picking one saves
+## The player's outfit color: sixteen swatches, 4 per row. Picking one saves
 ## immediately, and is worn on whichever comedian is selected.
 func _outfit_picker() -> GridContainer:
 	var grid := GridContainer.new()
@@ -134,6 +134,7 @@ func _outfit_picker() -> GridContainer:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(52, 26)
 		b.tooltip_text = String(CharacterFactory.OUTFITS[i]["name"])
+		_add_gradient_face(b, i)
 		b.pressed.connect(func():
 			GameState.play_sfx("click")
 			GameState.set_outfit(i)
@@ -143,6 +144,34 @@ func _outfit_picker() -> GridContainer:
 		buttons.append(b)
 	_paint_swatches(buttons)
 	return grid
+
+
+## Gradient outfits get their fade painted on the swatch, so the picker shows
+## what the shirt will actually look like. Flat outfits are left to the
+## stylebox below. Inset 3px so the selected ring still reads over it.
+func _add_gradient_face(b: Button, outfit: int) -> void:
+	var top := CharacterFactory.outfit_color(outfit)
+	var bottom := CharacterFactory.outfit_color2(outfit)
+	if top.is_equal_approx(bottom):
+		return
+	var g := Gradient.new()
+	g.set_color(0, top)
+	g.set_color(1, bottom)
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill_from = Vector2(0, 0)
+	tex.fill_to = Vector2(0, 1)
+	var face := TextureRect.new()
+	face.texture = tex
+	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	face.stretch_mode = TextureRect.STRETCH_SCALE
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.set_anchors_preset(Control.PRESET_FULL_RECT)
+	face.offset_left = 3
+	face.offset_top = 3
+	face.offset_right = -3
+	face.offset_bottom = -3
+	b.add_child(face)
 
 
 func _paint_swatches(buttons: Array[Button]) -> void:

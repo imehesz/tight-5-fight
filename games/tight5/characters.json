@@ -337,6 +337,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "ian-mcclenton",
+      "CharacterName": "Ian C. McClenton",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ian-mcclenton.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
       "CharacterId": "imre",
       "CharacterName": "Imre",
       "HeadScale": 1,
@@ -406,6 +415,15 @@
       "HeadOffsetY": 2,
       "HeadSpritePath": "assets/heads/jpaw.png",
       "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "kaleb-aby",
+      "CharacterName": "Kaleb Aby",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/kaleb-aby.png",
+      "BodyType": "M",
       "SkinColor": "#e9c098"
     },
     {
@@ -490,6 +508,15 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "mook-thaspook",
+      "CharacterName": "Mook Thaspook",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mook-thaspook.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "nan-cardoso",
       "CharacterName": "Nan Cardoso",
       "HeadScale": 1,
@@ -531,6 +558,15 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/richardaragon.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "ricky-pernice",
+      "CharacterName": "Ricky Pernice",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ricky-pernice.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
