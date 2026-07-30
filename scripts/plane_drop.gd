@@ -35,7 +35,7 @@ const CHUTE_TEX := "res://shared/assets/parts/t5f-good-set-box_parachute.png"
 const BOX_TEX := "res://shared/assets/parts/t5f-good-set-box_no-parachute.png"
 const BEER_CHUTE_TEX := "res://shared/assets/parts/t5f-free-beer-box_parachute.png"
 const BEER_BOX_TEX := "res://shared/assets/parts/t5f-free-beer-box_no-parachute.png"
-const WHISTLE := "res://shared/assets/sfx/sfx-bomb-drop.wav"
+const WHISTLE := "res://shared/assets/sfx/sfx-bomb-drop.ogg"
 
 var kind := "bomb"  # "bomb" | "box" | "beer", set by the plane before add_child
 var dir := 1        # travel direction inherited from the plane
