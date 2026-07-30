@@ -19,11 +19,40 @@
       "InteriorSpritePath": "assets/venues/comedy-school_int.png" 
     },
     { 
+      "VenueId": "the-building",
+      "VenueName": "The Building",
+      "ExteriorSpritePath": "assets/venues/eyesore_ext.png",
+      "InteriorSpritePath": "assets/venues/eyesore_int.png" 
+    },
+    { 
+      "VenueId": "funny-bone",
+      "VenueName": "Funny Bone",
+      "ExteriorSpritePath": "assets/venues/funny-bone_ext.png",
+      "InteriorSpritePath": "assets/venues/funny-bone_int.png" 
+    },
+    { 
+      "VenueId": "bull-n-bush",
+      "VenueName": "Bull & Bush",
+      "ExteriorSpritePath": "assets/venues/bull-n-bush_ext.png",
+      "InteriorSpritePath": "assets/venues/bull-n-bush_int.png" 
+    },
+    { 
+      "VenueId": "grumpys-undergound",
+      "VenueName": "Grumpy's Underground",
+      "ExteriorSpritePath": "assets/venues/grumpys_ext.png",
+      "InteriorSpritePath": "assets/venues/grumpys_int.png" 
+    },
+    { 
+      "VenueId": "laugh-out-lounge",
+      "VenueName": "Laugh Out Lounge",
+      "ExteriorSpritePath": "assets/venues/laugh-out-lounge_ext.png",
+      "InteriorSpritePath": "assets/venues/laugh-out-lounge_int.png" 
+    },
+    { 
       "VenueId": "tin-roof",
       "VenueName": "Tin Roof",
       "ExteriorSpritePath": "assets/venues/tin-roof_ext.png",
       "InteriorSpritePath": "assets/venues/tin-roof_int.png" 
     }
-
   ]
 }

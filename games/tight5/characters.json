@@ -836,6 +836,15 @@
       "SkinColor": "#329622"
     },
     {
+      "CharacterId": "rex",
+      "CharacterName": "Rex",
+      "HeadScale": 0.85,
+      "HeadOffsetY": 4,
+      "HeadSpritePath": "assets/heads/rex.png",
+      "BodyType": "M",
+      "SkinColor": "#fc7e0f"
+    },
+    {
       "CharacterId": "officer",
       "CharacterName": "Officer",
       "HeadScale": 1,

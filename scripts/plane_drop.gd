@@ -26,7 +26,11 @@ const EFFECT_TIME := 4.0
 const BOX_REST := 1.5
 const BOX_BLINK := 1.5
 const BOX_POINTS := 50
-const BOOM_RADIUS := 90.0
+## Generous on purpose. The bomb is aimed at a camera-local point at release
+## (plane_flyby._drop_off) and never leads the player, so during the ~0.9s fall
+## a running player covers ~126px and walks clean out of a tight blast. This is
+## the stopgap; the real fix is leading the player's velocity at release.
+const BOOM_RADIUS := 130.0
 const BOMB_DAMAGE_PCT := 0.15  # of the player's max health
 
 const BOMB_TEX := "res://shared/assets/parts/t5f-bomb_med.png"
