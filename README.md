@@ -57,6 +57,34 @@ visible and drive the same input actions (mouse clicks work on them too, via
   Paste the 640x460 ad into `website-for-all/sponsors/ads/`, add an entry to
   `sponsors.json`, rsync the website. No game redeploy.
 
+## Melee weapons
+
+The player's melee weapon (SETTINGS → WEAPONS) is cosmetic — every one of them
+swings with the mic stand's damage, reach and cooldown, so nothing on the
+global leaderboard turns on which one you picked. The pick is saved by id in
+the per-game settings file and carried on the player's back in the run.
+
+Adding one:
+
+1. Generate the art on flat white — vertical, striking end up, grip at the
+   bottom, filling the frame. The prompts used for the shipped set are kept in
+   `tools/higgsfield_jobs/weapon_*.json` (Nano Banana 2, 9:16, 1k).
+2. `python3 tools/normalize_weapon.py raw.png shared/assets/weapons/weapon_<id>.png`
+   — cuts the background out and lands the art on the shared 302x900 canvas
+   that the swing and carry code sizes everything from. Add `--rotate180` for
+   anything swung by the end that is normally drawn at the bottom (the guitars
+   are held by the neck, so their body has to end up at the top).
+3. Add a row to `WEAPONS` in `scripts/weapons.gd`. Two fields to think about:
+   - `grip` — the texture-space y where the player's hand closes, which is what
+     keeps a sword held under its crossguard and a bat down by its knob.
+   - `grip_up` — `true` for anything worn handle-up on the back so it could be
+     drawn (swords, bat, chainsaw, shovel, cue). `false` for the mic stand and
+     the chain, the two that really do hang the other way up. Affects the
+     carried sprite only, never the swing.
+
+The picker lists only weapons whose art actually imported, and the rack
+scrolls, so the grid never needs touching as the list grows.
+
 ## Placeholder art
 
 All sprites in `assets/gen/` are generated placeholders. Regenerate with:

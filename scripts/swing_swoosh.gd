@@ -1,17 +1,20 @@
 class_name SwingSwoosh
 extends Node2D
-## Overhead mic-stand swing effect: the stand sweeping top-to-forward around
-## the shoulder, plus a crescent swoosh arc with trailing follow-through
-## lines. (Between swings the player carries the stand on their back — that
+## Overhead melee swing effect: the equipped weapon sweeping top-to-forward
+## around the shoulder, plus a crescent swoosh arc with trailing follow-through
+## lines. (Between swings the player carries the weapon on their back — that
 ## sprite lives in player.gd and hides while this one plays.)
 ## Fades out over the swing and frees itself. Added as a child of the
-## player, so it inherits body scale and moves with them; set `facing`
-## before add_child to mirror everything.
+## player, so it inherits body scale and moves with them; set `facing` and
+## `weapon` before add_child.
 
 var facing := 1
+## Index into Weapons.WEAPONS. Only the art changes with it — reach, damage
+## and duration are the same whatever the player picked.
+var weapon := Weapons.DEFAULT
 var duration := 0.2
 var _t := 0.0
-var _stand: Sprite2D
+var _weapon_sprite: Sprite2D
 
 ## Pivot sits at the shoulder; radius roughly matches the swing hitbox reach
 ## (local coords, before the fighter's BODY_SCALE).
@@ -25,29 +28,30 @@ const SWEEP_PORTION := 0.6
 const TRAIL := 1.1               # radians of arc trailing behind the edge
 const COLOR := Color(1.0, 1.0, 0.88)
 
-const STAND_TEX := "res://shared/assets/parts/weapon_mic-in-stand_small.png"
-## Texture-space y of the hand grip, just above the base plate (mic head is
-## the striking tip at y 0). Grip→tip is scaled to STAND_LEN local px so the
-## mic head lands right at the swoosh arc.
-const GRIP_Y := 780.0
-const STAND_LEN := 52.0
-## Stand stays solid through this fraction of the swing, then fades fast.
-const STAND_SOLID := 0.7
+## Grip→tip is scaled to this many local px, whatever the weapon, so the
+## striking tip lands right at the swoosh arc — a sword and a pool cue reach
+## exactly as far as the mic stand always did (Weapons.grip_y supplies the
+## texture-space y of the hand for each one).
+const WEAPON_LEN := 52.0
+## Weapon stays solid through this fraction of the swing, then fades fast.
+const WEAPON_SOLID := 0.7
 
 
 func _ready() -> void:
 	scale.x = float(facing)
 	# Guarded like every optional asset: no import yet = swoosh only.
-	if ResourceLoader.exists(STAND_TEX):
-		_stand = Sprite2D.new()
-		_stand.texture = load(STAND_TEX)
-		var s := STAND_LEN / GRIP_Y
-		_stand.scale = Vector2(s, s)
+	var tex := Weapons.texture(weapon)
+	if tex:
+		_weapon_sprite = Sprite2D.new()
+		_weapon_sprite.texture = tex
+		var grip := Weapons.grip_y(weapon)
+		var s := WEAPON_LEN / grip
+		_weapon_sprite.scale = Vector2(s, s)
 		# Put the grip on the pivot: offset is pre-rotation local space.
-		_stand.offset = Vector2(0, _stand.texture.get_height() / 2.0 - GRIP_Y)
-		_stand.position = CENTER
-		_stand.rotation = _edge(0.0) + PI / 2.0
-		add_child(_stand)
+		_weapon_sprite.offset = Vector2(0, tex.get_height() / 2.0 - grip)
+		_weapon_sprite.position = CENTER
+		_weapon_sprite.rotation = _edge(0.0) + PI / 2.0
+		add_child(_weapon_sprite)
 
 
 func _process(delta: float) -> void:
@@ -56,11 +60,11 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 	var p := _t / duration
-	if _stand:
+	if _weapon_sprite:
 		# Texture points up at rotation 0, so the sweep angle needs +90°.
-		_stand.rotation = _edge(p) + PI / 2.0
-		_stand.modulate.a = 1.0 if p < STAND_SOLID \
-				else (1.0 - p) / (1.0 - STAND_SOLID)
+		_weapon_sprite.rotation = _edge(p) + PI / 2.0
+		_weapon_sprite.modulate.a = 1.0 if p < WEAPON_SOLID \
+				else (1.0 - p) / (1.0 - WEAPON_SOLID)
 	queue_redraw()
 
 

@@ -8,24 +8,26 @@ signal interact_pressed
 ## Baseline walk speed; plane drops nudge it via apply_speed_effect().
 const BASE_SPEED := 140.0
 
-## Mic-stand swing: an overhead melee hit with double the punch/kick reach,
-## gated by a cooldown (punch/kick have none). Damage is kick +15%. During
-## the swing SwingSwoosh draws the stand + arc; between swings the stand
-## rides on the player's back (see CARRY_* below).
+## Melee swing: an overhead hit with double the punch/kick reach, gated by a
+## cooldown (punch/kick have none). Damage is kick +15%. During the swing
+## SwingSwoosh draws the weapon + arc; between swings the weapon rides on the
+## player's back (see CARRY_* below). Which weapon is pure cosmetics — these
+## numbers are the same for the mic stand and the chainsaw alike.
 const SWING_DAMAGE := KICK_DAMAGE * 1.15
 const SWING_COOLDOWN := 1.5
 const SWING_TIME := 0.25
 ## Punch hitbox reaches ~29px from center (18 + 22/2); this box ends at ~58.
 const SWING_BOX_SIZE := Vector2(48, 20)
 const SWING_BOX_X := 34.0
-## The stand rides on the player's back between swings: slung diagonally,
-## mic head poking up behind the shoulder, drawn behind the body sprite.
+## The weapon rides on the player's back between swings: slung diagonally,
+## striking end poking up behind the shoulder, drawn behind the body sprite.
+## Every weapon sprite shares one canvas (see Weapons), so one length fits all.
 const CARRY_POS := Vector2(-5, -26)  # sprite center, x mirrors with facing
 const CARRY_TILT := 0.4              # radians off vertical, toward the back
-const CARRY_LEN := 47.6              # full stand height in local px
-## What holds that stand up: a leather strap over the back-side shoulder,
+const CARRY_LEN := 47.6              # full weapon height in local px
+## What holds that weapon up: a leather strap over the back-side shoulder,
 ## running down across the chest to the front-side hip — so it leans the same
-## way as the stand behind it, and mirrors when the player turns around.
+## way as the weapon behind it, and mirrors when the player turns around.
 ## Endpoints are relative to the animation's neck anchor (CharacterFactory
 ## .HEAD_OFFSETS), which is what makes the strap ride the torso through the
 ## walk bob, the punch lean and the hit recoil without per-frame tuning. X
@@ -50,7 +52,7 @@ var _speed_timer := 0.0
 var _swing_lock := 0.0
 var _swing_cooldown := 0.0
 var _swing_box: Area2D
-var _carried_stand: Sprite2D
+var _carried_weapon: Sprite2D
 var _chest_strap: Line2D
 
 
@@ -67,28 +69,31 @@ func _ready() -> void:
 	# Lets in-flight boss bottles find the player for the close-call check.
 	add_to_group("player")
 	_build_swing_box()
-	_build_carried_stand()
+	_build_carried_weapon()
 	_build_chest_strap()
 
 
-## The between-swings stand on the back. Child index 0 keeps it behind the
+## The between-swings weapon on the back. Child index 0 keeps it behind the
 ## body/head sprites without z_index (negative z would drop it behind the
 ## scene background, which draws at z 0).
-func _build_carried_stand() -> void:
-	if not ResourceLoader.exists(SwingSwoosh.STAND_TEX):
+func _build_carried_weapon() -> void:
+	var tex := Weapons.texture(GameState.weapon)
+	if tex == null:
 		return
-	_carried_stand = Sprite2D.new()
-	_carried_stand.texture = load(SwingSwoosh.STAND_TEX)
-	var s := CARRY_LEN / _carried_stand.texture.get_height()
-	_carried_stand.scale = Vector2(s, s)
-	_carried_stand.position = CARRY_POS
-	add_child(_carried_stand)
-	move_child(_carried_stand, 0)
+	_carried_weapon = Sprite2D.new()
+	_carried_weapon.texture = tex
+	# Off the full canvas height, not the art inside it, so every weapon hangs
+	# the same length on the back no matter what its silhouette is.
+	var s := CARRY_LEN / tex.get_height()
+	_carried_weapon.scale = Vector2(s, s)
+	_carried_weapon.position = CARRY_POS
+	add_child(_carried_weapon)
+	move_child(_carried_weapon, 0)
 
 
-## The strap sits in front of the body sprite (the stand behind it), so it
+## The strap sits in front of the body sprite (the weapon behind it), so it
 ## reads as worn rather than floating. Placed by index for the same reason
-## _build_carried_stand() uses index 0: negative z_index would sink it behind
+## _build_carried_weapon() uses index 0: negative z_index would sink it behind
 ## the scene background.
 func _build_chest_strap() -> void:
 	_chest_strap = Line2D.new()
@@ -105,15 +110,19 @@ func _build_chest_strap() -> void:
 
 func _process(delta: float) -> void:
 	super(delta)
-	if _carried_stand:
-		# Hidden while the SwingSwoosh draws its own stand, and on defeat
-		# (a floating diagonal stand over a lying body looks wrong).
-		_carried_stand.visible = _swing_lock <= 0.0 and state != FState.DEAD
-		_carried_stand.position.x = CARRY_POS.x * facing
-		_carried_stand.flip_h = facing < 0
-		_carried_stand.rotation = -CARRY_TILT * facing
+	if _carried_weapon:
+		# Hidden while the SwingSwoosh draws its own copy, and on defeat
+		# (a floating diagonal weapon over a lying body looks wrong).
+		_carried_weapon.visible = _swing_lock <= 0.0 and state != FState.DEAD
+		_carried_weapon.position.x = CARRY_POS.x * facing
+		_carried_weapon.flip_h = facing < 0
+		# The half-turn for a handle-up weapon rides on top of the tilt, so it
+		# stays on the strap's diagonal and only swaps which end clears the
+		# shoulder. Mirrors correctly as-is: negating the tilt and adding PI is
+		# the same angle as negating the whole thing, one turn around.
+		_carried_weapon.rotation = -CARRY_TILT * facing + Weapons.carry_spin(GameState.weapon)
 	if _chest_strap:
-		# Worn through the swing (the stand leaves, the strap stays), dropped
+		# Worn through the swing (the weapon leaves, the strap stays), dropped
 		# only on defeat — the defeated frame lies the body down sideways, so
 		# a chest-height diagonal would hang in the air.
 		_chest_strap.visible = state != FState.DEAD
@@ -128,7 +137,7 @@ func _process(delta: float) -> void:
 			])
 
 
-## Separate hitbox for the mic-stand swing so the shared punch/kick hitbox
+## Separate hitbox for the melee swing so the shared punch/kick hitbox
 ## (and everyone's hurtboxes) keep their tuned sizes untouched.
 func _build_swing_box() -> void:
 	_swing_box = Area2D.new()
@@ -227,7 +236,7 @@ func _try_throw() -> bool:
 	return true
 
 
-## Overhead mic-stand swing. Returns true if it started. Like the throw,
+## Overhead weapon swing. Returns true if it started. Like the throw,
 ## state stays IDLE (so the fist hitbox never arms) and a lock timer holds
 ## the player in place for the SWING_TIME.
 func _try_swing() -> bool:
@@ -245,6 +254,7 @@ func _try_swing() -> bool:
 	GameState.play_sfx("swing")  # borrows the throw sample; see SFX_ALIASES
 	var sw := SwingSwoosh.new()
 	sw.facing = facing
+	sw.weapon = GameState.weapon
 	sw.duration = SWING_TIME
 	add_child(sw)
 	return true

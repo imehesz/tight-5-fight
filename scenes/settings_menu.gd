@@ -1,22 +1,55 @@
 extends MenuBase
-## Settings: Music and SFX volume sliders, plus the player's outfit color,
-## previewed live on their comedian (all persisted per game — see
-## GameState.SETTINGS_PATH).
+## Settings, in three tabs down the left — SOUNDS (music/SFX volume), COLORS
+## (outfit) and WEAPONS (the melee weapon carried on the player's back) — with
+## the player's comedian previewed on the right, wearing the outfit and
+## carrying the weapon exactly as they will in the run. Everything here is
+## persisted per game the moment it is picked (see GameState.SETTINGS_PATH).
 ## The SFX slider plays a hurt sound at the new volume so changes are audible.
+##
+## Tabs borrow the scoreboard's look and its rule: all three panels live in one
+## fixed-size box, so switching tabs never moves the screen around.
+
+enum Tab { SOUNDS, COLORS, WEAPONS }
 
 ## Matches the character select preview, so the comedian is framed and sized
 ## the same on both screens.
 const PREVIEW_SIZE := Vector2(150, 170)
 const PREVIEW_SCALE := Fighter.BODY_SCALE * 1.5
+## Tall enough for the roomiest panel (the 4x4 outfit grid) and for two of the
+## weapon rack's three rows — the rest of the rack scrolls.
+const PANEL_SIZE := Vector2(240, 190)
+const TAB_SIZE := Vector2(76, 28)
+const TAB_GAP := 6
+const TAB_ON := Color(1.0, 0.85, 0.4)
+const TAB_OFF := Color(0.6, 0.6, 0.68)
+## Weapon rack: a 3x3 rack of cards like the roster's, padded with blanks so
+## the grid keeps its shape, and scrolling once there are more than nine.
+const RACK_COLUMNS := 3
+const RACK_SLOTS := 9
+const CARD_SIZE := Vector2(64, 84)
+const GOLD := Color(1.0, 0.85, 0.4)
+## Weapon cards sit on near-black rather than the faint white wash the outfit
+## swatches use: these are dark, thin, detailed sprites, and over the lit street
+## backdrop a translucent card left half of them unreadable. The equipped one
+## is a touch lighter so it reads as raised even before you spot its gold ring.
+const CARD_BG := Color(0.02, 0.02, 0.035, 0.9)
+const CARD_BG_ON := Color(0.06, 0.06, 0.1, 0.96)
+const CARD_BORDER := Color(0.45, 0.45, 0.52, 0.35)
 
 var _feedback_cooldown := 0.0
 var _dancer: Dancer
+var _weapon_label: Label
+var _tab := Tab.SOUNDS
+var _tab_buttons := {}
+var _panels := {}
+var _weapon_cards: Array[Button] = []
+var _rack_scroll: ScrollContainer
 
 
 func _ready() -> void:
 	var box := build_backdrop()
 	add_title(box, "SETTINGS", 18)
-	add_spacer(box, 10)
+	add_spacer(box, 6)
 
 	# Controls on the left, comedian on the right — the character select layout.
 	var row := HBoxContainer.new()
@@ -25,16 +58,14 @@ func _ready() -> void:
 	box.add_child(row)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 8)
+	col.add_theme_constant_override("separation", 6)
 	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(col)
-	col.add_child(_volume_row("MUSIC", GameState.music_volume, GameState.set_music_volume))
-	col.add_child(_volume_row("SFX", GameState.sfx_volume, GameState.set_sfx_volume, true))
-	add_spacer(col, 6)
-	add_text(col, "OUTFIT")
-	col.add_child(_outfit_picker())
-	row.add_child(_outfit_preview())
+	col.add_child(_build_tabs())
+	col.add_child(_build_panels())
+	row.add_child(_build_preview())
 
+	_show_tab(Tab.SOUNDS)
 	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 	_add_version_label()
 
@@ -60,13 +91,91 @@ func _process(delta: float) -> void:
 	_feedback_cooldown = maxf(_feedback_cooldown - delta, 0.0)
 
 
+# ---------------------------------------------------------------- tabs
+func _build_tabs() -> HBoxContainer:
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", TAB_GAP)
+	tabs.add_child(_tab_button(Tab.SOUNDS, "SOUNDS"))
+	tabs.add_child(_tab_button(Tab.COLORS, "COLORS"))
+	tabs.add_child(_tab_button(Tab.WEAPONS, "WEAPONS"))
+	return tabs
+
+
+func _tab_button(tab: Tab, text: String) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = TAB_SIZE
+	b.add_theme_font_size_override("font_size", 8)
+	b.pressed.connect(func():
+		GameState.play_sfx("click")
+		_show_tab(tab))
+	_tab_buttons[tab] = b
+	return b
+
+
+## All three panels are built up front and stacked in one fixed-size box; only
+## their visibility changes. Keeps the weapon rack's scroll position across a
+## trip through the other tabs, and keeps the layout still.
+func _build_panels() -> Control:
+	var host := Control.new()
+	host.custom_minimum_size = PANEL_SIZE
+	_panels[Tab.SOUNDS] = _sounds_panel()
+	_panels[Tab.COLORS] = _colors_panel()
+	_panels[Tab.WEAPONS] = _weapons_panel()
+	for tab in _panels:
+		var p: Control = _panels[tab]
+		# Anchors AND offsets: anchors alone would leave the child sized zero.
+		p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		host.add_child(p)
+	return host
+
+
+func _show_tab(tab: Tab) -> void:
+	_tab = tab
+	for t in _panels:
+		_panels[t].visible = t == tab
+	if tab == Tab.WEAPONS:
+		# Open the rack on whatever is equipped: past nine weapons the pick can
+		# be below the fold, and a rack that opens on a screenful of weapons you
+		# are NOT carrying reads as having lost your choice. Deferred because
+		# the panel is only just being shown — it has no size to scroll yet.
+		_reveal_equipped_weapon.call_deferred()
+	# The active tab is gold and bright; the others are dimmed on every axis a
+	# Button paints text with, so hovering an inactive one doesn't fake it.
+	for t in _tab_buttons:
+		var on: bool = t == tab
+		var b: Button = _tab_buttons[t]
+		for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			b.add_theme_color_override(state, TAB_ON if on else TAB_OFF)
+		b.modulate = Color(1, 1, 1) if on else Color(0.72, 0.72, 0.78)
+
+
+## Shared skeleton for a tab's contents: a full-rect column that centers what
+## it is given inside the panel box.
+func _panel_column() -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 8)
+	return v
+
+
+# ---------------------------------------------------------------- sounds
+func _sounds_panel() -> Control:
+	var col := _panel_column()
+	col.add_child(_volume_row("MUSIC", GameState.music_volume, GameState.set_music_volume))
+	col.add_child(_volume_row("SFX", GameState.sfx_volume, GameState.set_sfx_volume, true))
+	return col
+
+
 func _volume_row(label_text: String, value: float, setter: Callable,
 		feedback := false) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	row.add_theme_constant_override("separation", 10)
 	var l := Label.new()
 	l.text = label_text
-	l.custom_minimum_size = Vector2(60, 0)
+	l.custom_minimum_size = Vector2(44, 0)
 	l.add_theme_font_size_override("font_size", 8)
 	row.add_child(l)
 	var slider := HSlider.new()
@@ -74,7 +183,9 @@ func _volume_row(label_text: String, value: float, setter: Callable,
 	slider.max_value = 1.0
 	slider.step = 0.05
 	slider.value = value
-	slider.custom_minimum_size = Vector2(200, 20)
+	# Narrower than it was — it shares the panel width with the outfit grid
+	# now — but taller, so it stays an easy drag on a phone.
+	slider.custom_minimum_size = Vector2(150, 24)
 	slider.value_changed.connect(func(v):
 		setter.call(v)
 		# Throttled so dragging doesn't machine-gun the sample.
@@ -85,9 +196,11 @@ func _volume_row(label_text: String, value: float, setter: Callable,
 	return row
 
 
-## The player's comedian, wearing the current outfit. Falls back to the first
-## on the roster for someone who has never picked one.
-func _outfit_preview() -> Control:
+# ---------------------------------------------------------------- preview
+## The player's comedian, wearing the current outfit and carrying the current
+## weapon. Falls back to the first on the roster for someone who has never
+## picked one.
+func _build_preview() -> Control:
 	var panel := VBoxContainer.new()
 	panel.alignment = BoxContainer.ALIGNMENT_CENTER
 	var stage := Control.new()
@@ -96,6 +209,8 @@ func _outfit_preview() -> Control:
 	if GameState.characters.is_empty():
 		return panel
 	_dancer = Dancer.new()
+	# Set before set_character: it decides whether the weapon gets built at all.
+	_dancer.show_weapon = true
 	_dancer.position = Vector2(PREVIEW_SIZE.x / 2.0, PREVIEW_SIZE.y - 6.0)
 	_dancer.scale = Vector2(PREVIEW_SCALE, PREVIEW_SCALE)
 	stage.add_child(_dancer)
@@ -105,9 +220,13 @@ func _outfit_preview() -> Control:
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.custom_minimum_size = Vector2(PREVIEW_SIZE.x, 0)
 	name_label.add_theme_font_size_override("font_size", 10)
-	name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	name_label.add_theme_color_override("font_color", GOLD)
 	name_label.text = String(GameState.selected_character_data().get("CharacterName", "?"))
 	panel.add_child(name_label)
+	# Names what they are carrying, so the weapon on the back — small, and
+	# behind the body — is never something you have to squint at to identify.
+	_weapon_label = add_text(panel, Weapons.weapon_name(GameState.weapon), 8,
+			Color(0.75, 0.75, 0.82))
 
 	_refresh_preview()
 	return panel
@@ -120,8 +239,16 @@ func _refresh_preview() -> void:
 		_dancer.set_character(GameState.selected_character_data())
 
 
+# ---------------------------------------------------------------- colors
 ## The player's outfit color: sixteen swatches, 4 per row. Picking one saves
 ## immediately, and is worn on whichever comedian is selected.
+func _colors_panel() -> Control:
+	var col := _panel_column()
+	add_text(col, "OUTFIT")
+	col.add_child(_outfit_picker())
+	return col
+
+
 func _outfit_picker() -> GridContainer:
 	var grid := GridContainer.new()
 	grid.columns = 4
@@ -182,7 +309,147 @@ func _paint_swatches(buttons: Array[Button]) -> void:
 		# The picked swatch gets the menu's gold ring; the rest a thin outline
 		# so a dark outfit still reads as a button against the backdrop.
 		sb.set_border_width_all(3 if i == GameState.outfit else 1)
-		sb.border_color = Color(1.0, 0.85, 0.4) if i == GameState.outfit \
+		sb.border_color = GOLD if i == GameState.outfit \
 				else Color(0.0, 0.0, 0.0, 0.5)
 		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 			buttons[i].add_theme_stylebox_override(state, sb)
+
+
+# ---------------------------------------------------------------- weapons
+## The weapon rack. Every weapon whose art imported gets a card, padded out to
+## a rectangle, and the whole thing scrolls — so adding weapons to
+## Weapons.WEAPONS never needs a layout change.
+func _weapons_panel() -> Control:
+	var col := _panel_column()
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = PANEL_SIZE
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(scroll)
+	_rack_scroll = scroll
+
+	var grid := GridContainer.new()
+	grid.columns = RACK_COLUMNS
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 8)
+	scroll.add_child(grid)
+
+	var slots := Weapons.available()
+	for i in slots:
+		grid.add_child(_weapon_card(i))
+	# Pad with blank frames out to a full bottom row — and to at least the nine
+	# the panel was sized for — exactly like a short last page on the roster
+	# screen. Keeps the rack rectangular at any weapon count.
+	var filled := maxi(RACK_SLOTS,
+			ceili(slots.size() / float(RACK_COLUMNS)) * RACK_COLUMNS)
+	for _i in range(slots.size(), filled):
+		grid.add_child(_empty_card())
+	_paint_weapon_cards()
+	return col
+
+
+func _reveal_equipped_weapon() -> void:
+	if _rack_scroll == null:
+		return
+	for b in _weapon_cards:
+		if int(b.get_meta("weapon")) == GameState.weapon:
+			# The card, not the button, so the name label under it comes along.
+			_rack_scroll.ensure_control_visible(b.get_parent())
+			return
+
+
+func _weapon_card(index: int) -> VBoxContainer:
+	var card := VBoxContainer.new()
+	card.alignment = BoxContainer.ALIGNMENT_CENTER
+	var btn := Button.new()
+	btn.custom_minimum_size = CARD_SIZE
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.tooltip_text = Weapons.weapon_name(index)
+	btn.set_meta("weapon", index)
+
+	# The weapon sits on the button as a child rather than as an icon: these
+	# sprites are 1:3, and only KEEP_ASPECT_CENTERED inside a padded rect keeps
+	# a chainsaw and a pool cue looking like the same rack of items.
+	var art := TextureRect.new()
+	art.texture = Weapons.texture(index)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Shown the way it will hang on your back, not the way the file is stored:
+	# both flips together are a clean half turn, and unlike `rotation` they need
+	# no pivot fixing up after the card is laid out.
+	if Weapons.grip_up(index):
+		art.flip_h = true
+		art.flip_v = true
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.offset_left = 5
+	art.offset_top = 5
+	art.offset_right = -5
+	art.offset_bottom = -5
+	btn.add_child(art)
+
+	btn.pressed.connect(func():
+		GameState.play_sfx("click")
+		GameState.set_weapon(index)
+		_paint_weapon_cards()
+		if _weapon_label:
+			_weapon_label.text = Weapons.weapon_name(index)
+		if is_instance_valid(_dancer):
+			# Swap the weapon only — no need to rebuild the comedian, and the
+			# dance keeps its rhythm through the pick.
+			_dancer.refresh_weapon())
+	card.add_child(btn)
+	_weapon_cards.append(btn)
+
+	var name_label := Label.new()
+	name_label.text = Weapons.weapon_name(index)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.custom_minimum_size = Vector2(CARD_SIZE.x, 0)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.add_theme_font_size_override("font_size", 6)
+	card.add_child(name_label)
+	return card
+
+
+## A blank placeholder frame (not clickable) keeping a short rack on the same
+## 3x3 grid as a full one.
+func _empty_card() -> VBoxContainer:
+	var card := VBoxContainer.new()
+	card.alignment = BoxContainer.ALIGNMENT_CENTER
+	var frame := Panel.new()
+	frame.custom_minimum_size = CARD_SIZE
+	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var sb := StyleBoxFlat.new()
+	# Same near-black as a real card, so the padded-out slots read as part of
+	# the rack rather than as holes in it.
+	sb.bg_color = CARD_BG
+	sb.set_corner_radius_all(3)
+	sb.set_border_width_all(2)
+	sb.border_color = CARD_BORDER
+	frame.add_theme_stylebox_override("panel", sb)
+	card.add_child(frame)
+	var pad := Label.new()
+	pad.text = " "  # same metrics as a name label, so rows stay aligned
+	pad.add_theme_font_size_override("font_size", 6)
+	card.add_child(pad)
+	return card
+
+
+## Same language as the outfit swatches: the equipped weapon wears the menu's
+## gold ring, the rest a thin dim outline, and the unpicked art is dimmed so
+## the choice reads at a glance.
+func _paint_weapon_cards() -> void:
+	for b in _weapon_cards:
+		var on: bool = int(b.get_meta("weapon")) == GameState.weapon
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = CARD_BG_ON if on else CARD_BG
+		sb.set_corner_radius_all(3)
+		sb.set_border_width_all(3 if on else 2)
+		sb.border_color = GOLD if on else CARD_BORDER
+		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+			b.add_theme_stylebox_override(state, sb)
+		# Barely dimmed now. The dark card and the gold ring already say which
+		# one is equipped, and the old 0.68 wash was working against the whole
+		# point of this change — the unpicked weapons are the ones you are
+		# trying to see.
+		b.modulate = Color(1, 1, 1) if on else Color(0.9, 0.9, 0.93)

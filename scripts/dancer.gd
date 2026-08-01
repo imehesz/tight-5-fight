@@ -7,12 +7,20 @@ extends Node2D
 ## Dance poses: walk cycle and "hit" (arms flung up in the air).
 const DANCE_ANIMS := ["walk", "hit"]
 
+## Sling the equipped melee weapon on the dancer's back, drawn exactly the way
+## Player carries it in game (same offsets, same chest strap, borrowed from
+## Player so the preview can never drift from the real thing). Off by default;
+## the settings screen turns it on so its weapon picker has a live preview.
+var show_weapon := false
+
 var _body: AnimatedSprite2D
 var _head: Sprite2D
 var _wheel: Sprite2D
 var _wheel_tex: Array[Texture2D] = []
 var _head_offset := Vector2.ZERO
 var _timer: Timer
+var _weapon: Sprite2D
+var _strap: Line2D
 
 
 func _ready() -> void:
@@ -64,13 +72,70 @@ func set_character(cfg: Dictionary) -> void:
 	_head.scale = Vector2(s, s)
 	_head_offset = Vector2(float(cfg.get("HeadOffsetX", 0)), float(cfg.get("HeadOffsetY", 0)))
 	add_child(_head)
+	if show_weapon:
+		_build_weapon()
 	if _timer:
 		_dance_step()
+
+
+## Swap the previewed weapon in place, without rebuilding the comedian — the
+## settings picker calls this on every tap.
+func refresh_weapon() -> void:
+	if not show_weapon or _body == null:
+		return
+	_build_weapon()
+
+
+## Weapon behind everything (child index 0) and strap just in front of the
+## body, matching Player's own stacking — see _build_carried_weapon() there for
+## why this is done by index rather than z_index.
+func _build_weapon() -> void:
+	if _weapon:
+		_weapon.queue_free()
+		_weapon = null
+	if _strap:
+		_strap.queue_free()
+		_strap = null
+	var tex := Weapons.texture(GameState.weapon)
+	if tex == null:
+		return
+	_weapon = Sprite2D.new()
+	_weapon.texture = tex
+	var s := Player.CARRY_LEN / tex.get_height()
+	_weapon.scale = Vector2(s, s)
+	_weapon.position = Player.CARRY_POS
+	_weapon.rotation = -Player.CARRY_TILT + Weapons.carry_spin(GameState.weapon)
+	add_child(_weapon)
+	move_child(_weapon, 0)
+
+	_strap = Line2D.new()
+	_strap.width = Player.STRAP_WIDTH
+	_strap.default_color = Player.STRAP_COLOR
+	_strap.begin_cap_mode = Line2D.LINE_CAP_NONE
+	_strap.end_cap_mode = Line2D.LINE_CAP_NONE
+	_strap.antialiased = false
+	add_child(_strap)
+	move_child(_strap, _body.get_index() + 1)
+	_update_strap()
+
+
+## The strap hangs off the animation's neck anchor, so it rides the dance bob
+## for free. Only the two dance poses ever play here, so there is no ducking
+## variant to handle; the dancer never turns around either, so nothing mirrors.
+func _update_strap() -> void:
+	if _strap == null or _body == null:
+		return
+	var neck := CharacterFactory.head_offset(_body.animation)
+	_strap.points = PackedVector2Array([
+		neck + Player.STRAP_TOP,
+		neck + Player.STRAP_BOTTOM,
+	])
 
 
 func _dance_step() -> void:
 	var anim: String = DANCE_ANIMS.pick_random()
 	_body.play(anim)
+	_update_strap()
 	_head.flip_h = randi() % 2 == 0
 	var neck := CharacterFactory.head_offset(anim)
 	var lift := _head.texture.get_height() * _head.scale.y / 2.0 - 4.0

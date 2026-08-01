@@ -177,6 +177,10 @@ func _build_preview() -> Control:
 	stage.custom_minimum_size = PREVIEW_SIZE
 	panel.add_child(stage)
 	_dancer = Dancer.new()
+	# Carrying whatever is equipped in settings — the weapon is the player's,
+	# not the comedian's, so it rides along whoever is highlighted here. Set
+	# before the first set_character, which is what builds it.
+	_dancer.show_weapon = true
 	_dancer.position = Vector2(PREVIEW_SIZE.x / 2.0, PREVIEW_SIZE.y - 6.0)
 	_dancer.scale = Vector2(PREVIEW_SCALE, PREVIEW_SCALE)
 	stage.add_child(_dancer)

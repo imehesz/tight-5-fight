@@ -252,6 +252,10 @@ var sfx_volume := 0.8
 ## Player's chosen outfit color (index into CharacterFactory.OUTFITS). Worn on
 ## whichever body the picked comedian has; NPCs keep their baked colors.
 var outfit := 0
+## Player's chosen melee weapon (index into Weapons.WEAPONS) — carried on the
+## back and swung in place of the mic stand. Cosmetic only; enemies never
+## carry one.
+var weapon := Weapons.DEFAULT
 
 var _music_player: AudioStreamPlayer
 var _music_streams := {}
@@ -1388,6 +1392,14 @@ func set_outfit(idx: int) -> void:
 	_save_settings()
 
 
+func set_weapon(idx: int) -> void:
+	var i := clampi(idx, 0, Weapons.count() - 1)
+	if i == weapon:
+		return  # don't rewrite the save file just for re-tapping the pick
+	weapon = i
+	_save_settings()
+
+
 ## A random outfit for an NPC — never the player's, so you can always pick
 ## yourself out of the brawl.
 func random_enemy_outfit() -> int:
@@ -1418,6 +1430,15 @@ func _load_settings() -> void:
 	music_volume = clampf(float(d.get("music", 0.8)), 0.0, 1.0)
 	sfx_volume = clampf(float(d.get("sfx", 0.8)), 0.0, 1.0)
 	outfit = clampi(int(d.get("outfit", 0)), 0, CharacterFactory.OUTFITS.size() - 1)
+	# Stored by id for the same reason the comedian is stored by name: the
+	# catalog can be reordered or grown without repointing everyone's pick.
+	var saved_weapon: Variant = d.get("weapon", "")
+	weapon = Weapons.index_by_id(saved_weapon) if saved_weapon is String \
+			else Weapons.DEFAULT
+	# A weapon whose art failed to import would leave the player swinging
+	# nothing, so fall back to the stand rather than to an invisible weapon.
+	if Weapons.texture(weapon) == null:
+		weapon = Weapons.DEFAULT
 	# Stored by name, not position, so the favorite survives characters.json
 	# being reordered — or the roster being shuffled again. Older saves held a
 	# roster index here; those orderings are gone, so anything but a name
@@ -1445,6 +1466,7 @@ func _save_settings() -> void:
 		"music": music_volume,
 		"sfx": sfx_volume,
 		"outfit": outfit,
+		"weapon": Weapons.id_of(weapon),
 		"character": "" if characters.is_empty() \
 				else String(characters[clampi(own, 0, characters.size() - 1)].get("CharacterName", "")),
 		"random": _random_before_deeplink if borrowed else random_select,

@@ -75,6 +75,9 @@ func _ready() -> void:
 	# drop must not jump the player out mid-animation.
 	_back_btn = add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 	_dancer = Dancer.new()
+	# Wearing the weapon they just fought with — set before set_character,
+	# which is what builds it.
+	_dancer.show_weapon = true
 	_dancer.position = DANCE_FEET_POS
 	_dancer.scale = Vector2(DANCE_SCALE, DANCE_SCALE)
 	_dancer.set_character(GameState.selected_character_data())
