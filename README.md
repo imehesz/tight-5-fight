@@ -67,9 +67,8 @@ the per-game settings file and carried on the player's back in the run.
 Adding one:
 
 1. Generate the art on flat white — vertical, striking end up, grip at the
-   bottom, filling the frame. The prompts used for the shipped set are kept in
-   `tools/higgsfield_jobs/weapon_*.json` (Nano Banana 2, 9:16, 1k).
-2. `python3 tools/normalize_weapon.py raw.png shared/assets/weapons/weapon_<id>.png`
+   bottom, filling the frame. The prompt recipe is in `helper-tools/README.md`.
+2. `python3 helper-tools/normalize_weapon.py raw.png shared/assets/weapons/weapon_<id>.png`
    — cuts the background out and lands the art on the shared 302x900 canvas
    that the swing and carry code sizes everything from. Add `--rotate180` for
    anything swung by the end that is normally drawn at the bottom (the guitars

@@ -6,6 +6,52 @@ repo root with system `python3`.
 (Note: the older `tools/` folder is gitignored — put anything meant to be
 committed here in `helper-tools/` instead.)
 
+## normalize_weapon.py
+
+Turns a generated weapon picture into a game-ready melee weapon sprite for
+`shared/assets/weapons/`. Every weapon shares the original mic stand's canvas —
+**302x900, art inside y 22..872, striking end up, centred** — because the swing
+and carry code sizes them all from the canvas rather than from the art.
+
+```bash
+python3 helper-tools/normalize_weapon.py raw.png shared/assets/weapons/weapon_sword.png
+python3 helper-tools/normalize_weapon.py raw.png shared/assets/weapons/weapon_acoustic.png --rotate180
+```
+
+It flood-fills the background in from the four corners (not a "white is
+transparent" threshold — these sprites have white highlights and pale steel of
+their own), then scales the cut-out to fill the canvas height. `--rotate180` is
+for anything swung by the end that a normal picture puts at the *bottom*: the
+guitars are held by the neck, so their body has to end up at the top. Generators
+draw those subjects far better the right way up, so the turn happens here
+instead of in the prompt. Needs Pillow.
+
+Then add a row to `WEAPONS` in `scripts/weapons.gd` — see the "Melee weapons"
+section of the top-level `README.md` for what `grip` and `grip_up` mean.
+
+### Prompt recipe
+
+The shipped set was made with the Higgsfield CLI on `nano_banana_flash`
+("Nano Banana 2"), about 1.5 credits each. Note the params take **underscores** —
+`--aspect-ratio` is rejected.
+
+```bash
+higgsfield generate create nano_banana_flash --aspect_ratio 9:16 --resolution 1k \
+  --prompt "A single <object>, isolated on a pure flat white background. Vertical
+  orientation: <striking end> pointing straight up, <grip> at the bottom.
+  Straight-on side view, the entire object visible end to end, centered, filling
+  the full height of the frame. Clean crisp edges, soft even studio lighting,
+  subtle realistic shading, slightly stylized high-detail video game item icon
+  art. No shadow, no glow, no halo, no background elements, no text, no
+  watermark, no hands, no other objects." --wait --json
+```
+
+Keep the whole tail — dropping the "no shadow / no halo" part produces a soft
+glow around the object that the corner flood fill can't key out, and the cut-out
+comes back with a white blob attached. Regenerate rather than loosening the
+fill's tolerance. Raw job dumps land in the gitignored `tools/higgsfield_jobs/`
+alongside every other generated asset's; this recipe is the part worth keeping.
+
 ## classify_heads.py
 
 Populates a game's `characters.json` from the head PNGs in its

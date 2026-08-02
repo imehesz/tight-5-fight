@@ -10,8 +10,8 @@ extends RefCounted
 ##
 ## Every sprite shares the mic stand's canvas (302x900, art within y 22..872,
 ## striking end up, centred), which is what lets the swing and carry code size
-## them all from the same constants — tools/normalize_weapon.py puts generated
-## art onto that canvas.
+## them all from the same constants — helper-tools/normalize_weapon.py puts
+## generated art onto that canvas.
 
 ## `grip` is the texture-space y the player's hand closes on. It is the one
 ## number that genuinely differs per weapon: a sword is held just under the
