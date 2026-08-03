@@ -15,8 +15,9 @@ enum Tab { SOUNDS, COLORS, WEAPONS }
 ## the same on both screens.
 const PREVIEW_SIZE := Vector2(150, 170)
 const PREVIEW_SCALE := Fighter.BODY_SCALE * 1.5
-## Tall enough for the roomiest panel (the 4x4 outfit grid) and for two of the
-## weapon rack's three rows — the rest of the rack scrolls.
+## Tall enough for the roomiest panel (the 4x6 outfit grid, which fills it
+## nearly edge to edge) and for two weapon rack rows — the rest of the rack
+## scrolls.
 const PANEL_SIZE := Vector2(240, 190)
 const TAB_SIZE := Vector2(76, 28)
 const TAB_GAP := 6
@@ -240,11 +241,12 @@ func _refresh_preview() -> void:
 
 
 # ---------------------------------------------------------------- colors
-## The player's outfit color: sixteen swatches, 4 per row. Picking one saves
+## The player's outfit color: twenty-four swatches, 4 per row — three rows of
+## flats, then three of gradients. No heading; the swatches speak for
+## themselves, and the grid needs the whole panel. Picking one saves
 ## immediately, and is worn on whichever comedian is selected.
 func _colors_panel() -> Control:
 	var col := _panel_column()
-	add_text(col, "OUTFIT")
 	col.add_child(_outfit_picker())
 	return col
 
@@ -254,12 +256,12 @@ func _outfit_picker() -> GridContainer:
 	grid.columns = 4
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	grid.add_theme_constant_override("h_separation", 9)
-	grid.add_theme_constant_override("v_separation", 9)
+	grid.add_theme_constant_override("v_separation", 7)
 
 	var buttons: Array[Button] = []
 	for i in CharacterFactory.OUTFITS.size():
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(52, 26)
+		b.custom_minimum_size = Vector2(52, 24)
 		b.tooltip_text = String(CharacterFactory.OUTFITS[i]["name"])
 		_add_gradient_face(b, i)
 		b.pressed.connect(func():

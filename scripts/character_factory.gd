@@ -23,9 +23,10 @@ const BAKED_OUTFIT := {
 			"bottom": Color(122 / 255.0, 42 / 255.0, 92 / 255.0)},
 }
 ## The outfits the player can pick from — one shared list, worn on either body
-## (a dress and a shirt just take the same dye). Eight flat tops, then eight
-## gradient ones; both sets are spread around the color wheel with a neutral
-## apiece, so no two read alike.
+## (a dress and a shirt just take the same dye). Twelve flat tops, then twelve
+## gradient ones; both sets are spread around the color wheel with neutrals
+## mixed in, so no two read alike. Keep the flats-then-gradients grouping —
+## the picker shows the list in order, two blocks of three rows.
 const OUTFITS := [
 	{"name": "BLUE", "top": Color(66 / 255.0, 98 / 255.0, 200 / 255.0),
 			"bottom": Color(46 / 255.0, 46 / 255.0, 72 / 255.0)},
@@ -43,6 +44,14 @@ const OUTFITS := [
 			"bottom": Color(70 / 255.0, 38 / 255.0, 116 / 255.0)},
 	{"name": "LIME", "top": Color(126 / 255.0, 190 / 255.0, 60 / 255.0),
 			"bottom": Color(52 / 255.0, 78 / 255.0, 30 / 255.0)},
+	{"name": "ORANGE", "top": Color(236 / 255.0, 124 / 255.0, 36 / 255.0),
+			"bottom": Color(88 / 255.0, 46 / 255.0, 20 / 255.0)},
+	{"name": "SKY", "top": Color(122 / 255.0, 178 / 255.0, 235 / 255.0),
+			"bottom": Color(46 / 255.0, 66 / 255.0, 96 / 255.0)},
+	{"name": "FOREST", "top": Color(46 / 255.0, 124 / 255.0, 60 / 255.0),
+			"bottom": Color(24 / 255.0, 54 / 255.0, 32 / 255.0)},
+	{"name": "CHARCOAL", "top": Color(74 / 255.0, 76 / 255.0, 84 / 255.0),
+			"bottom": Color(28 / 255.0, 28 / 255.0, 34 / 255.0)},
 	# Gradient tops (see "top2"): the shirt fades from "top" at the shoulders
 	# to "top2" at the hem. The shirt is only ~13px tall, so the ends are set
 	# far apart (light/saturated down to deep) — a subtle pair just reads as a
@@ -72,7 +81,27 @@ const OUTFITS := [
 	{"name": "BUBBLEGUM", "top": Color(252 / 255.0, 192 / 255.0, 222 / 255.0),
 			"top2": Color(160 / 255.0, 26 / 255.0, 118 / 255.0),
 			"bottom": Color(86 / 255.0, 22 / 255.0, 66 / 255.0)},
+	# Second lap around the wheel: warm again, then teal, deep blue, and a
+	# gold-to-purple that has no cousin in the first eight.
+	{"name": "FIRE", "top": Color(252 / 255.0, 214 / 255.0, 74 / 255.0),
+			"top2": Color(170 / 255.0, 24 / 255.0, 32 / 255.0),
+			"bottom": Color(72 / 255.0, 26 / 255.0, 24 / 255.0)},
+	{"name": "LAGOON", "top": Color(110 / 255.0, 238 / 255.0, 208 / 255.0),
+			"top2": Color(16 / 255.0, 92 / 255.0, 132 / 255.0),
+			"bottom": Color(22 / 255.0, 54 / 255.0, 68 / 255.0)},
+	{"name": "MIDNIGHT", "top": Color(96 / 255.0, 116 / 255.0, 204 / 255.0),
+			"top2": Color(12 / 255.0, 14 / 255.0, 44 / 255.0),
+			"bottom": Color(18 / 255.0, 18 / 255.0, 38 / 255.0)},
+	{"name": "ROYAL", "top": Color(240 / 255.0, 198 / 255.0, 84 / 255.0),
+			"top2": Color(98 / 255.0, 42 / 255.0, 162 / 255.0),
+			"bottom": Color(52 / 255.0, 32 / 255.0, 86 / 255.0)},
 ]
+## Pre-Aug-2026 saves stored the outfit as a bare index into the then-16-entry
+## list. This is that list's order, so a legacy save can be mapped through it
+## by name and nobody's shirt changes color on update.
+const LEGACY_OUTFIT_ORDER := ["BLUE", "CRIMSON", "GOLD", "BONE", "PINK",
+		"CYAN", "VIOLET", "LIME", "SUNSET", "COPPER", "ACID", "EMERALD",
+		"OCEAN", "STEEL", "TWILIGHT", "BUBBLEGUM"]
 ## Passed as `outfit` to wear whatever the sheet was drawn with. NPCs use it.
 const OUTFIT_BAKED := -1
 ## Wheelchair overlay for characters with "inWheelchair" in characters.json:
@@ -158,6 +187,15 @@ static func outfit_index(outfit: int) -> int:
 static func _is_baked_outfit(body: String, outfit: int) -> bool:
 	return OUTFITS[outfit]["top"].is_equal_approx(BAKED_OUTFIT[body]["top"]) \
 			and OUTFITS[outfit]["bottom"].is_equal_approx(BAKED_OUTFIT[body]["bottom"])
+
+
+## Saved settings store the outfit by name (like weapons by id), so the list
+## can grow or regroup without repointing everyone's pick. Unknown → BLUE.
+static func outfit_index_by_name(outfit_name: String) -> int:
+	for i in OUTFITS.size():
+		if String(OUTFITS[i]["name"]) == outfit_name:
+			return i
+	return 0
 
 
 ## Swatch color for the settings picker.

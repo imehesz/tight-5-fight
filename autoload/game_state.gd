@@ -1432,7 +1432,17 @@ func _load_settings() -> void:
 	var d := _load_json(_settings_file)
 	music_volume = clampf(float(d.get("music", 0.8)), 0.0, 1.0)
 	sfx_volume = clampf(float(d.get("sfx", 0.8)), 0.0, 1.0)
-	outfit = clampi(int(d.get("outfit", 0)), 0, CharacterFactory.OUTFITS.size() - 1)
+	# Stored by name since the rack grew past 16; a legacy save holds an index
+	# into the old 16-entry order, so route it through that order's names
+	# rather than letting the grown list reassign everyone's color.
+	var saved_outfit: Variant = d.get("outfit", 0)
+	if saved_outfit is String:
+		outfit = CharacterFactory.outfit_index_by_name(saved_outfit)
+	else:
+		var legacy := clampi(int(saved_outfit), 0,
+				CharacterFactory.LEGACY_OUTFIT_ORDER.size() - 1)
+		outfit = CharacterFactory.outfit_index_by_name(
+				CharacterFactory.LEGACY_OUTFIT_ORDER[legacy])
 	# Stored by id for the same reason the comedian is stored by name: the
 	# catalog can be reordered or grown without repointing everyone's pick.
 	var saved_weapon: Variant = d.get("weapon", "")
@@ -1468,7 +1478,8 @@ func _save_settings() -> void:
 	_save_json(_settings_file, {
 		"music": music_volume,
 		"sfx": sfx_volume,
-		"outfit": outfit,
+		"outfit": String(CharacterFactory.OUTFITS[
+				clampi(outfit, 0, CharacterFactory.OUTFITS.size() - 1)]["name"]),
 		"weapon": Weapons.id_of(weapon),
 		"character": "" if characters.is_empty() \
 				else String(characters[clampi(own, 0, characters.size() - 1)].get("CharacterName", "")),
