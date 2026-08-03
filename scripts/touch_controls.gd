@@ -37,7 +37,7 @@ func _ready() -> void:
 	layer = 90
 	for b in BUTTONS:
 		var btn := TouchScreenButton.new()
-		btn.texture_normal = _load_tex(b.tex)
+		btn.texture_normal = _swing_texture() if b.action == "swing" else _load_tex(b.tex)
 		btn.action = b.action
 		btn.scale = Vector2(b.scale, b.scale)
 		btn.passby_press = true
@@ -115,3 +115,56 @@ func _load_tex(path: String) -> Texture2D:
 	if ResourceLoader.exists(path):
 		return load(path)
 	return load("res://shared/assets/ui/btn_punch.png")
+
+
+## btn_swing.png's two structural colors: the rounded 50%-white border and the
+## translucent dark fill. Everything else in the PNG is the baked mic glyph.
+const _BTN_BORDER := Color(255 / 255.0, 255 / 255.0, 255 / 255.0, 128 / 255.0)
+const _BTN_FILL := Color(25 / 255.0, 25 / 255.0, 38 / 255.0, 150 / 255.0)
+## Weapon art must fit inside the chrome with a little breathing room.
+const _BTN_ART_BOX := Vector2(26.0, 30.0)
+
+## The swing button wears the weapon actually carried this run: the stock art
+## for the mic stand (its glyph IS the mic), otherwise the chrome is rebuilt
+## from the same PNG — border and fill kept, glyph pixels painted over with
+## the fill — and the equipped weapon's sprite is drawn upright in its place.
+## Built once in _ready(): the weapon can only change in Settings, never
+## mid-run, and every scene instantiates fresh touch controls. Any failure
+## (missing art, compressed image surprise) falls back to the stock button.
+func _swing_texture() -> Texture2D:
+	var stock := _load_tex("res://shared/assets/ui/btn_swing.png")
+	if Weapons.id_of(GameState.weapon) == "mic":
+		return stock
+	var wtex := Weapons.texture(GameState.weapon)
+	if wtex == null:
+		return stock
+	var base := stock.get_image()
+	var art := wtex.get_image()
+	if base == null or art == null:
+		return stock
+	if base.is_compressed():
+		base.decompress()
+	if art.is_compressed():
+		art.decompress()
+	base.convert(Image.FORMAT_RGBA8)
+	art.convert(Image.FORMAT_RGBA8)
+	# Erase the glyph: keep transparent corners and border pixels, repaint the
+	# rest with the flat fill.
+	for y in base.get_height():
+		for x in base.get_width():
+			var p := base.get_pixel(x, y)
+			if p.a8 != 0 and not p.is_equal_approx(_BTN_BORDER):
+				base.set_pixel(x, y, _BTN_FILL)
+	# Crop the weapon's shared 302x900 canvas to the art itself, then scale to
+	# fit the chrome. Striking end stays up, like the mic glyph it replaces.
+	var used := art.get_used_rect()
+	if used.size.x <= 0 or used.size.y <= 0:
+		return stock
+	var glyph := art.get_region(used)
+	var s := minf(_BTN_ART_BOX.x / glyph.get_width(), _BTN_ART_BOX.y / glyph.get_height())
+	glyph.resize(maxi(1, roundi(glyph.get_width() * s)),
+			maxi(1, roundi(glyph.get_height() * s)), Image.INTERPOLATE_LANCZOS)
+	base.blend_rect(glyph, Rect2i(Vector2i.ZERO, glyph.get_size()),
+			Vector2i(floori((base.get_width() - glyph.get_width()) / 2.0),
+					floori((base.get_height() - glyph.get_height()) / 2.0)))
+	return ImageTexture.create_from_image(base)
