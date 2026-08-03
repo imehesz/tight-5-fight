@@ -252,7 +252,7 @@ var sfx_volume := 0.8
 ## Player's chosen outfit color (index into CharacterFactory.OUTFITS). Worn on
 ## whichever body the picked comedian has; NPCs keep their baked colors.
 var outfit := 0
-## Player's chosen melee weapon (index into Weapons.WEAPONS) — carried on the
+## Player's chosen melee weapon (index into the weapons.json rack) — carried on the
 ## back and swung in place of the mic stand. Cosmetic only; enemies never
 ## carry one.
 var weapon := Weapons.DEFAULT
@@ -411,6 +411,9 @@ func _load_roster() -> void:
 			if String(v.get(k, "")) != "":
 				v[k] = game_path(String(v[k]))
 		venues.append(v)
+	# The weapon rack rides the same manifest pattern: a game may name (or just
+	# ship) its own weapons.json; otherwise Weapons falls back to the shared one.
+	Weapons.load_roster(game_path(String(manifest.get("weapons", "weapons.json"))))
 
 
 # ---------------------------------------------------------------- manifest resolvers

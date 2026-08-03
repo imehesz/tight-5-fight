@@ -9,7 +9,7 @@ extends Node2D
 ## `weapon` before add_child.
 
 var facing := 1
-## Index into Weapons.WEAPONS. Only the art changes with it — reach, damage
+## Index into the weapons.json rack. Only the art changes with it — reach, damage
 ## and duration are the same whatever the player picked.
 var weapon := Weapons.DEFAULT
 var duration := 0.2

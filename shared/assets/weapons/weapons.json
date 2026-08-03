@@ -1,0 +1,15 @@
+{
+  "weapons": [
+    { "WeaponId": "mic",      "WeaponName": "MIC STAND", "GripY": 780, "GripUp": false, "SpritePath": "shared/assets/parts/weapon_mic-in-stand_small.png" },
+    { "WeaponId": "sword",    "WeaponName": "SWORD",     "GripY": 730, "GripUp": true,  "SpritePath": "weapon_sword.png" },
+    { "WeaponId": "katana",   "WeaponName": "KATANA",    "GripY": 745, "GripUp": true,  "SpritePath": "weapon_katana.png" },
+    { "WeaponId": "bat",      "WeaponName": "BAT",       "GripY": 790, "GripUp": true,  "SpritePath": "weapon_bat.png" },
+    { "WeaponId": "chainsaw", "WeaponName": "CHAINSAW",  "GripY": 750, "GripUp": true,  "SpritePath": "weapon_chainsaw.png" },
+    { "WeaponId": "shovel",   "WeaponName": "SHOVEL",    "GripY": 700, "GripUp": true,  "SpritePath": "weapon_shovel.png" },
+    { "WeaponId": "pool-cue", "WeaponName": "POOL CUE",  "GripY": 795, "GripUp": true,  "SpritePath": "weapon_pool-cue.png" },
+    { "WeaponId": "chain",    "WeaponName": "CHAIN",     "GripY": 785, "GripUp": false, "SpritePath": "weapon_chain.png" },
+    { "WeaponId": "acoustic", "WeaponName": "ACOUSTIC",  "GripY": 690, "GripUp": true,  "SpritePath": "weapon_acoustic.png" },
+    { "WeaponId": "metal",    "WeaponName": "METAL",     "GripY": 710, "GripUp": true,  "SpritePath": "weapon_metal.png" },
+    { "WeaponId": "the-dentist",      "WeaponName": "THE DENTIST", "GripY": 780, "GripUp": true, "SpritePath": "weapon_the-dentist_small.png" }
+  ]
+}

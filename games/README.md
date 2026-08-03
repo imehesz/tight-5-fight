@@ -15,6 +15,7 @@ games/
 ├── _template/         # copy this to start a new game (a minimal game that runs)
 data/active_game.json  # names the game this build/run uses  ({ "active": "tight5" })
 shared/assets/         # fonts, bodies, ui buttons, sfx, window icon (all games)
+shared/assets/weapons/ # the shared weapon rack: weapons.json + its art (all games)
 ```
 
 **Golden rule:** every asset path inside a game's JSON is **relative to that game's
@@ -53,6 +54,7 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 | `projectileSprite` | optional | invisible projectile |
 | `audio.musicMain` / `.musicVenue` | optional | no music (paths are **extensionless**) |
 | `overrides.bodyMale` / `.bodyFemale` | optional | `shared/assets/bodies/body_{male,female}.png` |
+| `weapons` | optional | `weapons.json` in the game folder if present, else the shared rack (`shared/assets/weapons/weapons.json`) |
 | `planeBanners` (array of sentences) | optional | no banner-plane flybys on the street |
 
 ### `CharacterId` / `VenueId` — the permanent handle
@@ -125,6 +127,42 @@ name and exterior art, and every row it already owns on the VENUES boards
 survives untouched. No database edit, no re-run of `sync-rosters` needed —
 though running it anyway is harmless (disabled names stay whitelisted, which
 only matters to in-flight runs on an older build).
+
+### Weapons (`shared/assets/weapons/weapons.json`)
+
+The melee weapon rack in SETTINGS is data too, but unlike characters and venues
+it is **shared across every game** — one file, one art folder, all editions.
+Weapons are purely cosmetic: everything swings with the mic stand's damage,
+reach and cooldown, so the rack never touches leaderboard fairness.
+
+Adding a weapon:
+
+1. Normalize the art onto the mic stand's canvas (302x900, striking end up,
+   centred): `helper-tools/normalize_weapon.py` (use `--rotate180` for art
+   drawn handle-up, e.g. the guitars, which are swung by the neck).
+2. Drop the PNG in `shared/assets/weapons/`.
+3. Add a row to `weapons.json`:
+
+```json
+{ "WeaponId": "crowbar", "WeaponName": "CROWBAR", "GripY": 760, "GripUp": true, "SpritePath": "weapon_crowbar.png" }
+```
+
+- **`WeaponId`** — permanent handle, exactly like `CharacterId`: saved picks are
+  keyed on it, so never recycle one. **Keep the mic stand as the first row** —
+  row 0 is the default and the fallback for any pick that can't be honoured.
+- **`GripY`** — texture-space y the hand closes on (sword: under the crossguard
+  ~730; bat: down by the knob ~790).
+- **`GripUp`** — `true` to wear it handle-up on the back (swords, shovels…);
+  `false` for things really carried head-up (mic stand, chain).
+- **`SpritePath`** — relative to the JSON's own folder; a leading `shared/`
+  resolves from the project root, and full `res://` paths pass through.
+- **`isDisabled: true`** benches a weapon (same flag as characters/venues);
+  anyone carrying it falls back to the mic stand, and their save is untouched.
+
+A row whose PNG hasn't been imported yet simply doesn't show on the rack —
+safe to commit data ahead of art. A game can also ship its own
+`games/<id>/weapons.json` (or name one via the `weapons` manifest key) to
+replace the shared rack for that edition only.
 
 ---
 

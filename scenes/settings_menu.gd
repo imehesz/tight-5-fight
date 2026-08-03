@@ -318,7 +318,7 @@ func _paint_swatches(buttons: Array[Button]) -> void:
 # ---------------------------------------------------------------- weapons
 ## The weapon rack. Every weapon whose art imported gets a card, padded out to
 ## a rectangle, and the whole thing scrolls — so adding weapons to
-## Weapons.WEAPONS never needs a layout change.
+## weapons.json never needs a layout change.
 func _weapons_panel() -> Control:
 	var col := _panel_column()
 	var scroll := ScrollContainer.new()
