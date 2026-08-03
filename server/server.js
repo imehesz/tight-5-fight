@@ -267,7 +267,7 @@ async function postPlayer(req, res) {
   json(res, 200, { uuid });
 }
 
-// POST /play { gameId, character, uuid, score?, seconds? } -> { ok: true }
+// POST /play { gameId, character, uuid, score?, seconds?, weapon? } -> { ok: true }
 // Records one play (with the run's final score, feeding the per-character
 // TOP SCORE board, and how many seconds the run lasted, feeding the run-length
 // stats). Called when a run ENDS (see GameState.finish_run), so a fake play
@@ -281,7 +281,7 @@ async function postPlay(req, res) {
     return json(res, 400, { error: e.message });
   }
 
-  const { gameId, character, uuid, kos, venues, venueKos, billboards, score, seconds } = body;
+  const { gameId, character, uuid, kos, venues, venueKos, billboards, score, seconds, weapon } = body;
   if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
   // Optional (older clients don't send it). Clamped, not trusted: like the
   // rest of this board there are no names attached, so a lie only pollutes
@@ -296,6 +296,16 @@ async function postPlay(req, res) {
     return json(res, 400, { error: "bad seconds" });
   }
   const runSeconds = Math.min(Math.max(Math.floor(seconds || 0), 0), 86400);
+  // The WeaponId carried this run (cosmetic-only in the game, so this is
+  // purely a popularity counter). Validated by shape, not roster — the rack
+  // lives in one shared weapons.json rather than per-game files, and like
+  // sponsor ids a lie here only pollutes a vanity number the owner reads.
+  // Optional: older clients don't send it, and '' stays out of the report.
+  if (weapon !== undefined && typeof weapon !== "string") {
+    return json(res, 400, { error: "bad weapon" });
+  }
+  const runWeapon = typeof weapon === "string" && /^[a-z0-9][a-z0-9-]{0,23}$/.test(weapon)
+    ? weapon : "";
   if (typeof uuid !== "string" || !/^[0-9a-f-]{36}$/i.test(uuid)) {
     return json(res, 400, { error: "bad uuid" });
   }
@@ -327,6 +337,7 @@ async function postPlay(req, res) {
     playerUuid: uuid,
     score: runScore,
     seconds: runSeconds,
+    weapon: runWeapon,
   });
   if (Object.keys(koCounts).length > 0) {
     await db.recordBeatdowns({ gameId, playerUuid: uuid, counts: koCounts });
@@ -601,7 +612,8 @@ async function getTrends(req, res, url) {
 //                  comedians, venues },               // roster slots summed
 //                                                     // (Tony is in 2 editions
 //                                                     //  and counts twice)
-//        games: [{ gameId, label, volume, topPlayed, topBeat, topVenues }] }
+//        games: [{ gameId, label, volume, topPlayed, topBeat, topVenues,
+//                  weapons }] }   // weapons: [{ weapon, month, allTime }]
 // volume is per window (today/week/month/allTime):
 //   { plays, players, avgSeconds, timedRuns, fullRuns } — avgSeconds is null
 //   until some row in the window carries a duration, timedRuns is how many do,
@@ -649,6 +661,15 @@ async function getStats(req, res, url) {
       topVenues: (await db.venuePage(gameId, 0, 5)).map((r) => ({
         venue: r.venue_name,
         entries: Number(r.entries),
+      })),
+      // Weapon popularity: plays per WeaponId, 30-day window + all time —
+      // the number that decides which weapons earn more art (and which
+      // seasonal ones come back). Empty until clients new enough to report
+      // a weapon have banked plays.
+      weapons: (await db.weaponReport(gameId)).map((r) => ({
+        weapon: r.weapon,
+        month: Number(r.month_total),
+        allTime: Number(r.all_time),
       })),
     });
   }

@@ -53,6 +53,13 @@ share lasting 5 minutes or more, per window). Clearing a venue and catching a
 good set box add seconds back, so a run can exceed 5:00. Rows banked before
 the column existed hold 0 and are left out of those averages.
 
+`/play` also carries `weapon`, the WeaponId the run was played with (from
+`shared/assets/weapons/weapons.json`) — banked on the play row so `/stats`
+can report weapon popularity per game (30-day + all-time counts). Weapons are
+cosmetic, so this is purely a which-one-do-people-carry counter. Validated by
+shape only (slug, ≤24 chars) since the rack is shared rather than per-game;
+rows banked before the column existed hold `''` and stay out of the report.
+
 `/play` optionally carries `kos`, the run's KO tally (`{"Character Name":
 count, …}`) — who this run beat up, feeding the MOST BEAT UP board. Counts
 are capped per character per run; names the roster doesn't know are dropped,

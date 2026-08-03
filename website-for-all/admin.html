@@ -319,6 +319,17 @@
           g.topBeat.map(function (r) { return [r.character, r.kos]; })));
         boards.appendChild(board("TOP 5 VENUES", ["venue", "entries"],
           g.topVenues.map(function (r) { return [r.venue, r.entries]; })));
+        // Weapon popularity — which of the cosmetic melee weapons players
+        // actually carry (WeaponIds from shared/assets/weapons/weapons.json).
+        // Guarded only against an older backend (no weapons field at all);
+        // a new backend with no reporting clients yet shows the board with
+        // "no data yet", so you can tell "not deployed" from "no plays".
+        if (g.weapons) {
+          boards.appendChild(board("WEAPONS", ["weapon", "30d / all time"],
+            g.weapons.map(function (r) {
+              return [r.weapon, r.month + " / " + r.allTime];
+            })));
+        }
         section.appendChild(boards);
         main.appendChild(section);
       });

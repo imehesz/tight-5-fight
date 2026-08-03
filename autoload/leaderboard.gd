@@ -100,6 +100,7 @@ func record_play() -> void:
 	var venue_kos: Dictionary = GameState.run_venue_kos.duplicate()
 	var run_score := GameState.score
 	var run_secs := GameState.run_seconds()
+	var run_weapon := Weapons.id_of(GameState.weapon)
 	var game_id := GameState.active_game
 	if character == "":
 		return
@@ -122,6 +123,11 @@ func record_play() -> void:
 			# (0 is a legitimate value AND the old-client default, so it can't
 			# be omit-when-empty like the tallies below).
 			"seconds": run_secs,
+			# The WeaponId carried this run, for the weapon popularity
+			# report. Always sent — the default mic stand is a real pick and
+			# the report is exactly about how often the others beat it. Old
+			# servers just ignore the field.
+			"weapon": run_weapon,
 		}
 		# Who this run beat up, for the MOST BEAT UP board. Omitted when empty
 		# so the payload (and the server's validation) stays the old shape.

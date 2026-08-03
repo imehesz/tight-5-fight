@@ -35,6 +35,7 @@ const SCHEMA = {
       player_uuid    TEXT NOT NULL,
       score          INTEGER NOT NULL DEFAULT 0,
       seconds        INTEGER NOT NULL DEFAULT 0,
+      weapon         TEXT NOT NULL DEFAULT '',
       created_at     TEXT NOT NULL DEFAULT (datetime('now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_board ON plays (game_id, character_name)`,
@@ -133,6 +134,7 @@ const SCHEMA = {
       player_uuid    CHAR(36)    NOT NULL,
       score          INT         NOT NULL DEFAULT 0,
       seconds        INT         NOT NULL DEFAULT 0,
+      weapon         VARCHAR(24) NOT NULL DEFAULT '',
       created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_board (game_id, character_name),
@@ -264,6 +266,11 @@ async function migrate() {
     // existed (and by any client too old to send it), which is why the
     // averages below ignore zeros rather than counting them as instant deaths.
     "ALTER TABLE plays ADD COLUMN seconds INT NOT NULL DEFAULT 0",
+    // The WeaponId carried that run (see shared/assets/weapons/weapons.json).
+    // '' on rows banked before the column existed or by clients too old to
+    // send it — the popularity report skips those rather than inventing a
+    // "mic" that was never actually reported.
+    "ALTER TABLE plays ADD COLUMN weapon VARCHAR(24) NOT NULL DEFAULT ''",
   ];
   for (const sql of alters) {
     try {
@@ -319,11 +326,11 @@ async function secondsSinceLastPlay(uuid) {
   return row ? Number(row.age) : null;
 }
 
-async function recordPlay({ gameId, characterName, playerUuid, score, seconds }) {
+async function recordPlay({ gameId, characterName, playerUuid, score, seconds, weapon }) {
   await run(
-    `INSERT INTO plays (game_id, character_name, player_uuid, score, seconds)
-     VALUES (?, ?, ?, ?, ?)`,
-    [gameId, characterName, playerUuid, score || 0, seconds || 0]
+    `INSERT INTO plays (game_id, character_name, player_uuid, score, seconds, weapon)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [gameId, characterName, playerUuid, score || 0, seconds || 0, weapon || ""]
   );
 }
 
@@ -427,6 +434,25 @@ async function venueSize(gameId) {
     [gameId]
   );
   return Number(row ? row.n : 0);
+}
+
+// ---------------------------------------------------------------- weapons
+// Weapon popularity for admin.html: plays per WeaponId for one game, last 30
+// days riding along with all time (same CASE-window trick as sponsorReport,
+// for the same MySQL 5.5 reason). Rows with weapon = '' predate the column or
+// came from old clients, so they are excluded rather than shown as a fake
+// blank weapon. Whole-game GROUP BY, no paging: the rack is a dozen ids.
+async function weaponReport(gameId) {
+  return all(
+    `SELECT weapon,
+            SUM(CASE WHEN created_at >= ${SINCE[DRIVER].month} THEN 1 ELSE 0 END) AS month_total,
+            COUNT(*) AS all_time
+       FROM plays
+      WHERE game_id = ? AND weapon <> ''
+      GROUP BY weapon
+      ORDER BY all_time DESC, weapon ASC`,
+    [gameId]
+  );
 }
 
 // ---------------------------------------------------------------- stats
@@ -725,6 +751,7 @@ module.exports = {
   venueFightTotals,
   recordSponsorImpressions,
   sponsorReport,
+  weaponReport,
   boardPage,
   boardSize,
   mostPlayedTop,
