@@ -257,15 +257,86 @@ body {
 		window.webkitAudioContext = TrackedAudioContext;
 	}
 
-	// This project exports with audio/general/default_playback_type.web = 1
-	// (Sample), Godot 4.4's web default. In that mode EVERY sound — music and
-	// SFX alike — is gated behind a single promise: the engine loads
-	// index.audio.position.worklet.js once at startup and each sample node
-	// awaits it before calling start(). If that one addModule() rejects or
-	// never settles, the game is completely silent with no error the player
-	// can see. Godot requests it immediately after constructing the context,
-	// i.e. while it is still suspended, which is exactly the situation Safari
-	// is unreliable in.
+	// --- Audio-object accounting (iphone-fixes branch) ---------------------
+	// The crash hunt's confirmed suspect is WebAudio object accumulation:
+	// Godot 4.4's Sample playback spawns a position-reporting worklet node per
+	// sound played, and WebKit never frees them (godotengine/godot#107390,
+	// PR #107948) — memory grows where no engine counter can see it. These
+	// counters are the proof either way: the flight recorder mirrors them into
+	// every heartbeat, so a crash report shows exactly how much audio
+	// machinery had ever been created at the moment of death. Monotonic on
+	// purpose — a WebKit-side leak tracks what was CREATED, not what JS still
+	// references. With default_playback_type.web=0 (Stream, the fix under
+	// test) `wk` should sit at ~1 and `src` should stop climbing; if crashes
+	// continue anyway with those flat, audio is exonerated and the next
+	// suspect is GPU-side (see the gl event).
+	const audioStats = {
+		workletNodes: 0,   // AudioWorkletNode constructions (the leaking kind)
+		bufferSources: 0,  // one per sample play, + one per unlock gesture
+		decodes: 0,        // decodeAudioData calls
+		decodedMB: 0,      // decoded PCM WebKit must hold, in MB
+	};
+	window.__t5audio = {
+		stats: audioStats,
+		summary: function () {
+			let states = '';
+			contexts.forEach(function (c) {
+				try { states += String(c.state).charAt(0); } catch (err) { states += '?'; }
+			});
+			return 'wk ' + audioStats.workletNodes + ' src ' + audioStats.bufferSources +
+				' dec ' + audioStats.decodes + ' ' + Math.round(audioStats.decodedMB) + 'M' +
+				' ctx ' + (states || '-');
+		},
+	};
+	if (window.AudioWorkletNode) {
+		const NativeWorkletNode = window.AudioWorkletNode;
+		const CountedWorkletNode = function () {
+			audioStats.workletNodes += 1;
+			return Reflect.construct(NativeWorkletNode, arguments, NativeWorkletNode);
+		};
+		CountedWorkletNode.prototype = NativeWorkletNode.prototype;
+		window.AudioWorkletNode = CountedWorkletNode;
+	}
+	(function () {
+		// createBufferSource/decodeAudioData live on BaseAudioContext, but
+		// shadowing them on the AudioContext prototype covers every context
+		// the engine (or our unlock primer) will ever make.
+		const proto = Native.prototype;
+		const nativeCreateBufferSource = proto.createBufferSource;
+		if (typeof nativeCreateBufferSource === 'function') {
+			proto.createBufferSource = function () {
+				audioStats.bufferSources += 1;
+				return nativeCreateBufferSource.apply(this, arguments);
+			};
+		}
+		const nativeDecode = proto.decodeAudioData;
+		if (typeof nativeDecode === 'function') {
+			proto.decodeAudioData = function () {
+				audioStats.decodes += 1;
+				const promise = nativeDecode.apply(this, arguments);
+				if (promise && typeof promise.then === 'function') {
+					promise.then(function (buffer) {
+						if (buffer && buffer.length) {
+							audioStats.decodedMB +=
+								(buffer.length * buffer.numberOfChannels * 4) / 1048576;
+						}
+					}, function () { /* decode failed; nothing to count */ });
+				}
+				return promise;
+			};
+		}
+	}());
+
+	// As of the iphone-fixes branch this project exports with
+	// audio/general/default_playback_type.web = 0 (Stream) — see project.godot
+	// for why (the Sample machinery leaks in WebKit and is the prime crash
+	// suspect). The hardening below is mode-agnostic and stays: in Sample mode
+	// every sound awaits index.audio.position.worklet.js before its start();
+	// in Stream mode the output worklet load matters the same way. Either way
+	// an addModule() that rejects or never settles means silence with no
+	// visible error, and Godot requests it immediately after constructing the
+	// context — while it is still suspended, which is exactly the situation
+	// Safari is unreliable in.
 	//
 	// So: retry instead of accepting the first answer, and race each attempt
 	// against a timeout so a promise that simply never settles is covered too.
@@ -546,6 +617,36 @@ body {
 		});
 	}
 
+	// The audio accounting from the unlock wrapper above, refreshed into ONE
+	// self-updating slot of the event ring — never appended twice, so real
+	// errors keep their room, and like mark() it never touches live.reason.
+	// Riding inside `events` means the server, the crashes table and the admin
+	// page all need no change: the numbers appear in the "why" hover of the
+	// crash report. Reading one: `wk` = AudioWorkletNode constructions (the
+	// WebKit-leaking kind — should sit at ~1 in Stream mode, climbs per sound
+	// in Sample mode), `src` = buffer sources ever made, `dec` = decodes and
+	// decoded MB WebKit holds, `ctx` = each context's state initial (r/s/c).
+	let audioSlot = -1;
+	function noteAudio() {
+		if (!window.__t5audio) {
+			return;
+		}
+		const entry = {
+			t: uptime(),
+			r: 'audio',
+			d: String(window.__t5audio.summary()).slice(0, 120),
+		};
+		if (audioSlot === -1) {
+			if (live.events.length >= MAX_EVENTS) {
+				return;
+			}
+			audioSlot = live.events.length;
+			live.events.push(entry);
+		} else {
+			live.events[audioSlot] = entry;
+		}
+	}
+
 	// Like note(), but for facts rather than failures. It must NOT set
 	// live.reason: the crash panel's "why" column reading "silent" is the
 	// single most important signal we have, and a device fact must never
@@ -648,6 +749,7 @@ body {
 			}
 			// A first beat means the engine is up and the canvas is sized.
 			captureFacts();
+			noteAudio();
 			persist();
 		},
 		// The previous life's final snapshot as JSON, or '' if it ended well.

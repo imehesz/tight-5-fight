@@ -16,6 +16,21 @@ config/features=PackedStringArray("4.4")
 boot_splash/image="uid://c1jxih1omtwo3"
 config/icon="res://shared/assets/icon.png"
 
+[audio]
+
+; THE iPHONE-CRASH CANDIDATE FIX (branch iphone-fixes). Godot 4.4's web
+; default is 1 (Sample): every sound is decoded into a JS AudioBuffer and each
+; play spawns a position-reporting AudioWorklet node that WebKit never frees
+; (godotengine/godot#107390, root-caused in PR #107948) — memory grows outside
+; the WASM heap, invisible to every counter we track, until iOS kills the tab.
+; Matches our data exactly: SFX on ~2min, music-only ~12min, "more sounds =
+; sooner". 0 (Stream) mixes in-engine through one persistent output node, so
+; the leaking machinery is never touched (workaround confirmed upstream in
+; godotengine/godot#116750). Risk to watch on device: single-threaded stream
+; mixing can crackle on weak phones — if it does, that's audible immediately,
+; while the leak needs 12 minutes; still a good trade.
+general/default_playback_type.web=0
+
 [autoload]
 
 GameState="*res://autoload/game_state.gd"

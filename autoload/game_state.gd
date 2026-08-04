@@ -112,6 +112,16 @@ const SFX_ALIASES := {"swing": "throw"}
 ## attack sounds was tried first and did NOT stop the crashes, so this is the
 ## deliberate blunt instrument until the real cause is found.
 ##
+## 2026-08-03 (branch iphone-fixes): the real cause is all but confirmed —
+## Godot 4.4's web Sample playback leaks a position-reporting worklet per
+## sound played and WebKit never frees it (godotengine/godot#107390, fix
+## rationale in PR #107948). project.godot now forces Stream playback on web,
+## which never touches that machinery. TEST PASSED on device 2026-08-03:
+## 4-5 full-audio games (?iosaudio=1), zero crashes vs the old ~2-minute
+## death, so IOS_AUDIO_ON_BY_DEFAULT below now ships iOS sound ON and this
+## list is inert — kept only as the rollback until the fix has soaked in
+## prod. Full notes: requirements/iphone-crash-investigation.md.
+##
 ## Silenced by SAMPLE, so an ENEMY's punch is quiet too — that is exactly the
 ## configuration that was proven, since ?sfxoff= suppresses by name and not by
 ## who acted.
@@ -121,7 +131,8 @@ const SFX_ALIASES := {"swing": "throw"}
 ## below). That lets exactly one sound through and silences the rest, on any
 ## device. website-for-all/iphonetest.html lists a ready-made link per sound.
 ## By hand: comment out a line below and re-export to let that one through.
-## Whole mitigation off: ?iosaudio=1 · force it on a non-iPhone: ?iosmute=1
+## Mitigation is OFF by default since 2026-08-03 (IOS_AUDIO_ON_BY_DEFAULT
+## below): re-apply it per run with ?iosaudio=0 (+&iosmute=1 off-iOS)
 ## ─────────────────────────────────────────────────────────────────────────
 ##
 ## Keep in sync with SFX_NAMES + CROWD_NAMES + STINGER_NAMES above, plus the
@@ -150,6 +161,15 @@ const IOS_SILENT_SFX := [
 	"plane",
 	"bomb-drop",
 ]
+## STREAM-MODE ROLLOUT SWITCH (branch iphone-fixes). With web playback forced
+## to Stream (see project.godot), the owner played 4-5 full-audio games on a
+## real iPhone on 2026-08-03 with ZERO crashes — the old Sample path died at
+## ~2 minutes — so iOS sound is ON by default now. IOS_SILENT_SFX above stays,
+## inert, as the rollback: flip this one const to false and iOS is back to
+## music-only exactly as shipped. On-device comparison without a rebuild:
+## ?iosaudio=0 re-applies the silencing for that run (add &iosmute=1 to hear
+## the silenced mix on a non-iOS device).
+const IOS_AUDIO_ON_BY_DEFAULT := true
 ## User-supplied crowd sounds use hyphen filenames (sfx-cricket.wav) —
 ## deliberately outside the sfx_ pool naming above.
 const HYPHEN_SFX_BASE := "res://shared/assets/sfx/sfx-"
@@ -306,9 +326,12 @@ var _sfx_off: PackedStringArray = []
 var _music_off: PackedStringArray = []
 ## Whether IOS_SILENT_SFX is in force: set at boot on iOS web builds only.
 var _ios_silence := false
-## ?iosaudio=1 — opt back INTO the attack sounds on iOS, for working on a
-## real fix. Read before _ios_silence is decided.
-var _ios_audio_forced := false
+## ?iosaudio=1/0 — opt INTO or OUT OF full iOS sound for one run, overriding
+## IOS_AUDIO_ON_BY_DEFAULT (which also supplies the no-query-string default
+## here — _apply_debug_flags returns early on an empty search string, so this
+## initializer is the value most players actually run with). Read before
+## _ios_silence is decided.
+var _ios_audio_forced := IOS_AUDIO_ON_BY_DEFAULT
 ## ?iosmute=1 — apply the iOS mitigation on ANY device. The owner has no
 ## iPhone, so this is the only way to hear what the mitigation does without
 ## borrowing one. Detection itself still needs a real device.
@@ -917,7 +940,8 @@ func _apply_debug_flags(search: String) -> void:
 	if moff != "":
 		_music_off = moff.split(",", false)
 	_no_pool = str(flags.get("nopool", "")) == "1"
-	_ios_audio_forced = str(flags.get("iosaudio", "")) == "1"
+	_ios_audio_forced = str(flags.get("iosaudio",
+			"1" if IOS_AUDIO_ON_BY_DEFAULT else "")) == "1"
 	_ios_mute_forced = str(flags.get("iosmute", "")) == "1"
 	_sfx_only = str(flags.get("sfxonly", ""))
 	# ?hints=1 replays the first-run popups on a device that has already seen
