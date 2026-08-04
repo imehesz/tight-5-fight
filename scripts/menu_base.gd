@@ -252,6 +252,31 @@ const BACK_SIZE := Vector2(48, 48)
 const BUTTON_RADIUS := 3
 const BUTTON_BORDER := 2
 const GRAY_BORDER := Color(0.72, 0.72, 0.80)
+const PURPLE_BORDER := Color(0.85, 0.6, 1.0)
+const PURPLE_TEXT := Color(0.97, 0.92, 1.0)
+
+
+## The filled neon-purple skin: bright violet tube border, glowing lavender
+## text. FIGHT! in character select wears it as that screen's one primary
+## action; anything else wearing it is saying "this is the button on the
+## screen". Static so non-menu screens can use it too. Disabled deliberately
+## keeps the default gray stylebox.
+static func style_purple_button(b: Button) -> void:
+	var fills := {
+		"normal": Color(0.45, 0.15, 0.75),
+		"hover": Color(0.58, 0.28, 0.9),
+		"pressed": Color(0.33, 0.1, 0.58),
+		"focus": Color(0.45, 0.15, 0.75),
+	}
+	for state in fills:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = fills[state]
+		sb.set_corner_radius_all(BUTTON_RADIUS)
+		sb.set_border_width_all(BUTTON_BORDER)
+		sb.border_color = PURPLE_BORDER
+		b.add_theme_stylebox_override(state, sb)
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(state, PURPLE_TEXT)
 
 
 static func style_gray_button(b: Button) -> void:

@@ -137,27 +137,11 @@ func _start_fight() -> void:
 	GameState.start_new_game(GameState.fight_character_index())
 
 
-## FIGHT! is this screen's one primary action, so it wears a neon-purple
-## fill — bright violet tube border, glowing lavender text. It is the only
-## filled button in the content column (BACK lives in the top-left corner in
-## red), which is what makes it pop. Disabled keeps the default gray
-## stylebox on purpose.
+## FIGHT! is this screen's one primary action, so it wears the shared
+## neon-purple fill. It is the only filled button in the content column (BACK
+## lives in the top-left corner in red), which is what makes it pop.
 func _style_fight_button(b: Button) -> void:
-	var fills := {
-		"normal": Color(0.45, 0.15, 0.75),
-		"hover": Color(0.58, 0.28, 0.9),
-		"pressed": Color(0.33, 0.1, 0.58),
-		"focus": Color(0.45, 0.15, 0.75),
-	}
-	for state in fills:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = fills[state]
-		sb.set_corner_radius_all(3)
-		sb.set_border_width_all(2)
-		sb.border_color = Color(0.85, 0.6, 1.0)
-		b.add_theme_stylebox_override(state, sb)
-	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		b.add_theme_color_override(state, Color(0.97, 0.92, 1.0))
+	MenuBase.style_purple_button(b)
 
 
 ## Hand the highlighted comedian's link to the OS. Never reachable on the "?"

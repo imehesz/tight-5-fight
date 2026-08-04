@@ -14,6 +14,7 @@ in the making of this game. Just their egos.
 Built with Godot. Powered by cheap laughs."""
 
 const SUPPORT_URL := "https://buymeacoffee.com/imehesz"
+const LEGAL_URL := "https://games.imstandup.com/tight5fight/legal.html"
 
 ## Everyone who gets a nod, in the order they appear on screen.
 const THANKS := [
@@ -55,6 +56,12 @@ func _ready() -> void:
 	add_spacer(body, 2)
 	for who in THANKS:
 		add_text(body, who, 9)
+	add_spacer(body, 10)
+
+	# Opt-out route for anyone listed above who'd rather not be in the game.
+	var optout := add_button(body, "THIS SUCKS, TAKE ME OFF", func(): OS.shell_open(LEGAL_URL))
+	optout.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	MenuBase.style_purple_button(optout)
 	add_spacer(body, 6)
 
 	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
