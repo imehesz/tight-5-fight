@@ -127,6 +127,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "patrick-sisk",
+      "CharacterName": "Patrick Sisk",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/patrick-sisk.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "ryan-palmer",
       "CharacterName": "Ryan Palmer",
       "HeadScale": 1,

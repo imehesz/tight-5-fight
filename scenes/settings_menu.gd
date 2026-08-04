@@ -15,19 +15,32 @@ enum Tab { SOUNDS, COLORS, WEAPONS }
 ## the same on both screens.
 const PREVIEW_SIZE := Vector2(150, 170)
 const PREVIEW_SCALE := Fighter.BODY_SCALE * 1.5
-## Tall enough for the roomiest panel (the 4x6 outfit grid, which fills it
-## nearly edge to edge) and for two weapon rack rows — the rest of the rack
-## scrolls.
-const PANEL_SIZE := Vector2(240, 190)
-const TAB_SIZE := Vector2(76, 28)
+## Wide enough for a rack row at the current CARD_SIZE (3 * 74 + 2 * 12 = 246)
+## plus the vertical scrollbar the rack always carries — sized flush to the row
+## the weapons got clipped, since the rack has horizontal scrolling switched
+## off. Also what the tab row above it measures, so the two line up. Tall
+## enough for the roomiest panel (the 4x6 outfit grid); the rack now shows a
+## row and a half and scrolls for the rest.
+const PANEL_SIZE := Vector2(276, 190)
+## Tabs match the scoreboard's: same 11pt text, same 28 tall, so the two tabbed
+## screens read as one control. 3 * 88 + 2 * 6 = 276 — flush with PANEL_SIZE.x.
+const TAB_SIZE := Vector2(88, 28)
 const TAB_GAP := 6
+const TAB_FONT := 11
 const TAB_ON := Color(1.0, 0.85, 0.4)
 const TAB_OFF := Color(0.6, 0.6, 0.68)
 ## Weapon rack: a 3x3 rack of cards like the roster's, padded with blanks so
 ## the grid keeps its shape, and scrolling once there are more than nine.
 const RACK_COLUMNS := 3
 const RACK_SLOTS := 9
-const CARD_SIZE := Vector2(64, 84)
+## Cards (and so the sprites on them, which are laid out as a CARD_INSET-padded
+## full-rect child) run ~15% over the 64x84 they started at: at rack size these
+## weapons are small, dark and thin, and the point of the screen is being able
+## to tell them apart. Gameplay art is untouched — this is menu-only.
+const CARD_SIZE := Vector2(74, 97)
+## Scaled with the card, so the art grows by the same 12% the frame does rather
+## than eating the padding.
+const CARD_INSET := 6
 const GOLD := Color(1.0, 0.85, 0.4)
 ## Weapon cards sit on near-black rather than the faint white wash the outfit
 ## swatches use: these are dark, thin, detailed sprites, and over the lit street
@@ -107,7 +120,7 @@ func _tab_button(tab: Tab, text: String) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = TAB_SIZE
-	b.add_theme_font_size_override("font_size", 8)
+	b.add_theme_font_size_override("font_size", TAB_FONT)
 	b.pressed.connect(func():
 		GameState.play_sfx("click")
 		_show_tab(tab))
@@ -384,10 +397,10 @@ func _weapon_card(index: int) -> VBoxContainer:
 		art.flip_h = true
 		art.flip_v = true
 	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	art.offset_left = 5
-	art.offset_top = 5
-	art.offset_right = -5
-	art.offset_bottom = -5
+	art.offset_left = CARD_INSET
+	art.offset_top = CARD_INSET
+	art.offset_right = -CARD_INSET
+	art.offset_bottom = -CARD_INSET
 	btn.add_child(art)
 
 	btn.pressed.connect(func():
