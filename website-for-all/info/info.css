@@ -142,7 +142,7 @@ a.tile:hover, a.tile:focus-visible {
   border: 2px solid var(--purple);
   border-radius: 50%;
 }
-.venue-shot, .ad-shot {
+.venue-shot, .marquee-shot {
   width: 100%;
   height: auto;
   image-rendering: pixelated;
@@ -150,7 +150,76 @@ a.tile:hover, a.tile:focus-visible {
   border-radius: 6px;
   background: #0b0716;
 }
-.ad-shot { image-rendering: auto; }
+/* Sponsor artwork is photographic 640x460, not sprite art — never nearest-
+   neighbour it. The aspect-ratio holds the tile's shape open while the image
+   is still loading, so the grid doesn't reflow under the reader.
+
+   The class is "marquee", never "ad" — a class name with "ad" in it is what
+   ad-blocker COSMETIC filters hide, the same way the old /ads/ path got the
+   requests themselves blocked. Renaming it is free; a sponsor whose art never
+   shows is not. */
+.marquee-shot {
+  image-rendering: auto;
+  aspect-ratio: 640 / 460;
+  object-fit: cover;
+}
+/* Stand-in when the image genuinely can't load (missing file, or a blocker
+   with a broader filter list than the paths dodge). */
+.marquee-shot.no-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  font-size: clamp(8px, 2.1vw, 10px);
+  line-height: 1.7;
+  color: var(--dim);
+  text-align: center;
+  overflow-wrap: anywhere;
+  border-style: dashed;
+}
+
+/* ---------- sponsors: NOW SHOWING / PAST SPONSORS ---------- */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 0;
+  font-size: clamp(11px, 2.8vw, 15px);
+  color: var(--gold);
+  text-shadow: 2px 2px 0 #000, 0 0 10px #ffd96655;
+}
+.section-head::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--purple), transparent);
+}
+/* The first heading sits right under the panel's sub line, which already has
+   the spacing. */
+.board .section-head:first-of-type { margin-top: 14px; }
+
+/* Past sponsors: the same tiles, faded to a memory — dashed frame, greyed
+   art. Colour comes back on hover/focus, and the link still works: they are
+   real businesses, and the friendliest version of "come back" is one that
+   still sends people their way. */
+.past-grid .tile {
+  opacity: .55;
+  border-style: dashed;
+  transition: opacity .15s ease;
+}
+.past-grid .marquee-shot {
+  filter: grayscale(1) contrast(.92);
+  transition: filter .15s ease;
+}
+.past-grid .tile:hover, .past-grid .tile:focus-visible { opacity: 1; }
+.past-grid .tile:hover .marquee-shot,
+.past-grid .tile:focus-visible .marquee-shot { filter: none; }
+
+.cta-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 26px;
+}
 
 /* PLAY, sized as a phone tap target (mirrors the landing page's pink) */
 .play-btn {
@@ -384,5 +453,5 @@ body.modal-open { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tile, .play-btn, .tab { transition: none; }
+  .tile, .play-btn, .tab, .past-grid .tile, .past-grid .marquee-shot { transition: none; }
 }

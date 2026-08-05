@@ -141,15 +141,29 @@
     box.appendChild(grid);
   }
 
-  function picture(cls, src, alt) {
+  // `eager` opts an image OUT of lazy loading. It matters for anything sitting
+  // in a panel that is `hidden` (display:none) until its tab is opened: a lazy
+  // image in a display:none subtree is the one case browsers genuinely
+  // disagree about, and Safari can leave it unloaded forever — which, with the
+  // onerror below, shows up as a tile with a caption and no art.
+  function picture(cls, src, alt, eager) {
     var img = new Image();
     img.className = cls;
     img.alt = alt || "";
-    img.loading = "lazy";
+    if (!eager) img.loading = "lazy";
     img.src = src;
     // A missing PNG shouldn't leave a broken-image icon in the grid.
     img.onerror = function () { img.style.visibility = "hidden"; };
     return img;
+  }
+
+  // Shared A→Z comparator (roster order in the JSON is hand-maintained, so
+  // every list on this page sorts for itself).
+  function byName(key) {
+    return function (a, b) {
+      return String(a[key]).localeCompare(String(b[key]), "en",
+        { numeric: true, sensitivity: "base" });
+    };
   }
 
   // ---- panels --------------------------------------------------------------
@@ -183,10 +197,7 @@
     // order, hand-maintained), then broken into A / B / C bands. The heading
     // rows are full-width members of the same grid, so the tile columns stay
     // aligned straight down the page.
-    live.sort(function (a, b) {
-      return String(a.CharacterName).localeCompare(String(b.CharacterName), "en",
-        { numeric: true, sensitivity: "base" });
-    });
+    live.sort(byName("CharacterName"));
     var nodes = [], letters = [], band = null;
     live.forEach(function (c) {
       var letter = indexLetter(c.CharacterName);
@@ -235,38 +246,115 @@
     fill("venues", tiles, "NO VENUES YET");
   }
 
+  // A real sponsor sold in THIS market. `isSample` is how the template row in
+  // sponsors.json opts out of every list on this page — it is permanently
+  // disabled, so without this it would turn up under PAST SPONSORS as if
+  // "Example Sponsor" had once bought billboards here.
+  function inThisMarket(s) {
+    if (!s || s.isSample || !s.sponsorId || !s.imgLink) return false;
+    return (s.inMarkets || []).some(function (m) { return m === CFG.gameId; });
+  }
+
   // Mirror of autoload/sponsors.gd _runs_today: live, running today, and
   // sold in THIS market.
   function runsToday(s, today) {
-    if (!s || s.isDisabled) return false;
-    if (!s.sponsorId || !s.imgLink) return false;
-    if (!(s.inMarkets || []).some(function (m) { return m === CFG.gameId; })) return false;
+    if (!inThisMarket(s) || s.isDisabled) return false;
     if (s.dateStart && today < s.dateStart) return false;
     if (s.dateEnd && today > s.dateEnd) return false;
     return true;
   }
 
+  // Ran here once, isn't running now: benched (`isDisabled`) or the campaign
+  // window closed. A sponsor whose window hasn't OPENED yet is booked, not
+  // past — they belong on neither list until their dateStart comes around.
+  function isPast(s, today) {
+    if (!inThisMarket(s) || runsToday(s, today)) return false;
+    return !(s.dateStart && today < s.dateStart);
+  }
+
+  // Ad on top, name as its caption. Live ads load EAGERLY: this panel is
+  // hidden until the tab is opened, and a paying sponsor's art must never be
+  // the thing a browser decides not to fetch (see picture()). The past grid
+  // can run long, so it stays lazy. A sponsor with no link renders as a plain
+  // tile rather than an anchor to nowhere.
+  //
+  // NOTE the class name and the image paths: neither may contain "ad",
+  // "banner", "promo" or "sponsor" as a path segment or filename prefix, or
+  // ad blockers eat the request (ERR_BLOCKED_BY_CLIENT) and cosmetic filters
+  // hide the element. See website-for-all/sponsors/README.md.
+  function sponsorTile(s, past) {
+    var t = el(s.linkTo ? "a" : "div", "tile" + (past ? " past" : ""));
+    if (s.linkTo) {
+      t.href = s.linkTo;
+      t.target = "_blank";
+      t.rel = "noopener";
+    }
+    var img = picture("marquee-shot", SPONSORS_DIR + s.imgLink, s.sponsorName, !past);
+    // Belt and braces for the blocker case above: an image that never arrives
+    // leaves a framed placeholder carrying the name, not a nameless hole where
+    // a paying sponsor's art should be.
+    img.onerror = function () {
+      if (img.parentNode) {
+        img.parentNode.replaceChild(el("div", "marquee-shot no-art", s.sponsorName), img);
+      }
+    };
+    t.appendChild(img);
+    t.appendChild(el("p", "name", s.sponsorName));
+    return t;
+  }
+
+  function sectionHead(box, title, sub) {
+    box.appendChild(el("h3", "section-head", title));
+    box.appendChild(el("p", "sub", sub));
+  }
+
+  // The same pitch the in-game SPONSORS screen makes with its ADVERTISE HERE
+  // button (scenes/sponsors_menu.gd) — one mailto, no form to maintain.
+  var ADVERTISE_MAILTO = "mailto:imehesz@gmail.com?subject=" +
+    encodeURIComponent("TIGHT 5 FIGHT sponsorship");
+
+  function advertiseCTA() {
+    var row = el("div", "cta-row");
+    var a = el("a", "play-btn", "▶ ADVERTISE HERE");
+    a.href = ADVERTISE_MAILTO;
+    row.appendChild(a);
+    return row;
+  }
+
   function renderSponsors(roster) {
     var today = todayUTC();
-    var live = (roster || []).filter(function (s) { return runsToday(s, today); });
-    if (!live.length) {
-      // Nothing to show → the tab greys out. Anyone who arrived on a
-      // #sponsors link gets dropped back on FIGHTERS before it locks.
+    var all = roster || [];
+    var live = all.filter(function (s) { return runsToday(s, today); });
+    var past = all.filter(function (s) { return isPast(s, today); });
+    if (!live.length && !past.length) {
+      // This city has no sponsor history at all → the tab greys out. Anyone
+      // who arrived on a #sponsors link gets dropped back on FIGHTERS before
+      // it locks. A city with PAST sponsors keeps its tab: the empty billboard
+      // and the names of who used to be on it are the pitch.
       if (buttons.sponsors.getAttribute("aria-selected") === "true") select("fighters", false);
       buttons.sponsors.disabled = true;
       fill("sponsors", [], "THIS SPACE IS FOR SALE");
       return;
     }
-    var tiles = live.map(function (s) {
-      var a = el("a", "tile");
-      a.href = s.linkTo || "#";
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.appendChild(picture("ad-shot", SPONSORS_DIR + s.imgLink, s.sponsorName));
-      a.appendChild(el("p", "name", s.sponsorName));
-      return a;
-    });
-    fill("sponsors", tiles, "THIS SPACE IS FOR SALE");
+    live.sort(byName("sponsorName"));
+    fill("sponsors", live.map(function (s) { return sponsorTile(s, false); }),
+      "NOBODY ON THE BOARD TODAY — THIS SPACE IS FOR SALE");
+
+    // fill() only ever rebuilds from child 2 on, so the NOW SHOWING heading is
+    // inserted after it (same dance as the fighters' jump bar); everything
+    // below the live grid is appended.
+    var box = panels.sponsors;
+    var head = el("h3", "section-head", "NOW SHOWING");
+    box.insertBefore(head, box.children[2]);
+    if (past.length) {
+      past.sort(byName("sponsorName"));
+      sectionHead(box, "PAST SPONSORS",
+        "THEY BOUGHT THE ROOM A ROUND · THEIR BILLBOARD IS OPEN AGAIN");
+      var grid = el("div", "grid sponsors past-grid");
+      past.forEach(function (s) { grid.appendChild(sponsorTile(s, true)); });
+      box.appendChild(grid);
+    }
+    box.appendChild(advertiseCTA());
   }
 
   // ---- trading card --------------------------------------------------------

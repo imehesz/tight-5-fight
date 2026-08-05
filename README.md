@@ -54,8 +54,11 @@ visible and drive the same input actions (mouse clicks work on them too, via
   `InteriorSpritePath` 640x360).
 - **New sponsor (paid billboard on the street + SPONSORS screen):** hosted,
   not baked into any build — see `website-for-all/sponsors/README.md`.
-  Paste the 640x460 ad into `website-for-all/sponsors/ads/`, add an entry to
-  `sponsors.json`, rsync the website. No game redeploy.
+  Paste the 640x460 artwork into `website-for-all/sponsors/marquee/`, add an
+  entry to `sponsors.json`, rsync the website. No game redeploy. **Never put
+  "ad", "sponsor", "banner" or "promo" in the file path** — ad blockers kill
+  those requests outright, costing the sponsor both their billboard and their
+  impression count. The sponsors README opens with the full story.
 
 ## Melee weapons
 
