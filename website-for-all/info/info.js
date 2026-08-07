@@ -310,7 +310,7 @@
 
   // The same pitch the in-game SPONSORS screen makes with its ADVERTISE HERE
   // button (scenes/sponsors_menu.gd) — one mailto, no form to maintain.
-  var ADVERTISE_MAILTO = "mailto:imehesz@gmail.com?subject=" +
+  var ADVERTISE_MAILTO = "mailto:tight5contact@gmail.com?subject=" +
     encodeURIComponent("TIGHT 5 FIGHT sponsorship");
 
   function advertiseCTA() {

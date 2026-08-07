@@ -1,0 +1,221 @@
+{
+  "characters": [
+    {
+      "CharacterId": "alex-barboza",
+      "CharacterName": "Alex Barboza",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+     "HeadSpritePath": "assets/heads/alex-barboza.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "amir-schuman",
+      "CharacterName": "Amir Schuman",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/amir-schuman.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterId": "carmen-vallone",
+      "CharacterName": "Carmen Vallone",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/carmen-vallone.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "cee-dillard",
+      "CharacterName": "Cee Dillard",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/cee-dillard.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterId": "don-gates",
+      "CharacterName": "Don Gates",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/don-gates.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "erick-feiling",
+      "CharacterName": "Erick Feiling",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/erick-feiling.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterId": "jack-bynum",
+      "CharacterName": "Jack Bynum",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/jack-bynum.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterId": "joe-censabella",
+      "CharacterName": "Joe Censabella",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/joe-censabella.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "johnathon-sorrell",
+      "CharacterName": "Johnathon Sorrell",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/johnathon-sorrell.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterId": "kevin-mr-407-deane",
+      "CharacterName": "Kevin (Mr. 407) Deane",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/kevin-mr-407-deane.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterId": "loose-cannon",
+      "CharacterName": "Loose Cannon",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/loose-cannon.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterId": "marcus-crespo",
+      "CharacterName": "Marcus Crespo",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/marcus-sexy_clean.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "marty-chalfin",
+      "CharacterName": "Marty Chalfin",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/marty-chalfin.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "mike-ha-ha",
+      "CharacterName": "Mike HA-HA",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mike-ha-ha.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "patrick-sisk",
+      "CharacterName": "Patrick Sisk",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/patrick-sisk.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "ryan-palmer",
+      "CharacterName": "Ryan Palmer",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ryan-palmer.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "winston-pickles",
+      "CharacterName": "Winston Pickles",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/winston-pickles.png",
+      "BodyType": "M",
+      "SkinColor": "#ffffff"
+    },
+    {
+      "CharacterId": "mickey",
+      "CharacterName": "Mickey",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mickey.png",
+      "BodyType": "M",
+      "SkinColor": "#000000"
+    },
+    {
+      "CharacterId": "mr-open-micer",
+      "CharacterName": "Mr. Open Micer",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mr-anonymous.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "ms-open-micer",
+      "CharacterName": "Ms. Open Micer",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ms-anonymous.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "a-karen",
+      "CharacterName": "A Karen",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/a-karen.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "santa",
+      "CharacterName": "Santa",
+      "isDisabled": true,
+      "HeadScale": 1,
+      "HeadOffsetY": 4,
+      "HeadSpritePath": "assets/heads/santa.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "paul",
+      "CharacterName": "Paul",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/paul.png",
+      "BodyType": "M",
+      "SkinColor": "#329622"
+    },
+    {
+      "CharacterId": "officer",
+      "CharacterName": "Officer",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/officer.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    }
+  ]
+}

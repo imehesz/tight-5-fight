@@ -10,6 +10,15 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "alec-jones",
+      "CharacterName": "Alec Jones",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/alec-jones.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "alex-fitzjohn",
       "CharacterName": "Alex Fitzjohn",
       "HeadScale": 1,
@@ -558,6 +567,15 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/richardaragon.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "rich-white",
+      "CharacterName": "Rich White",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/rich-white.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },

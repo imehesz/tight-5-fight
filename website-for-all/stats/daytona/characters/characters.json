@@ -73,6 +73,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "denise-carey",
+      "CharacterName": "Denise Carey",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/denise-carey.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "geronimo-vela",
       "CharacterName": "Geronimo Vela",
       "HeadScale": 1,
@@ -195,6 +204,15 @@
       "HeadScale": 1,
       "HeadOffsetY": 0,
       "HeadSpritePath": "assets/heads/sareth-nay.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "scott-perry",
+      "CharacterName": "Scott Perry",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/scott-perry.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },

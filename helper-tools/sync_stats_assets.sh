@@ -33,6 +33,7 @@ GAMES=(
   "daytona=daytona"
   "celebs=celebs"
   "killers=killers"
+  "orlando=orlando"
 )
 
 copy_pngs() { # src_dir dst_dir

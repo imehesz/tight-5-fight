@@ -1,0 +1,36 @@
+<!doctype html>
+<!--
+  TIGHT 5 FIGHT! — per-game MORE INFO page (fighters / venues / sponsors).
+  GENERATED from info/_template.html by helper-tools/sync_stats_assets.sh
+  the first time a game is synced; after that it is yours to edit (the
+  script never overwrites an existing index.html).
+
+  All the real markup, style and logic live in ../info.css + ../info.js
+  (on top of the shared ../../stats/stats.css); this file only says WHICH
+  game to show:
+    gameId — the leaderboard / sponsor market id (JAX's is "tight5")
+    folder — the public URL segment: the game build is ../../<folder>/ and
+             the head/venue art is read from ../../stats/<folder>/
+    label  — the big neon headline
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIGHT 5 FIGHT! — ORLANDO INFO</title>
+<meta name="description" content="TIGHT 5 FIGHT! ORLANDO edition — every playable comedian, every venue, and the sponsors keeping the mics on.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../stats/stats.css">
+<link rel="stylesheet" href="../info.css">
+<link rel="icon" href="../../favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="../../imgs/t5f-logo_mid.png">
+</head>
+<body>
+<script>window.T5F_INFO = { gameId: "orlando", folder: "orlando", label: "ORLANDO" };</script>
+<script src="../md.js"></script>
+<script src="../fighter-sprite.js"></script>
+<script src="../info.js"></script>
+</body>
+</html>
