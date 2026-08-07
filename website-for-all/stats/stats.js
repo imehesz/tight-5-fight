@@ -37,6 +37,13 @@
 
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // Roster JSONs ship with no Cache-Control (Apache default), so a browser's
+  // heuristic cache can serve a stale roster for days after a release — new
+  // comedians and venues simply never appear. "no-cache" revalidates instead
+  // of re-downloading: unchanged files answer 304. See info.js for the full
+  // story (a stale sponsors.json is what surfaced this on 2026-08-07).
+  var REVALIDATE = { cache: "no-cache" };
+
   // Same host logic as the game's leaderboard.gd and admin.html: on the
   // real domain go through Apache's /tight5fight/api proxy; anywhere else
   // talk to a local dev server directly.
@@ -545,8 +552,8 @@
     header();
 
     Promise.all([
-      fetch("characters/characters.json").then(function (r) { return r.json(); }),
-      fetch("venues/venues.json").then(function (r) { return r.json(); }),
+      fetch("characters/characters.json", REVALIDATE).then(function (r) { return r.json(); }),
+      fetch("venues/venues.json", REVALIDATE).then(function (r) { return r.json(); }),
       fetch(apiBase() + "/podium?gameId=" + encodeURIComponent(CFG.gameId))
         .then(function (r) { if (!r.ok) throw new Error("api " + r.status); return r.json(); }),
       loadImage("../assets/body_male.png"),

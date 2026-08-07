@@ -534,7 +534,7 @@
     return arr;
   }
 
-  fetch('testimonials.json')
+  fetch('testimonials.json', { cache: 'no-cache' })
     .then(function (r) { return r.json(); })
     .then(function (all) {
       if (!all || !all.length) return;

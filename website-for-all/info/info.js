@@ -37,6 +37,15 @@
   var GAME_URL = "../../" + CFG.folder + "/";
   var SPONSORS_DIR = "../../sponsors/";
 
+  // Apache serves these .json files with no Cache-Control, only Last-Modified,
+  // so browsers fall back to HEURISTIC caching (~10% of the file's age) and can
+  // hold a roster or sponsor list for days without ever asking again. That bit
+  // us on 2026-08-07: browsers kept a pre-rename sponsors.json and went on
+  // requesting the deleted ads/sponsor_*.png. "no-cache" is NOT "no-store" —
+  // the copy is still cached, it just has to revalidate, so an unchanged file
+  // costs one 304 and zero bytes of body.
+  var REVALIDATE = { cache: "no-cache" };
+
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -465,17 +474,17 @@
 
     // Rosters are per-tab and independent: one failed fetch only empties its
     // own panel.
-    fetch(ASSETS + "characters/characters.json")
+    fetch(ASSETS + "characters/characters.json", REVALIDATE)
       .then(function (r) { return r.json(); })
       .then(function (d) { renderFighters(d.characters || []); })
       .catch(function () { fill("fighters", [], "COULDN'T LOAD THE ROSTER — TRY AGAIN IN A MINUTE"); });
 
-    fetch(ASSETS + "venues/venues.json")
+    fetch(ASSETS + "venues/venues.json", REVALIDATE)
       .then(function (r) { return r.json(); })
       .then(function (d) { renderVenues(d.venues || []); })
       .catch(function () { fill("venues", [], "COULDN'T LOAD THE VENUES — TRY AGAIN IN A MINUTE"); });
 
-    fetch(SPONSORS_DIR + "sponsors.json")
+    fetch(SPONSORS_DIR + "sponsors.json", REVALIDATE)
       .then(function (r) { return r.json(); })
       .then(function (d) { renderSponsors(d.sponsors || []); })
       .catch(function () { renderSponsors([]); });
