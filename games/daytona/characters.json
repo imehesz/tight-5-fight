@@ -208,6 +208,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "scott-perry",
+      "CharacterName": "Scott Perry",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/scott-perry.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "sean-murphy",
       "CharacterName": "Sean Murphy",
       "HeadScale": 1,

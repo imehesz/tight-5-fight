@@ -41,6 +41,12 @@
       "VenueName": "The Club",
       "ExteriorSpritePath": "assets/venues/the-club_ext.png",
       "InteriorSpritePath": "assets/venues/the-club_int.png" 
+    },
+    { 
+      "VenueId": "the-wobbly-whale",
+      "VenueName": "The Wobbly Whale",
+      "ExteriorSpritePath": "assets/venues/wobbly-whale_ext.png",
+      "InteriorSpritePath": "assets/venues/wobbly-whale_int.png" 
     }
   ]
 }
