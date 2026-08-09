@@ -144,9 +144,9 @@ func _heckle(delta: float) -> void:
 				INSULTS.pick_random(), Color.WHITE, true)
 
 
-func take_hit(damage: float, from_x: float) -> void:
+func take_hit(damage: float, from_x: float, knockback := 1.0) -> void:
 	provoked = true
-	super(damage, from_x)
+	super(damage, from_x, knockback)
 
 
 func _die() -> void:

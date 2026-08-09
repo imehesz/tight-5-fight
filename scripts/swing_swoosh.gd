@@ -13,6 +13,11 @@ var facing := 1
 ## and duration are the same whatever the player picked.
 var weapon := Weapons.DEFAULT
 var duration := 0.2
+## HELD AT FRAME ONE: set before add_child to freeze the weapon overhead at
+## START_ANGLE while the player charges, with no arc drawn (there is no sweep
+## to trail yet). release() lets go, and the swing plays from the top exactly
+## as an uncharged one does — the sweep is never a different animation.
+var charging := false
 var _t := 0.0
 var _weapon_sprite: Sprite2D
 
@@ -35,6 +40,11 @@ const COLOR := Color(1.0, 1.0, 0.88)
 const WEAPON_LEN := 52.0
 ## Weapon stays solid through this fraction of the swing, then fades fast.
 const WEAPON_SOLID := 0.7
+## The one tell that a charge has banked its bonus: the raised weapon warms up
+## the instant it crosses Player.CHARGE_TIME, and keeps the tint through the
+## sweep (the fade only touches alpha). Without it a 1.5x hit is invisible to
+## the player. Drop mark_charged() to remove the tell entirely.
+const CHARGED_TINT := Color(1.6, 1.35, 0.7)
 
 
 func _ready() -> void:
@@ -54,7 +64,24 @@ func _ready() -> void:
 		add_child(_weapon_sprite)
 
 
+## Let go of a held swing: the sweep starts from wherever the charge froze it,
+## which is frame one, so nothing about the swing itself changes.
+func release() -> void:
+	charging = false
+
+
+## Warm the raised weapon once the charge is worth the bonus. Only the tint is
+## set — _process owns alpha, so this survives the swing's fade-out.
+func mark_charged() -> void:
+	if _weapon_sprite:
+		_weapon_sprite.modulate = Color(CHARGED_TINT, _weapon_sprite.modulate.a)
+
+
 func _process(delta: float) -> void:
+	# Frozen overhead until the player lets go. The clock does not start, so
+	# the swing is never shortened by however long the charge was held.
+	if charging:
+		return
 	_t += delta
 	if _t >= duration:
 		queue_free()
@@ -74,6 +101,10 @@ func _edge(p: float) -> float:
 
 
 func _draw() -> void:
+	# A charge shows the weapon alone: at p=0 the arcs would be a stray sliver
+	# of crescent parked next to the player for as long as the button is held.
+	if charging:
+		return
 	var p := _t / duration
 	var alpha := 1.0 - p
 	var edge := _edge(p)

@@ -13,6 +13,10 @@ const KICK_DAMAGE := 16.0
 ## Combat juice tuning: longer hitstop on a killing blow, the white-blink
 ## flash on any hit, and the shake sizes for "player hurt" vs "somebody KO'd".
 const KILL_HITSTOP := 0.09
+## Launch speed of the recoil skid on any hit. The HIT state drags it to a
+## stop at 300px/s², well inside the hit animation, so this is a real distance:
+## ~6px. Attacks can ask for more through take_hit()'s knockback argument.
+const KNOCKBACK := 60.0
 const FLASH_COLOR := Color(6.0, 6.0, 6.0)
 const FLASH_FADE := 0.12
 const SHAKE_PLAYER_HURT := 3.0
@@ -73,6 +77,9 @@ var hurtbox: Area2D
 var hitbox: Area2D
 var _hurt_shape: CollisionShape2D
 var _attack_damage := 0.0
+## Multiplier on the victim's recoil speed for the attack currently landing,
+## alongside _attack_damage. 1.0 for everything except the charged swing.
+var _attack_knockback := 1.0
 var _victims := {}
 
 
@@ -194,6 +201,9 @@ func try_attack(kind: FState) -> void:
 	velocity.x = 0
 	_victims.clear()
 	_attack_damage = (PUNCH_DAMAGE if kind == FState.PUNCH else KICK_DAMAGE) * damage_scale
+	# Fists never launch anyone further than normal — and this clears a charged
+	# swing's boost, which would otherwise ride along on the next punch.
+	_attack_knockback = 1.0
 	_play("punch" if kind == FState.PUNCH else "kick")
 	GameState.play_sfx("punch" if kind == FState.PUNCH else "kick")
 
@@ -230,7 +240,10 @@ func apply_locomotion(dir: float) -> void:
 	move_and_slide()
 
 
-func take_hit(damage: float, from_x: float) -> void:
+## `knockback` scales the recoil skid only — damage is already in `damage`.
+## Defaulted so every plain caller (bottles, the boss's stool, the bomb) keeps
+## the stock shove and only the charged swing sends anyone further.
+func take_hit(damage: float, from_x: float, knockback := 1.0) -> void:
 	if state == FState.DEAD:
 		return
 	last_hit_dir = signf(global_position.x - from_x)
@@ -251,7 +264,7 @@ func take_hit(damage: float, from_x: float) -> void:
 	state = FState.HIT
 	_set_hurt_rect(STAND_BOX)
 	hitbox.set_deferred("monitoring", false)
-	velocity.x = last_hit_dir * 60.0
+	velocity.x = last_hit_dir * KNOCKBACK * knockback
 	_play("hit")
 	GameState.play_sfx("hurt")
 
@@ -316,4 +329,4 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 		return
 	_victims[area] = true
 	var target: Fighter = area.get_meta("fighter")
-	target.take_hit(_attack_damage, global_position.x)
+	target.take_hit(_attack_damage, global_position.x, _attack_knockback)
