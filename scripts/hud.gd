@@ -41,6 +41,12 @@ const CLOCK_BLACK := Color(0.04, 0.04, 0.04)
 const CLOCK_GAIN := Color(0.35, 0.95, 0.45)
 const CLOCK_GAIN_S := 0.5
 const CLOCK_GAIN_POP := 1.5
+## Seconds BURNED (the bomb) do the same in reverse, and louder: the box goes
+## hot red and holds it longer than a gain, because losing 30 is the biggest
+## thing that can happen to the clock.
+const CLOCK_LOSS := Color(0.95, 0.15, 0.12)
+const CLOCK_LOSS_S := 0.9
+const CLOCK_LOSS_POP := 1.6
 ## PAUSE button, right edge under the score (and under the streak chip, which
 ## shares that corner). Plain theme gray like every other button in the app;
 ## the glyph is drawn rather than typed, so it is the chunky universal pause
@@ -84,6 +90,7 @@ var _pause_btn: Button
 ## Seconds left on the green "+Ns" flash; 0 when the box is showing its
 ## normal countdown color.
 var _clock_gain := 0.0
+var _clock_loss := 0.0
 var _center_label: Label
 var _portrait: TextureRect
 var _portrait_style: StyleBoxFlat
@@ -179,6 +186,7 @@ func _ready() -> void:
 	GameState.bosses_changed.connect(_on_bosses_changed)
 	GameState.streak_changed.connect(_on_streak_changed)
 	GameState.time_added.connect(_on_time_added)
+	GameState.time_lost.connect(_on_time_lost)
 	_on_score_changed(GameState.score)
 	_on_lives_changed(GameState.lives)
 	_on_bosses_changed(GameState.bosses_defeated)
@@ -190,6 +198,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_streak_label.visible = GameState.streak_active()
 	_clock_gain = maxf(_clock_gain - delta, 0.0)
+	_clock_loss = maxf(_clock_loss - delta, 0.0)
 	_update_clock()
 
 
@@ -267,10 +276,25 @@ func _on_time_added(seconds: float) -> void:
 			_clock_panel.get_global_rect().get_center())
 
 
+## Burned seconds (a bomb landed on the player): the same flight in reverse
+## colors, and it OUTRANKS a gain flash — a box caught in the same instant the
+## bomb went off must not paint the loss green.
+func _on_time_lost(seconds: float) -> void:
+	_clock_loss = CLOCK_LOSS_S
+	_clock_gain = 0.0
+	_fly_gain("-%ds" % seconds, CLOCK_LOSS,
+			_clock_panel.get_global_rect().get_center())
+
+
 func _update_clock() -> void:
 	var left := GameState.run_time_left
 	_clock_label.text = GameState.time_text()
-	_clock_style.bg_color = CLOCK_GAIN if _clock_gain > 0.0 else _clock_color(left)
+	if _clock_loss > 0.0:
+		_clock_style.bg_color = CLOCK_LOSS
+	elif _clock_gain > 0.0:
+		_clock_style.bg_color = CLOCK_GAIN
+	else:
+		_clock_style.bg_color = _clock_color(left)
 	# Under 0:05 the whole box swells, with a small pop on each second tick
 	# that eases back down — the last five seconds should feel like a hook.
 	var scale_now := 1.0
@@ -280,6 +304,8 @@ func _update_clock() -> void:
 	# banking time in the last five seconds still reads.
 	if _clock_gain > 0.0:
 		scale_now *= 1.0 + (CLOCK_GAIN_POP - 1.0) * (_clock_gain / CLOCK_GAIN_S)
+	if _clock_loss > 0.0:
+		scale_now *= 1.0 + (CLOCK_LOSS_POP - 1.0) * (_clock_loss / CLOCK_LOSS_S)
 	_clock_panel.scale = Vector2(scale_now, scale_now)
 
 

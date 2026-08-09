@@ -20,6 +20,7 @@ const LEGAL_URL := "https://games.imstandup.com/tight5fight/legal.html"
 const THANKS := [
 	"Kayla Mai",
 	"D-Man",
+	"Thomax",
 	"The JAX & Daytona Comedy Community",
 	"Coffee",
 ]

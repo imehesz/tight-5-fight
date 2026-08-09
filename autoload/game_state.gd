@@ -23,6 +23,8 @@ signal crowd_reaction(kind: String)
 signal time_expired
 ## Seconds just banked on the clock, for the HUD to celebrate.
 signal time_added(seconds: float)
+## Seconds just BURNED off the clock (the bomb), for the HUD to mourn.
+signal time_lost(seconds: float)
 
 ## Dead zone along the bottom edge, in design pixels (the viewport is 360
 ## tall, so this is also roughly CSS pixels on a phone in landscape). Android
@@ -90,10 +92,14 @@ const STREAK_MAX_MULT := 5
 const RUN_TIME := 300.0
 ## Seconds the clock GIVES BACK, and the whole reason to stop farming the
 ## street: clearing a venue is worth 20, catching a GOOD SET BOX 10. (The free
-## beer box and the bomb do not touch the clock.) Nothing caps the total — a
-## player good enough to keep earning time has earned the longer run.
+## beer box does not touch the clock.) Nothing caps the total — a player good
+## enough to keep earning time has earned the longer run.
 const VENUE_TIME_BONUS := 20.0
 const BOX_TIME_BONUS := 10.0
+## And what the clock TAKES: eating a bomb costs half a minute. Harsh on
+## purpose — it is three good-set boxes or a venue and a half to earn back,
+## which is exactly what makes the plane worth running from.
+const BOMB_TIME_PENALTY := 30.0
 
 ## Looping background tracks come from the active game's manifest (main +
 ## venue). SFX are shared engine chrome. See _music_tracks()/_setup_audio().
@@ -235,6 +241,9 @@ var run_time_left := RUN_TIME
 ## run_seconds() can still say how long the run actually lasted — with bonus
 ## time in play, elapsed is no longer RUN_TIME minus what's left.
 var run_time_earned := 0.0
+## Seconds burned off the clock by bombs this run, the mirror of
+## run_time_earned and folded into run_seconds() the same way.
+var run_time_lost := 0.0
 var _clock_running := false
 var pending_venue: Dictionary = {}
 ## Street layout persisted across venue visits (see street.gd) and the index
@@ -782,6 +791,7 @@ func _process(delta: float) -> void:
 func start_clock() -> void:
 	run_time_left = RUN_TIME
 	run_time_earned = 0.0
+	run_time_lost = 0.0
 	_clock_running = true
 
 
@@ -796,6 +806,23 @@ func add_time(seconds: float) -> void:
 	time_added.emit(seconds)
 
 
+## Burn seconds OFF the clock (the bomb blast). Only ever takes what is
+## actually there, so the HUD is told the true amount lost and the clock
+## floors at 0:00 — and a bomb that empties it ends the run then and there,
+## through the same time_expired the countdown uses.
+func lose_time(seconds: float) -> void:
+	if seconds <= 0.0 or time_up() or not _clock_running:
+		return
+	var taken := minf(seconds, run_time_left)
+	run_time_lost += taken
+	run_time_left -= taken
+	time_lost.emit(taken)
+	if run_time_left > 0.0:
+		return
+	_clock_running = false
+	time_expired.emit()
+
+
 func time_up() -> bool:
 	return run_time_left <= 0.0
 
@@ -804,7 +831,7 @@ func time_up() -> bool:
 ## with earned time folded in (a run can now last well past RUN_TIME).
 ## Banked with the play at game over (Leaderboard.record_play).
 func run_seconds() -> int:
-	var total := RUN_TIME + run_time_earned
+	var total := RUN_TIME + run_time_earned - run_time_lost
 	return int(roundf(clampf(total - run_time_left, 0.0, total)))
 
 

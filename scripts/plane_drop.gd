@@ -209,6 +209,10 @@ func _explode() -> void:
 		# Through take_hit so the blast also flinches/knocks the player back
 		# (and handles death) exactly like any other hit.
 		p.take_hit(p.max_health * BOMB_DAMAGE_PCT, global_position.x)
+		# The real punishment: half a minute off the run clock. The HUD flies
+		# its own "-30s" down to the clock (hud.gd _on_time_lost), so the
+		# floating text here stays about the blast.
+		GameState.lose_time(GameState.BOMB_TIME_PENALTY)
 		FloatingText.spawn(get_parent(), p.global_position + Vector2(0, -70),
 				"SLOWED!", Color(1.0, 0.35, 0.3))
 	await get_tree().create_timer(1.1).timeout
