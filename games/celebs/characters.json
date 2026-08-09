@@ -404,6 +404,61 @@
       "HeadSpritePath": "assets/heads/zoltankaszas.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "mr-open-micer",
+      "CharacterName": "Mr. Open Micer",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mr-anonymous.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "ms-open-micer",
+      "CharacterName": "Ms. Open Micer",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ms-anonymous.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "a-karen",
+      "CharacterName": "A Karen",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/a-karen.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "santa",
+      "CharacterName": "Santa",
+      "isDisabled": true,
+      "HeadScale": 1,
+      "HeadOffsetY": 4,
+      "HeadSpritePath": "assets/heads/santa.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "paul",
+      "CharacterName": "Paul",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/paul.png",
+      "BodyType": "M",
+      "SkinColor": "#329622"
+    },
+    {
+      "CharacterId": "officer",
+      "CharacterName": "Officer",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/officer.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
     }
   ]
 }

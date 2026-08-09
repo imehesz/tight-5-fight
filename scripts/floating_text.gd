@@ -6,6 +6,25 @@ extends Label
 ##    black text (NPC insults, boss taunts)
 
 const FONT_SIZE := 8
+## Width the bubble's border and side margins add on top of the text run.
+const BUBBLE_PAD := 20.0
+
+
+## The comic-book bubble skin on its own, for bubbles that are NOT rising
+## popups — the Karen cameo pins one beside her head for the whole slide-in.
+## Every bubble in the game gets its look from here.
+static func style_bubble(lbl: Label) -> void:
+	lbl.add_theme_color_override("font_color", Color(0.05, 0.05, 0.08))
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color.WHITE
+	sb.border_color = Color.BLACK
+	sb.set_border_width_all(3)
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 7
+	sb.content_margin_right = 7
+	sb.content_margin_top = 5
+	sb.content_margin_bottom = 5
+	lbl.add_theme_stylebox_override("normal", sb)
 
 
 static func spawn(host: Node, pos: Vector2, text_value: String,
@@ -20,18 +39,8 @@ static func spawn(host: Node, pos: Vector2, text_value: String,
 	# Press Start 2P is monospace: width == chars * size.
 	var width := text_value.length() * font_size
 	if bubble:
-		lbl.add_theme_color_override("font_color", Color(0.05, 0.05, 0.08))
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color.WHITE
-		sb.border_color = Color.BLACK
-		sb.set_border_width_all(3)
-		sb.set_corner_radius_all(6)
-		sb.content_margin_left = 7
-		sb.content_margin_right = 7
-		sb.content_margin_top = 5
-		sb.content_margin_bottom = 5
-		lbl.add_theme_stylebox_override("normal", sb)
-		width += 20
+		style_bubble(lbl)
+		width += BUBBLE_PAD
 	else:
 		lbl.modulate = color
 		lbl.add_theme_color_override("font_outline_color", Color.BLACK)

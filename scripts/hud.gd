@@ -47,6 +47,24 @@ const CLOCK_GAIN_POP := 1.5
 const CLOCK_LOSS := Color(0.95, 0.15, 0.12)
 const CLOCK_LOSS_S := 0.9
 const CLOCK_LOSS_POP := 1.6
+## KAREN'S COMPLAINT: with the clock burning down past CAMEO_AT, the
+## neighborhood Karen slides in from the left, hollers, and leaves. Fires ONCE
+## per crossing — banking bonus time back over the line re-arms her, so a run
+## that keeps earning seconds gets yelled at again on the way back down.
+## She is looked up by CharacterId, and a game whose roster has no Karen (as
+## celebs and killers do not) simply never sees her.
+const CAMEO_ID := "a-karen"
+## Broken over three lines so the shout reads as a comic panel rather than one
+## long ribbon — at this font size a single line would be most of the screen.
+const CAMEO_TEXT := "YOU ARE\nBURNING\nTHE LIGHT!!"
+## TESTING VALUE — 4:30, so she shows up 30 seconds into a run. Ship at 15.0.
+const CAMEO_AT := 270.0
+const CAMEO_HEAD := 168.0
+const CAMEO_FONT := 24
+## Slide in fast, hold long enough to read 26 characters, slide back out.
+const CAMEO_IN := 0.3
+const CAMEO_HOLD := 1.8
+const CAMEO_OUT := 0.25
 ## PAUSE button, right edge under the score (and under the streak chip, which
 ## shares that corner). Plain theme gray like every other button in the app;
 ## the glyph is drawn rather than typed, so it is the chunky universal pause
@@ -100,6 +118,15 @@ var _player: Fighter
 ## without flying (a fresh HUD mid-run must not replay the whole score).
 var _last_score := -1
 var _last_lives := -1
+## False once Karen has been shown for this trip below CAMEO_AT; true again
+## when bonus time lifts the clock back over it. Seeded in _ready() from the
+## clock as it stands, so the fresh HUD built on every venue entry doesn't
+## re-fire her for a run that is already past the line.
+var _cameo_armed := true
+## The cameo currently on screen, so a second crossing while she is still
+## sliding (bonus time then a bomb, inside two seconds) doesn't stack a second
+## Karen on top of the first.
+var _cameo_node: Control
 
 
 func _ready() -> void:
@@ -191,6 +218,7 @@ func _ready() -> void:
 	_on_lives_changed(GameState.lives)
 	_on_bosses_changed(GameState.bosses_defeated)
 	_on_streak_changed(GameState.streak, GameState.streak_mult())
+	_cameo_armed = GameState.run_time_left > CAMEO_AT
 
 
 ## The streak window can lapse with no KO to signal it, so visibility is
@@ -200,6 +228,7 @@ func _process(delta: float) -> void:
 	_clock_gain = maxf(_clock_gain - delta, 0.0)
 	_clock_loss = maxf(_clock_loss - delta, 0.0)
 	_update_clock()
+	_check_cameo()
 
 
 ## Pinned to the LIVE right edge with the same 10px margin the score keeps, so
@@ -319,6 +348,89 @@ func _clock_color(left: float) -> Color:
 	# Final ten seconds: alternate on every whole second (…0:08 red, 0:07
 	# black…), so the box itself is ticking.
 	return CLOCK_RED if int(ceilf(left)) % 2 == 0 else CLOCK_BLACK
+
+
+# --------------------------------------------------------------- Karen cameo
+## Polled alongside the clock rather than hung off a signal: the countdown has
+## no per-second tick to listen to, and polling is what makes banked time
+## re-arm her for free — cross the line going up, get yelled at again coming
+## back down.
+func _check_cameo() -> void:
+	if GameState.run_time_left > CAMEO_AT:
+		_cameo_armed = true
+		return
+	if not _cameo_armed or GameState.time_up():
+		return
+	_cameo_armed = false
+	_play_cameo()
+
+
+## Karen slides in from the left edge at mid-height, hollers, and leaves.
+## Purely decorative: nothing here touches the clock, the player or input.
+func _play_cameo() -> void:
+	if is_instance_valid(_cameo_node):
+		return  # she is still out there hollering about the last one
+	var idx := GameState.character_index_by_id(CAMEO_ID)
+	if idx < 0 or bool(GameState.characters[idx].get("isDisabled", false)):
+		return  # this game's roster has no Karen, or has her benched
+
+	# Anchored to the LIVE left-center: the project scales with aspect
+	# "expand", so the viewport is routinely taller or wider than the 640x360
+	# design and a baked y would drift off center.
+	var anchor := Control.new()
+	anchor.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(anchor)
+	_cameo_node = anchor
+	# One node carries head + bubble so the pair slides as a unit, and only
+	# its x is ever tweened.
+	var slider := Control.new()
+	slider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	anchor.add_child(slider)
+
+	var face := TextureRect.new()
+	# expand_mode BEFORE texture/size, same trap as the portrait: a 200x200
+	# head would otherwise pin the control's minimum size for good.
+	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	face.texture = CharacterFactory.head_texture(
+			String(GameState.characters[idx].get("HeadSpritePath", "")))
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.position = Vector2(0, -CAMEO_HEAD / 2.0)
+	face.size = Vector2(CAMEO_HEAD, CAMEO_HEAD)
+	slider.add_child(face)
+
+	var bubble := Label.new()
+	bubble.text = CAMEO_TEXT
+	bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Ragged-right would read as a mistake across three lines of different
+	# lengths; comic bubbles center.
+	bubble.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	bubble.add_theme_font_size_override("font_size", CAMEO_FONT)
+	FloatingText.style_bubble(bubble)  # the same bubble the hecklers shout in
+	slider.add_child(bubble)
+	bubble.reset_size()
+	# Beside her at mouth height, overlapping the head a little the way a
+	# comic tail would.
+	bubble.position = Vector2(CAMEO_HEAD - 8.0, -bubble.size.y / 2.0)
+
+	# Parked exactly its own width off the left edge, so she is never a sliver
+	# hanging in frame however wide the phone is.
+	var span := CAMEO_HEAD + bubble.size.x
+	slider.position.x = -span
+	var tw := slider.create_tween()
+	tw.tween_property(slider, "position:x", 4.0, CAMEO_IN) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(CAMEO_HOLD)
+	tw.tween_property(slider, "position:x", -span, CAMEO_OUT) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_end_cameo)
+
+
+func _end_cameo() -> void:
+	if is_instance_valid(_cameo_node):
+		_cameo_node.queue_free()
+	_cameo_node = null
 
 
 func bind_player(p: Fighter) -> void:

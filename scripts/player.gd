@@ -25,9 +25,11 @@ const SWING_TIME := 0.25
 const CHARGE_TIME := 1.0
 const CHARGE_MULT := 1.5
 ## How much further a charged hit throws its victim, as a multiple of the
-## normal recoil DISTANCE (~6px, see Fighter.KNOCKBACK) — so 2.0 is ~12px.
-## Raise this alone if the charge still doesn't read on screen.
-const CHARGE_KNOCKBACK := 2.0
+## normal recoil DISTANCE (~6px, see Fighter.KNOCKBACK) — so 4.0 is ~24px, a
+## shove that reads across the room. Push it much past here and the skid stops
+## fitting inside the 0.33s hit animation: the victim would still be sliding
+## when they recover, and apply_locomotion would cut the launch short.
+const CHARGE_KNOCKBACK := 4.0
 ## Safety valve, not a design limit: the bonus caps at CHARGE_TIME anyway, so
 ## nothing is lost by swinging for the player if the release event never
 ## arrives (a web build losing focus mid-hold would otherwise freeze them
