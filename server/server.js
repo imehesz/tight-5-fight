@@ -340,7 +340,9 @@ async function postPlay(req, res) {
     weapon: runWeapon,
   });
   if (Object.keys(koCounts).length > 0) {
-    await db.recordBeatdowns({ gameId, playerUuid: uuid, counts: koCounts });
+    // `character` is the comedian this run was played AS — the attacker half
+    // of every beef pair, and already roster-validated above.
+    await db.recordBeatdowns({ gameId, attackerName: character, playerUuid: uuid, counts: koCounts });
   }
   if (Object.keys(venueCounts).length > 0) {
     await db.recordVenueVisits({ gameId, playerUuid: uuid, counts: venueCounts });
@@ -527,6 +529,61 @@ async function getVenues(req, res, url) {
     entries: Number(r.entries),
   }));
   json(res, 200, { page, pageCount, total, rows });
+}
+
+// GET /beef?gameId=tight5&page=0&attacker=<name>
+//   -> { page, pageCount, total,
+//        rows: [{ rank, character, kos }],            // who's been swinging
+//        selected: { character, dealt, taken,
+//                    victims: [{ character, kos }] } | null }
+// The BEEF METER tab in the game's scoreboard (see scenes/scoreboard.gd).
+// Two panels, one request: `rows` is the paged list of comedians ranked by
+// KOs LANDED (the left column), and `selected` is the grudge detail for
+// whichever one the right column is showing.
+//
+// `attacker` picks that comedian. It is optional and forgiving on purpose —
+// an absent or unrecognised name falls back to the top row of this page, so
+// the very first request needs no second round trip and a name from a stale
+// client can never 400 the whole board. Only roster names reach SQL.
+//
+// Same public, non-sensitive aggregates as /leaderboard, read from the other
+// end of the beatdowns table. Rows whose attacker_name is '' (banked before
+// the column existed, and unmatched by the one-time backfill) are excluded by
+// every query behind this, so the board is honest about what it knows.
+const BEEF_PAGE_SIZE = 6;  // must match BEEF_ROWS_PER_PAGE in scenes/scoreboard.gd
+const BEEF_VICTIMS = 5;
+
+async function getBeef(req, res, url) {
+  const gameId = url.searchParams.get("gameId") || "";
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown gameId" });
+
+  const total = await db.beefAttackerSize(gameId);
+  const pageCount = Math.max(Math.ceil(total / BEEF_PAGE_SIZE), 1);
+  const page = Math.min(Math.max(Number(url.searchParams.get("page")) || 0, 0), pageCount - 1);
+
+  const offset = page * BEEF_PAGE_SIZE;
+  const rows = (await db.beefAttackerPage(gameId, offset, BEEF_PAGE_SIZE)).map((r, i) => ({
+    rank: offset + i + 1,
+    character: r.attacker,
+    kos: Number(r.kos),
+  }));
+
+  const asked = url.searchParams.get("attacker") || "";
+  const name = validCharacter(gameId, asked) ? asked : (rows.length ? rows[0].character : "");
+  let selected = null;
+  if (name) {
+    const totals = await db.beefTotals(gameId, name);
+    selected = {
+      character: name,
+      dealt: totals.dealt,
+      taken: totals.taken,
+      victims: (await db.beefVictims(gameId, name, BEEF_VICTIMS)).map((r) => ({
+        character: r.character_name,
+        kos: Number(r.kos),
+      })),
+    };
+  }
+  json(res, 200, { page, pageCount, total, rows, selected });
 }
 
 // GET /podium?gameId=tight5
@@ -730,6 +787,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "/crash") return await postCrash(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
+    if (req.method === "GET" && route === "/beef") return await getBeef(req, res, url);
     if (req.method === "GET" && route === "/podium") return await getPodium(req, res, url);
     if (req.method === "GET" && route === "/trends") return await getTrends(req, res, url);
     if (req.method === "GET" && route === "/stats") return await getStats(req, res, url);
