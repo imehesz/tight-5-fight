@@ -52,6 +52,43 @@ comes back with a white blob attached. Regenerate rather than loosening the
 fill's tolerance. Raw job dumps land in the gitignored `tools/higgsfield_jobs/`
 alongside every other generated asset's; this recipe is the part worth keeping.
 
+## normalize_icon.py
+
+Turns a generated logo picture into a game-ready square UI badge for
+`shared/assets/ui/` — the social buttons on the main menu. Same idea as
+`normalize_weapon.py`: flood-fill the background in from the four corners,
+square the cut-out up, then box-sample it down to a small pixel grid (64x64
+by default) and re-threshold the alpha so the outline stays crisp.
+
+```bash
+python3 helper-tools/normalize_icon.py raw.png shared/assets/ui/social_facebook.png
+```
+
+Adding a social button is then one entry in `SOCIALS` in `scenes/main_menu.gd`
+(`icon`, `url`, `tip`) — `MenuBase.add_link_row()` builds the row and skips any
+badge whose art hasn't been imported yet, so a half-added icon can't leave an
+empty box on the menu.
+
+### Prompt recipe
+
+Same model as the weapons (`nano_banana_flash`, ~1.5 credits), 1:1:
+
+```bash
+higgsfield generate create nano_banana_flash --aspect_ratio 1:1 --resolution 1k \
+  --prompt "A single retro 1980s arcade video-game icon: <logo description>.
+  Rendered as chunky blocky 16-bit pixel art sprite, <colours>, thick dark pixel
+  outline, subtle neon arcade sheen, visible large square pixels, limited retro
+  palette. Perfectly square, centered, filling the frame, isolated on a pure flat
+  white background. No shadow, no glow, no halo, no gradient background, no
+  background elements, no text, no watermark, no other objects." --wait --json
+```
+
+Describe the logo by its *shapes* as well as its name ("a rounded-square camera
+outline with a circle in the middle and a dot in the top-right corner") — naming
+the brand alone gets a mangled glyph about half the time. The "no glow, no halo"
+tail matters for the same reason it does on weapons: a soft glow keys out as a
+white blob stuck to the badge.
+
 ## classify_heads.py
 
 Populates a game's `characters.json` from the head PNGs in its

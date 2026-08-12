@@ -177,6 +177,52 @@ func share_character(cfg: Dictionary, msg: String) -> bool:
 	return true
 
 
+## A row of square icon buttons that each open an external link — the social
+## follow row on the main menu. Sized like every other thumb target in the app
+## (SOCIAL_SIZE ~ the 44px SHARE button), wearing the plain gray skin so the
+## coloured badges are the only thing shouting on the row.
+##
+## `links` is an array of {icon, url, tip} dictionaries; anything whose art
+## hasn't been imported yet is skipped rather than drawn as an empty box.
+const SOCIAL_SIZE := Vector2(46, 46)
+const SOCIAL_INSET := 5
+
+
+func add_link_row(box: Container, links: Array) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	box.add_child(row)
+	for link in links:
+		var path := String(link.get("icon", ""))
+		if not ResourceLoader.exists(path):
+			continue
+		var url := String(link.get("url", ""))
+		var b := Button.new()
+		b.icon = load(path)
+		# Badges are authored at 64px; let the Button scale them into the
+		# smaller square instead of cropping to the top-left corner.
+		b.expand_icon = true
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+		b.custom_minimum_size = SOCIAL_SIZE
+		b.tooltip_text = String(link.get("tip", ""))
+		style_gray_button(b)
+		# The gray skin's default padding isn't symmetric; an even inset is
+		# what keeps the badge centered inside its border.
+		for state in ["normal", "hover", "pressed", "focus"]:
+			var sb: StyleBoxFlat = b.get_theme_stylebox(state)
+			sb.content_margin_left = SOCIAL_INSET
+			sb.content_margin_right = SOCIAL_INSET
+			sb.content_margin_top = SOCIAL_INSET
+			sb.content_margin_bottom = SOCIAL_INSET
+		b.pressed.connect(func():
+			GameState.play_sfx("click")
+			OS.shell_open(url))
+		row.add_child(b)
+	return row
+
+
 func add_spacer(box: Container, h := 8) -> void:
 	var s := Control.new()
 	s.custom_minimum_size = Vector2(0, h)

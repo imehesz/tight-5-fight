@@ -9,6 +9,22 @@ extends MenuBase
 
 #var _sponsors_btn: Button
 
+## The Tight 5 Games socials. Publisher-level, not per-edition — every city
+## build points at the same two pages, so these stay constants here rather
+## than in the per-game manifest.
+const SOCIALS := [
+	{
+		"icon": "res://shared/assets/ui/social_facebook.png",
+		"url": "https://www.facebook.com/profile.php?id=61593096446732",
+		"tip": "Tight 5 Games on Facebook",
+	},
+	{
+		"icon": "res://shared/assets/ui/social_instagram.png",
+		"url": "https://www.instagram.com/tight5games/",
+		"tip": "@tight5games on Instagram",
+	},
+]
+
 
 func _ready() -> void:
 	var box := build_backdrop()
@@ -19,6 +35,8 @@ func _ready() -> void:
 	add_button(box, "SETTINGS", func(): GameState.change_scene(GameState.SCENE_SETTINGS))
 	add_button(box, "SCOREBOARD", func(): GameState.change_scene(GameState.SCENE_SCOREBOARD))
 	add_button(box, "ABOUT", func(): GameState.change_scene(GameState.SCENE_ABOUT))
+	add_spacer(box, 6)
+	add_link_row(box, SOCIALS)
 	# --- SPONSORS button: temporarily hidden, restore this block ------------
 	#_sponsors_btn = add_button(box, "SPONSORS", func(): GameState.change_scene(GameState.SCENE_SPONSORS))
 	#_sponsors_btn.visible = not Sponsors.active.is_empty()
