@@ -57,8 +57,10 @@ const CAMEO_ID := "a-karen"
 ## Broken over three lines so the shout reads as a comic panel rather than one
 ## long ribbon — at this font size a single line would be most of the screen.
 const CAMEO_TEXT := "YOU ARE\nBURNING\nTHE LIGHT!!"
-## TESTING VALUE — 4:30, so she shows up 30 seconds into a run. Ship at 15.0.
-const CAMEO_AT := 270.0
+## Ship value: she hollers with 30 seconds left on the clock, when the light
+## really is burning. (During testing this sat at 270.0 — 4:30 — so she showed
+## up 30 seconds INTO a run instead of 30 seconds before the end of one.)
+const CAMEO_AT := 30.0
 const CAMEO_HEAD := 168.0
 const CAMEO_FONT := 24
 ## Slide in fast, hold long enough to read 26 characters, slide back out.

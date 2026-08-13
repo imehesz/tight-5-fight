@@ -134,6 +134,9 @@ func _ready() -> void:
 ## discovers who they got once the run is already starting. _select() has
 ## already persisted the pick, so GameState holds the same truth as _selected.
 func _start_fight() -> void:
+	# Before the scene change, so the yell is already in flight as the venue
+	# loads. It rides its own player and outlives this screen.
+	GameState.play_scream()
 	GameState.start_new_game(GameState.fight_character_index())
 
 

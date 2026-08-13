@@ -22,6 +22,7 @@ const THANKS := [
 	"D-Man",
 	"Thomax",
 	"The JAX & Daytona Comedy Community",
+	"[XOR] Games",
 	"Coffee",
 ]
 

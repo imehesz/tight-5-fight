@@ -166,6 +166,8 @@ const IOS_SILENT_SFX := [
 	# airplane — these two use their own players, not the shared pool
 	"plane",
 	"bomb-drop",
+	# FIGHT! battle cry — own player too, see SCREAM_PATH
+	"scream",
 ]
 ## STREAM-MODE ROLLOUT SWITCH (branch iphone-fixes). With web playback forced
 ## to Stream (see project.godot), the owner played 4-5 full-audio games on a
@@ -188,6 +190,13 @@ const STINGER_NAMES := ["cricket", "curb"]
 ## taking a bottle. The chance rolls live at the call sites.
 const CROWD_NAMES := ["boo", "cheer", "laugh"]
 const CROWD_GAP_MS := 1500
+## The FIGHT! button's battle cry (play_scream). Its own file name, outside both
+## pool naming schemes above, and its own player rather than a pool voice: the
+## press starts the run, so the first punch of the fight would recycle the voice
+## out from under it. Unlike the death stinger it never touches the music —
+## the scream lands ON TOP of the tune, one shot, no duck.
+const SCREAM_PATH := "res://shared/assets/sfx/tight-5-fight-scream"
+const SCREAM_NAME := "scream"
 
 ## The active game id and its parsed game.json manifest. Loaded first in
 ## _ready() from data/active_game.json; everything game-specific reads from here.
@@ -297,6 +306,9 @@ var _sfx_next := 0
 var _stinger_streams := {}
 var _stinger_player: AudioStreamPlayer
 var _stinger_active := false
+## Null when the file is missing — play_scream() then no-ops, like play_sfx.
+var _scream_stream: AudioStream
+var _scream_player: AudioStreamPlayer
 ## The music player's own volume, saved across a stinger. Player-level, NOT
 ## the "Music" bus — the bus carries the player's volume setting, and this
 ## must not fight with it.
@@ -1206,6 +1218,13 @@ func _setup_audio() -> void:
 	_stinger_player.bus = "SFX"
 	add_child(_stinger_player)
 	_stinger_player.finished.connect(_on_stinger_finished)
+	# Same reasoning as the stinger's dedicated player, minus the music duck.
+	_scream_stream = _load_stream(SCREAM_PATH)
+	if _scream_stream:
+		_scream_player = AudioStreamPlayer.new()
+		_scream_player.bus = "SFX"
+		_scream_player.stream = _scream_stream
+		add_child(_scream_player)
 
 
 ## Mobile browsers keep the WebAudio context suspended until the first user
@@ -1326,6 +1345,18 @@ func play_crowd(crowd_name: String) -> void:
 	_sfx_next = (_sfx_next + 1) % _sfx_pool.size()
 	p.stream = _crowd_streams[crowd_name]
 	p.play()
+
+
+## The FIGHT! battle cry, fired once when the run is launched. A plain one-shot:
+## the music keeps rolling underneath, nothing is ducked or paused, and a second
+## press while it is still going restarts it rather than stacking a second yell.
+## Missing file = silent no-op, like play_sfx.
+func play_scream() -> void:
+	if is_sfx_muted(SCREAM_NAME):
+		return
+	if not is_instance_valid(_scream_player):
+		return
+	_scream_player.play()
 
 
 ## Final-death gag: duck the music, play a random stinger (crickets, curb),
