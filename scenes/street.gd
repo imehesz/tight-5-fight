@@ -3,8 +3,13 @@ extends Node2D
 ## periodically spawning venues. Walk to a venue door and press up to enter.
 
 const GROUND_Y := 310.0
-const TILE_W := 320.0
+## Copies of each background layer kept alive. Five of the old 320px street
+## tile has always covered the view (±480) with a tile spare at either end;
+## wider layer art only ever covers more, so one count fits every layer.
 const TILE_COUNT := 5
+## How far past the camera a tile may sit before it wraps to the far end of
+## its own strip.
+const TILE_MARGIN := 480.0
 ## Past the opening camera view (which ends at x=640), so the first door
 ## never pops in mid-screen — far enough for a short walk (and the opening
 ## heckler brawl), near enough that a new player is brawling inside a venue
@@ -62,7 +67,9 @@ var player: Player
 var camera: Camera2D
 var hud: Hud
 
-var _tiles: Array = []
+## [{root: Node2D, tiles: Array, w: float, factor: float}] — one repeating
+## strip per parallax layer, furthest first. Legacy games have exactly one.
+var _layers: Array = []
 ## [{x, data, cleared, ext, sign, tape}] — the node fields are null whenever
 ## the venue is streamed out. Never pruned: the player can always walk back.
 var _doors: Array = []
@@ -139,7 +146,10 @@ func _ready() -> void:
 	camera.position = Vector2(maxf(player.position.x, 320.0), 180.0)
 	camera.reset_smoothing()
 	# Before the first frame is drawn, so a restored street opens with its
-	# scenery already standing instead of popping in a frame later.
+	# scenery already standing instead of popping in a frame later. Same for
+	# the background: the layer roots are built at x = 0, so without this a
+	# street resumed deep into a run shows one frame of unscrolled sky.
+	_recycle_tiles()
 	_stream_props()
 	# Walking back out of a venue with the clock already at 0:00 (it can expire
 	# during the "YOU SURVIVED!" beat): the signal fired while this scene did
@@ -164,24 +174,81 @@ func _process(delta: float) -> void:
 
 
 # ---------------------------------------------------------------- world
+## Build the scrolling background: one strip of repeating sprites per parallax
+## layer, furthest first. A game without advancedParallax resolves to a single
+## factor-1.0 layer, so the old look costs exactly the nodes it always did.
 func _build_tiles() -> void:
-	var tex: Texture2D = load(GameState.street_tile_path())
-	for i in TILE_COUNT:
-		var t := Sprite2D.new()
-		t.texture = tex
-		t.centered = false
-		t.position = Vector2(i * TILE_W, 0)
-		t.z_index = -10
-		add_child(t)
-		_tiles.append(t)
+	for cfg in GameState.parallax_layers():
+		var tex: Texture2D = load(String(cfg["path"]))
+		if tex == null:
+			continue
+		# One root per layer, because the parallax offset is applied to the
+		# root — the sprites underneath only ever deal with their own strip.
+		var root := Node2D.new()
+		root.z_index = int(cfg["z"])
+		add_child(root)
+		var w := float(tex.get_width())
+		var tiles: Array = []
+		for i in TILE_COUNT:
+			var t := Sprite2D.new()
+			t.texture = tex
+			t.centered = false
+			t.position = Vector2(i * w, 0)
+			root.add_child(t)
+			tiles.append(t)
+		_layers.append({"root": root, "tiles": tiles, "w": w, "factor": float(cfg["factor"])})
+		var period := float(cfg.get("twinkle", 0.0))
+		if period > 0.0:
+			_start_twinkle(root, period, float(cfg.get("twinkle_min", 0.15)))
 
 
+## Fade a whole strip out and back, forever.
+##
+## Only the twinkle strips get this, and they hold NOTHING but the stars that
+## blink — the steady stars and the night sky itself are on the opaque layer
+## underneath, which is what keeps a fade from dimming the sky along with them.
+## Two strips running different periods read as a shimmer; one strip on its own
+## reads as the whole sky pulsing, which is why the art comes in a pair.
+##
+## The tween is created ON the strip, so it dies with the scene when the player
+## walks into a venue — no manual cleanup, and no tween left running against a
+## freed node.
+func _start_twinkle(root: Node2D, period: float, min_alpha: float) -> void:
+	var half := period * 0.5
+	root.modulate.a = min_alpha
+	var tw := root.create_tween().set_loops()
+	tw.tween_property(root, "modulate:a", 1.0, half).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(root, "modulate:a", min_alpha, half).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## Scroll and wrap every background layer.
+##
+## A layer with factor f should drift past at f × the player's speed, which
+## falls straight out of parking its root at cam × (1 - f): a tile then lands
+## on screen at (local x - cam × f), so the strip is recycled against that same
+## scaled camera position, in the layer's OWN tile width. The street layer is
+## just the f = 1.0 case — root pinned at 0, tiles wrapped against the real
+## camera, exactly what the single tile has always done.
+##
+## Note this reads the camera's RENDERED centre, not camera.position: smoothing
+## is on (speed 6.0), so camera.position is merely the target the camera is
+## still travelling toward, and driving parallax off the target makes the
+## background lead the street on every start and stop.
 func _recycle_tiles() -> void:
-	for t in _tiles:
-		while t.position.x + TILE_W < camera.position.x - 480.0:
-			t.position.x += TILE_COUNT * TILE_W
-		while t.position.x > camera.position.x + 480.0:
-			t.position.x -= TILE_COUNT * TILE_W
+	var cam := camera.get_screen_center_position().x
+	for layer in _layers:
+		var f: float = layer["factor"]
+		var w: float = layer["w"]
+		var span := w * TILE_COUNT
+		var eye := cam * f
+		if f != 1.0:
+			var root: Node2D = layer["root"]
+			root.position.x = cam - eye
+		for t in layer["tiles"]:
+			while t.position.x + w < eye - TILE_MARGIN:
+				t.position.x += span
+			while t.position.x > eye + TILE_MARGIN:
+				t.position.x -= span
 
 
 func _maybe_spawn_venue() -> void:

@@ -166,6 +166,88 @@ replace the shared rack for that edition only.
 
 ---
 
+## Parallax street background (optional, per game)
+
+By default the street scrolls **one** `street_tile.png` with the sky, the stars
+and the road all baked into it. That is still the default and nothing about it
+has changed — an edition that never opts in renders exactly as it always has.
+
+An edition can instead scroll **three** layers at different speeds by setting
+one manifest flag:
+
+```jsonc
+"advancedParallax": true,
+"parallax": {
+  "stars":    { "sprite": "assets/backgrounds/parallax_stars.png",     "factor": 0.1 },
+  "twinkleA": { "sprite": "assets/backgrounds/parallax_twinkle_a.png", "factor": 0.1, "twinkle": 2.7 },
+  "twinkleB": { "sprite": "assets/backgrounds/parallax_twinkle_b.png", "factor": 0.1, "twinkle": 4.1 },
+  "skyline":  { "sprite": "assets/backgrounds/parallax_skyline.png",   "factor": 0.5 },
+  "street":   { "sprite": "assets/backgrounds/parallax_street.png",    "factor": 1.0 }
+}
+```
+
+The whole `parallax` block is optional — those paths and factors are the
+defaults, so `"advancedParallax": true` plus the three PNGs in the standard spot
+is enough. Override just the field you're tuning.
+
+- **`factor`** is the fraction of the player's walking speed the layer drifts
+  at. `1.0` is the ground the player walks on; smaller reads as further away.
+  The layer nearest the camera moves **fastest** — stars belong near `0.1`.
+- **Layer width is never configured.** Each strip repeats at its own texture's
+  width, so a wider skyline simply repeats less often: at 960px and factor 0.5
+  it comes back every 1920 world px, about 14 seconds of walking.
+- **`twinkle`** is the seconds for one full fade-down-and-back; omit it (or use
+  `0`) for a steady layer. `twinkleMin` sets how far down it fades, default
+  `0.15` — never `0`, because stars that vanish outright read as a glitch.
+  **The two twinkle strips are optional**: an edition that ships only the three
+  core PNGs gets a steady sky, not a fallback. They carry *only* the blinking
+  stars — the sky and the steady stars are on the opaque layer underneath, which
+  is what stops a fade from dimming the whole night sky. Give them **different
+  periods**; a single strip fades all its stars in unison and reads as the sky
+  pulsing rather than shimmering.
+- **The three CORE layers must all resolve, or the game falls back to `streetTile`** and
+  logs a warning. This is deliberate — the cut-out street layer is transparent
+  above its rooftops, so a partial stack shows a black band rather than the old
+  background. Missing art degrades to "plain", never to "broken".
+- Author every layer **360 tall, top-aligned**. The sizes don't have to match,
+  but sharing the height means the three PNGs drop straight on top of each other
+  with no per-layer offset to keep in sync.
+- The **stars layer must be opaque** (it's the backstop that paints the sky);
+  the other two need transparent skies.
+
+### Making the art
+
+`helper-tools/make_parallax_layers.py` builds all three from the edition's
+existing tile plus one wide skyline image:
+
+```sh
+python3 helper-tools/make_parallax_layers.py street  <game>
+python3 helper-tools/make_parallax_layers.py stars   <game>
+python3 helper-tools/make_parallax_layers.py skyline <game> path/to/generated.png
+```
+
+It reads the sky, star, building and window colours **out of that game's own
+`street_tile.png`**, so a new city keeps its own palette automatically. Only the
+skyline source's *roofline* is used — the silhouette is redrawn from scratch in
+the game's colours, so the source's own palette, texture and background never
+reach the game. Both ends of the skyline strip are flattened to a common roof
+height so it wraps without a visible step.
+
+The skyline source can be generated; this prompt produced the Panhandle one on
+`z_image` (0.15 credits), and the flat-silhouette-on-plain-background shape is
+what the converter wants:
+
+> Flat 2D vector game art of a distant city skyline silhouette seen straight on
+> from the side. Simple geometric rectangular skyscrapers and towers of varying
+> heights, a few antenna spires and a water tower, all filled with ONE single
+> solid flat dark purple color, absolutely no shading, no gradients, no texture,
+> no windows, no perspective, sharp clean straight edges. The buildings sit
+> along the bottom edge of the frame and occupy only the lower third. Everything
+> else is empty solid bright magenta. Minimalist retro pixel art night scene, no
+> text, no people, no ground, no clouds, no stars.
+
+---
+
 ## Building / deploying
 
 `./deployScriptPROD.sh <id>` builds **only that game's** assets (every other
