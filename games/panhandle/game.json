@@ -1,6 +1,6 @@
 {
-  "id": "killers",
-  "title": "Tight 5 FIGHT! — Killers Edition",
+  "id": "panhandle",
+  "title": "Tight 5 FIGHT! — Panhandle Edition",
   "menuTitle": "TIGHT 5 FIGHT!",
 
   "characters": "characters.json",
@@ -20,9 +20,9 @@
   "projectileSprite": "assets/misc/bottle.png",
 
   "planeBanners": [
-    "WELCOME to AUSTIN!",
-    "DID YOU SEE TONY?",
-    "I WAS ON ROGAN'S PODCAST!"
+    "WELCOME to FLORIDA!",
+    "GULF OF AMERICA?",
+    "TIME ZONES!"
   ],
 
   "boss": {

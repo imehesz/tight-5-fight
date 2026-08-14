@@ -1,10 +1,16 @@
 {
   "venues": [
     { 
-      "VenueId": "comedy-mothership",
-      "VenueName": "Comedy Mothership",
-      "ExteriorSpritePath": "assets/venues/mothership_ext.png",
-      "InteriorSpritePath": "assets/venues/mothership_int.png" 
+      "VenueId": "waffle-house",
+      "VenueName": "Waffle House",
+      "ExteriorSpritePath": "assets/venues/waffle-house_ext.png",
+      "InteriorSpritePath": "assets/venues/waffle-house_int.png" 
+    },
+    { 
+      "VenueId": "comedy-school",
+      "VenueName": "Comedy School",
+      "ExteriorSpritePath": "assets/venues/comedy-school_ext.png",
+      "InteriorSpritePath": "assets/venues/comedy-school_int.png" 
     }
   ]
 }
