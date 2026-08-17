@@ -4,7 +4,9 @@ extends MenuBase
 ## tap opens their site), fed by the same hosted roster the billboards use —
 ## so this screen and the street can never disagree about who's live.
 
-const ADVERTISE_MAILTO := "mailto:imehesz@gmail.com?subject=TIGHT%205%20FIGHT%20sponsorship"
+## Sponsorship money reaches the COMPANY, not a person — same address the
+## legal page's takedown button uses.
+const ADVERTISE_MAILTO := "mailto:tight5contact@gmail.com?subject=TIGHT%205%20FIGHT%20sponsorship"
 ## Row height doubles as the tap target (phone-first: comfortably over 45px).
 const ROW_H := 48.0
 ## Every ad renders in this same box regardless of name length — uniform
