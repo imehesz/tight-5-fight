@@ -10,6 +10,7 @@
     { "WeaponId": "chain",    "WeaponName": "CHAIN",     "GripY": 785, "GripUp": false, "SpritePath": "weapon_chain.png" },
     { "WeaponId": "acoustic", "WeaponName": "ACOUSTIC",  "GripY": 690, "GripUp": true,  "SpritePath": "weapon_acoustic.png" },
     { "WeaponId": "metal",    "WeaponName": "METAL",     "GripY": 710, "GripUp": true,  "SpritePath": "weapon_metal.png" },
-    { "WeaponId": "the-dentist",      "WeaponName": "THE DENTIST", "GripY": 780, "GripUp": true, "SpritePath": "weapon_the-dentist_small.png" }
+    { "WeaponId": "the-dentist",      "WeaponName": "THE DENTIST", "GripY": 780, "GripUp": true, "SpritePath": "weapon_the-dentist_small.png" },
+    { "WeaponId": "keyboard", "WeaponName": "KEYBOARD",  "GripY": 790, "GripUp": false, "SpritePath": "weapon_keyboard.png" }
   ]
 }
