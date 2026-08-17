@@ -1,0 +1,13 @@
+{
+  "litter": [
+    { "DecorId": "newspaper", "SpritePath": "decor_newspaper.png", "Scale": 0.125, "Weight": 20 }
+  ],
+
+  "critters": [
+    { "DecorId": "rat", "SpritePath": "decor_rat.png", "Scale": 0.10, "Weight": 20,
+      "FootFrac": 0.98,
+      "SpeedMin": 52.0, "SpeedMax": 84.0,
+      "PauseMin": 0.7, "PauseMax": 2.0,
+      "BobPx": 0.9, "BobHz": 11.0 }
+  ]
+}

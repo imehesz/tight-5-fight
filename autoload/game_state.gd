@@ -458,6 +458,10 @@ func _load_roster() -> void:
 	# The weapon rack rides the same manifest pattern: a game may name (or just
 	# ship) its own weapons.json; otherwise Weapons falls back to the shared one.
 	Weapons.load_roster(game_path(String(manifest.get("weapons", "weapons.json"))))
+	# Street dressing rides it too: rats and litter come from the shared set
+	# unless a game ships its own decor.json (a beach edition wanting seagulls
+	# and soda cups instead of city rats needs no code, just the file).
+	StreetDecor.load_roster(game_path(String(manifest.get("decor", "decor.json"))))
 
 
 # ---------------------------------------------------------------- manifest resolvers

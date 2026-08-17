@@ -26,8 +26,8 @@ guitars are held by the neck, so their body has to end up at the top. Generators
 draw those subjects far better the right way up, so the turn happens here
 instead of in the prompt. Needs Pillow.
 
-Then add a row to `WEAPONS` in `scripts/weapons.gd` — see the "Melee weapons"
-section of the top-level `README.md` for what `grip` and `grip_up` mean.
+Then add a row to `shared/assets/weapons/weapons.json` — see the "Melee weapons"
+section of the top-level `README.md` for what `GripY` and `GripUp` mean.
 
 ### Prompt recipe
 
@@ -51,6 +51,47 @@ glow around the object that the corner flood fill can't key out, and the cut-out
 comes back with a white blob attached. Regenerate rather than loosening the
 fill's tolerance. Raw job dumps land in the gitignored `tools/higgsfield_jobs/`
 alongside every other generated asset's; this recipe is the part worth keeping.
+
+## normalize_decor.py
+
+Turns a generated prop picture into a street-decor sprite for
+`shared/assets/decor/` — the litter and critters that dress the foreground (see
+the "Street decor" section of the top-level `README.md`). Unlike the weapons
+there is no shared canvas: it cuts the background out, trims to the art and
+scales to a source height, because on-screen size is the `Scale` field in
+`decor.json`, not something baked into the file.
+
+```bash
+python3 helper-tools/normalize_decor.py raw.png shared/assets/decor/decor_rat.png
+python3 helper-tools/normalize_decor.py raw.png shared/assets/decor/decor_newspaper.png --height 72
+```
+
+It also prints the bottom of the alpha profile, which is how you pick a
+critter's `FootFrac` — where its feet really are. That is not the bottom of the
+sprite for anything with a tail: the rat's tail hangs below its paws, and
+standing the bounding box on the pavement puts the animal on tiptoe.
+
+### Prompt recipe
+
+Same model as the weapons (`nano_banana_flash`, ~1.5 credits). Match the game's
+existing cartoon-vector look — the pigeon in `shared/assets/parts/t5f-bird.png`
+is the reference. 16:9 for something long like a rat, 1:1 for a blob like a
+crumpled newspaper.
+
+```bash
+higgsfield generate create nano_banana_flash --aspect_ratio 16:9 --resolution 1k \
+  --prompt "A single <subject>, <pose/orientation — side view facing LEFT for a
+  critter>. Clean vector cartoon video-game sprite art, bold dark outline, flat
+  simple cel shading, <colours>. The whole thing visible, centered, filling the
+  frame. Isolated on a pure flat white background. No shadow, no glow, no halo,
+  no background elements, no text, no watermark, no hands, no other objects."
+  --wait --json
+```
+
+**Bold dark outline** is not styling here, it is load-bearing: the cut-out is a
+flood fill in from the corners, and a pale prop (crumpled newsprint is nearly
+background-white) is only kept separate from the background by that outline.
+Critters must face **left** — that is the direction the flip code assumes.
 
 ## normalize_icon.py
 

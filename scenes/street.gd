@@ -41,6 +41,35 @@ const PLANE_WAIT_MAX := 40.0
 ## sponsor roster has anyone active for this game). WHICH sponsor fills the
 ## slot is Sponsors.pick_weighted().
 const BILLBOARD_CHANCE := 0.75
+## FOREGROUND DRESSING (StreetDecor): the strip between the fighters' feet
+## (GROUND_Y) and the bottom of the 640x360 frame. Everything here is in front
+## of the fighters because it is nearer the camera, and none of it collides
+## with anything — it exists to stop the pavement reading as empty.
+##
+## The band stops short of the very bottom on purpose: on a phone the last
+## dozen-odd pixels sit under the Android nav bar, and a rat that scurries
+## through there is a rat nobody sees.
+const DECOR_Y_MIN := 320.0
+const DECOR_Y_MAX := 342.0
+## Litter dropped into each venue gap as it is generated: a count roll, so most
+## stretches get a piece or two and some get none.
+const LITTER_PER_GAP_MAX := 3
+## Critters (rats) come through on a timer, one at a time. Rare enough to stay
+## a detail you notice rather than an infestation.
+const CRITTER_WAIT_MIN := 7.0
+const CRITTER_WAIT_MAX := 18.0
+const CRITTER_MAX_ON_SCREEN := 1
+## Where a critter enters, as a distance from the camera — just past the
+## +/-320 the camera sees, so one is never seen popping into existence.
+const CRITTER_EDGE_X := 370.0
+## And where it stops existing, same measure. This is CAMERA-relative on
+## purpose. An exit at a fixed world x looks right until the player walks the
+## same way a rat is leaving: the camera keeps pace with the rat, the rat
+## reaches its world-space exit while still in frame, and vanishes in plain
+## sight. Freeing on distance-from-camera instead means the removal is always
+## off-screen, whatever the player does. Must stay comfortably above
+## CRITTER_EDGE_X or a critter would be culled the frame it spawned.
+const CRITTER_GONE_X := 430.0
 ## How far off-camera venue and billboard NODES are allowed to live.
 ##
 ## The street never ends, so anything built per-venue and kept forever grows
@@ -69,6 +98,10 @@ var _doors: Array = []
 ## [{x, id, sponsor, counted, variant, tilt, node}] — same contract, node null
 ## while streamed out.
 var _billboards: Array = []
+## [{x, y, id, flip, node}] — foreground litter. Same records-plus-streaming
+## contract as the billboards, and saved with the street, so the trash stays
+## put across a venue visit instead of being re-scattered on the way out.
+var _litter: Array = []
 var _next_venue_x := FIRST_VENUE_X
 var _venue_index := 0
 var _spawn_timer := 2.0
@@ -77,6 +110,7 @@ var _spawn_timer := 2.0
 var _first_heckler := true
 var _beer_timer := 3.0
 var _plane_timer := randf_range(4.0, PLANE_FIRST_WAIT_MAX)
+var _critter_timer := randf_range(3.0, CRITTER_WAIT_MAX)
 var _plane: PlaneFlyby
 var _hint_sign: Node2D
 ## The doorway popup while it is up — non-null means the game is frozen behind
@@ -126,11 +160,21 @@ func _ready() -> void:
 			if not sponsor.is_empty():
 				_place_billboard(float(b.x), sponsor, bool(b.counted),
 						String(b.get("variant", "")), float(b.get("tilt", 0.0)))
+		# Litter restores by id: a prop dropped from the roster mid-session
+		# simply stops being scattered, it never leaves a hole to crash on.
+		for l in saved.get("litter", []):
+			if not StreetDecor.litter_by_id(String(l.id)).is_empty():
+				_place_litter(float(l.x), float(l.y), String(l.id), bool(l.flip))
 		_spawn_player(Vector2(float(saved.player_x), GROUND_Y))
 		# Mid-run pacing is untouched: no fast spawn, no forced aggression.
 		_first_heckler = false
 	else:
 		_spawn_player(Vector2(120, GROUND_Y))
+		# Dress the opening stretch too. Litter is otherwise only scattered
+		# into the gap behind each new venue, and the first venue is at
+		# FIRST_VENUE_X — so without this the one piece of street every single
+		# run begins on is the one piece with nothing on it.
+		_scatter_litter(60.0, FIRST_VENUE_X)
 		_spawn_timer = 0.5  # first heckler shows up almost immediately
 		# Goal hint, only at the very start of a run — venues_entered, not
 		# "fresh street", so walking back out of venue 1 stays hint-free.
@@ -158,6 +202,7 @@ func _process(delta: float) -> void:
 	_maybe_spawn_heckler(delta)
 	_maybe_spawn_beer(delta)
 	_maybe_spawn_plane(delta)
+	_maybe_spawn_critter(delta)
 	_cull_stragglers()
 	_update_door_signs()
 	_maybe_show_venue_hint()
@@ -192,6 +237,7 @@ func _maybe_spawn_venue() -> void:
 	_venue_index += 1
 	_next_venue_x += randf_range(VENUE_SPACING_MIN, VENUE_SPACING_MAX)
 	_maybe_spawn_billboard(placed_x, _next_venue_x)
+	_scatter_litter(placed_x, _next_venue_x)
 
 
 ## Roll a sponsor billboard into the gap that just opened between the venue
@@ -205,6 +251,57 @@ func _maybe_spawn_billboard(gap_start: float, gap_end: float) -> void:
 	if sponsor.is_empty():
 		return
 	_place_billboard((gap_start + gap_end) / 2.0 + randf_range(-80.0, 80.0), sponsor, false)
+
+
+## Drop foreground litter across the gap that just opened between this venue
+## and the next. Positions are rolled once, here, and then belong to the run:
+## the nodes come and go with the camera but the trash never moves.
+func _scatter_litter(gap_start: float, gap_end: float) -> void:
+	for _i in randi() % (LITTER_PER_GAP_MAX + 1):
+		var row: Dictionary = StreetDecor.pick_litter()
+		if row.is_empty():
+			return  # nothing in the roster has usable art; don't keep rolling
+		_place_litter(randf_range(gap_start, gap_end),
+				randf_range(DECOR_Y_MIN, DECOR_Y_MAX), String(row.id),
+				randf() < 0.5)
+
+
+## Record a piece of litter. Like the billboards, nothing is built until the
+## camera comes near. `flip` is rolled once and kept so a piece that streams
+## out and back in is the same piece, not a mirrored one.
+func _place_litter(lx: float, ly: float, id: String, flip: bool) -> void:
+	_litter.append({"x": lx, "y": ly, "id": id, "flip": flip, "node": null})
+
+
+## Send a critter (a rat) across the foreground. Nothing is recorded and
+## nothing is persisted: it runs in, stops to look around, heads back out and
+## is culled the moment it clears the frame. A run's rats are not part of the
+## street the way its trash is — they are weather.
+func _maybe_spawn_critter(delta: float) -> void:
+	_critter_timer -= delta
+	if _critter_timer > 0.0:
+		return
+	_critter_timer = randf_range(CRITTER_WAIT_MIN, CRITTER_WAIT_MAX)
+	if get_tree().get_nodes_in_group("street_critters").size() >= CRITTER_MAX_ON_SCREEN:
+		return
+	var row: Dictionary = StreetDecor.pick_critter()
+	if row.is_empty():
+		return
+	var cam := camera.position.x
+	var side := 1.0 if randf() < 0.5 else -1.0
+	# Most of them duck back the way they came — a rat thinking better of it —
+	# and the rest carry straight on across the frame.
+	var exit_side := side if randf() < 0.65 else -side
+	var critter := StreetCritter.new()
+	critter.add_to_group("street_critters")
+	critter.z_index = 5  # foreground: in front of the fighters (0), like the venue crowd
+	add_child(critter)
+	# The exit target only sets which way it heads out — far enough that it is
+	# always the camera-relative cull below that actually frees it.
+	critter.configure(row, randf_range(DECOR_Y_MIN, DECOR_Y_MAX),
+			cam + side * CRITTER_EDGE_X,
+			cam + randf_range(-220.0, 220.0),
+			cam + exit_side * 900.0)
 
 
 # ---------------------------------------------------------------- streaming
@@ -250,6 +347,34 @@ func _stream_props() -> void:
 				_build_billboard_node(b)
 		elif dist > STREAM_OUT_X and b.node != null:
 			_free_billboard_node(b)
+	for l in _litter:
+		var dist := absf(float(l.x) - cam)
+		if dist <= STREAM_IN_X:
+			if l.node == null:
+				_build_litter_node(l)
+		elif dist > STREAM_OUT_X and l.node != null:
+			l.node.queue_free()
+			l.node = null
+
+
+## Litter carries no live state (nothing counts it, nothing changes it), so
+## unlike a billboard it can be thrown away and rebuilt from its record alone.
+func _build_litter_node(l: Dictionary) -> void:
+	var row: Dictionary = StreetDecor.litter_by_id(String(l.id))
+	var tex: Texture2D = StreetDecor.texture(row) if not row.is_empty() else null
+	if tex == null:
+		return
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	var sc := float(row.scale)
+	sp.scale = Vector2(sc, sc)
+	sp.flip_h = bool(l.flip)
+	# Sitting ON the pavement: the record's y is the ground line, so the sprite
+	# centre goes half a (scaled) height above it.
+	sp.position = Vector2(float(l.x), float(l.y) - tex.get_height() * sc * 0.5)
+	sp.z_index = 4  # foreground, but under the critters — a rat runs OVER the paper
+	add_child(sp)
+	l.node = sp
 
 
 func _build_billboard_node(b: Dictionary) -> void:
@@ -529,6 +654,14 @@ func _cull_stragglers() -> void:
 	for b in get_tree().get_nodes_in_group("beer_pickups"):
 		if b.position.x < camera.position.x - 700.0:
 			b.queue_free()
+	# This is how a critter normally leaves: it runs out of frame and is freed
+	# once it is CRITTER_GONE_X from the camera. Doing it here rather than in
+	# the critter itself is what keeps the removal off-screen no matter which
+	# way the player walks (see CRITTER_GONE_X). It also mops up one the
+	# player simply walked away from mid-scurry.
+	for c in get_tree().get_nodes_in_group("street_critters"):
+		if absf(c.position.x - camera.position.x) > CRITTER_GONE_X:
+			c.queue_free()
 
 
 ## Screen shake: MUST tween camera.offset, never camera.position — _process
@@ -625,12 +758,16 @@ func _capture_state() -> Dictionary:
 		var counted: bool = b.node.counted if is_instance_valid(b.node) else bool(b.counted)
 		billboards.append({"x": b.x, "id": b.id, "counted": counted,
 				"variant": b.variant, "tilt": b.tilt})
+	var litter: Array = []
+	for l in _litter:
+		litter.append({"x": l.x, "y": l.y, "id": l.id, "flip": l.flip})
 	return {
 		"player_x": player.position.x,
 		"next_venue_x": _next_venue_x,
 		"venue_index": _venue_index,
 		"doors": doors,
 		"billboards": billboards,
+		"litter": litter,
 	}
 
 
