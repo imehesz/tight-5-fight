@@ -19,6 +19,9 @@ var duration := 0.2
 ## as an uncharged one does — the sweep is never a different animation.
 var charging := false
 var _t := 0.0
+## Runs only while charging, and only drives the swivel. Kept apart from `_t`
+## because `_t` is the swing clock, which must not start until release.
+var _charge_t := 0.0
 var _weapon_sprite: Sprite2D
 
 ## Pivot sits at the shoulder; radius roughly matches the swing hitbox reach
@@ -45,6 +48,14 @@ const WEAPON_SOLID := 0.7
 ## sweep (the fade only touches alpha). Without it a 1.5x hit is invisible to
 ## the player. Drop mark_charged() to remove the tell entirely.
 const CHARGED_TINT := Color(1.6, 1.35, 0.7)
+## The other charge tell: the raised weapon rocks back and forth while it is
+## held overhead, so a wind-up reads as a wind-up even before it banks the
+## bonus (the tint only arrives at Player.CHARGE_TIME). Deliberately tiny —
+## this is the strain of holding something heavy up, not a wobble. Amplitude
+## is radians either side of the raised pose; set it to 0.0 to remove the
+## effect without touching anything else.
+const CHARGE_SWIVEL := 0.055     # ~3 degrees each way
+const CHARGE_SWIVEL_HZ := 7.5
 
 
 func _ready() -> void:
@@ -78,9 +89,17 @@ func mark_charged() -> void:
 
 
 func _process(delta: float) -> void:
-	# Frozen overhead until the player lets go. The clock does not start, so
-	# the swing is never shortened by however long the charge was held.
+	# Held overhead until the player lets go. The swing clock does not start,
+	# so the swing is never shortened by however long the charge was held —
+	# the only thing moving is the swivel. It is phased from sin(0) = 0, so
+	# the weapon starts at rest and never pops on the way in; on release the
+	# sweep resumes from _edge(0), the same angle the swivel oscillates about,
+	# so it never pops on the way out either.
 	if charging:
+		if _weapon_sprite:
+			_charge_t += delta
+			_weapon_sprite.rotation = _edge(0.0) + PI / 2.0 \
+					+ sin(_charge_t * TAU * CHARGE_SWIVEL_HZ) * CHARGE_SWIVEL
 		return
 	_t += delta
 	if _t >= duration:
