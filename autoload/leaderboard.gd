@@ -17,6 +17,12 @@ signal board_failed(reason: String)
 signal venues_loaded(data: Dictionary)
 signal venues_failed(reason: String)
 
+## ping_login() resolves into exactly one of these. The JOKE BOOK pane may open
+## before or after the boot-time ping lands, so it checks jokebook() first and
+## only waits on these if nothing is cached yet.
+signal jokebook_loaded(data: Dictionary)
+signal jokebook_failed(reason: String)
+
 ## Production backend: Apache on games.imstandup.com proxies /tight5fight/api/
 ## to the node process (see server/README.md). The game is served from the same
 ## host (games.imstandup.com/tight5fight/<theme>), so this is a SAME-ORIGIN
@@ -25,6 +31,15 @@ signal venues_failed(reason: String)
 const PROD_HOST := "games.imstandup.com"
 const PROD_API_PATH := "/tight5fight/api"
 const DEV_PORT := 8770
+
+## JOKE BOOK MASTER SWITCH — the whole feature hangs off this one flag: the
+## boot-time login ping, the run-start streak bonus, and the pane in the
+## LEADERBOARD. Nothing about it runs when this is false, so the branch can
+## merge without releasing.
+##
+## TRUE on the joke-book branch so it is testable as built. Set it to FALSE
+## before merging to main if the feature is not shipping with that merge.
+const JOKE_BOOK_ENABLED := true
 
 ## Rows per page. Must match `pageSize` in server/config.js — the server
 ## paginates, this constant only sizes the local board to match.
@@ -42,12 +57,23 @@ var _player_uuid := ""
 var _player_file := ""
 ## True while a record_play() is mid-flight. See record_play().
 var _recording := false
+## Last successful POST /login body: {today, streak, bonus, pointsPerDay,
+## windowDays, days:[{day, played}]}. Empty until the boot ping lands, and it
+## STAYS empty when the server can't be reached — which is the whole offline
+## story: no cached streak means no bonus, never a guessed one.
+var _jokebook := {}
+## Guards against a second ping while the first is still in flight (the boot
+## ping and a JOKE BOOK pane opened immediately would otherwise race).
+var _pinging := false
 
 
 func _ready() -> void:
 	# GameState is registered first in project.godot, so active_game is set.
 	_player_file = PLAYER_PATH % GameState.active_game
 	_load_uuid()
+	# Mark the player present as early as possible, so the streak bonus is
+	# already cached by the time they reach FIGHT!. Deliberately not awaited.
+	ping_login()
 
 
 # ---------------------------------------------------------------- endpoint
@@ -203,6 +229,49 @@ func _request(method: int, path: String, body: Dictionary = {}) -> Dictionary:
 	if code < 200 or code >= 300:
 		return {"ok": false, "error": String(data.get("error", "server error"))}
 	return {"ok": true, "data": data}
+
+
+# ---------------------------------------------------------------- joke book
+## Today's login, banked server-side, plus the 90-day grid and streak bonus it
+## returns. Safe to call repeatedly: the server write is keyed on
+## (player_uuid, day), so a second ping the same day changes nothing.
+##
+## Best-effort like everything else here. A player who is offline, or whose
+## VPS is down, simply gets no bonus for that session and an unavailable JOKE
+## BOOK — the run itself is untouched.
+func ping_login() -> void:
+	if not JOKE_BOOK_ENABLED or _pinging:
+		return
+	_pinging = true
+	if not await _ensure_uuid():
+		_pinging = false
+		jokebook_failed.emit("offline")
+		return
+	var res := await _request(HTTPClient.METHOD_POST, "/login",
+			{"uuid": _player_uuid})
+	_pinging = false
+	if not bool(res.get("ok", false)):
+		jokebook_failed.emit(String(res.get("error", "unavailable")))
+		return
+	_jokebook = res.get("data", {})
+	jokebook_loaded.emit(_jokebook)
+
+
+## The cached JOKE BOOK payload, or {} if the ping has not landed (or failed).
+func jokebook() -> Dictionary:
+	return _jokebook
+
+
+## Points this run starts with, from the current login streak. 0 whenever the
+## streak is unknown — a missing answer is never worth more than a first-ever
+## login, and the SERVER is the only thing that decides this number.
+func streak_bonus() -> int:
+	return int(_jokebook.get("bonus", 0)) if JOKE_BOOK_ENABLED else 0
+
+
+## Consecutive days ending today, 0 when unknown.
+func streak_days() -> int:
+	return int(_jokebook.get("streak", 0))
 
 
 # ---------------------------------------------------------------- player id

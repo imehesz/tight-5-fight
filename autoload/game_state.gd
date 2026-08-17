@@ -229,6 +229,9 @@ var selected_character := 0
 ## random comedian. Persisted so character select reopens on the "?".
 var random_select := false
 var score := 0
+## What this run STARTED with from the JOKE BOOK streak (see start_new_game).
+## Kept so game over can show the head start separately from what was earned.
+var run_start_bonus := 0
 var lives := 1
 var venues_entered := 0
 ## Bosses cleared so far, and beer bottles currently carried (0..MAX_BOTTLES).
@@ -567,7 +570,16 @@ func start_new_game(character_index: int, remember := true) -> void:
 		set_selected_character(character_index)
 	else:
 		selected_character = clampi(character_index, 0, maxi(characters.size() - 1, 0))
-	score = 0
+	# JOKE BOOK: a run opens with the daily-login streak bonus already banked
+	# (50 a day for every consecutive day beyond the first, capped by the
+	# 90-day window at 4,450). The SERVER decides this number — see
+	# Leaderboard.streak_bonus() — and it is 0 whenever the streak is unknown,
+	# so being offline costs the bonus rather than inventing one.
+	#
+	# It is part of the score proper, not a display-only extra: it rides along
+	# to the global board with the rest of the run.
+	score = Leaderboard.streak_bonus()
+	run_start_bonus = score
 	venues_entered = 0
 	bosses_defeated = 0
 	lives = lives_cap()  # after bosses_defeated resets, so a run starts at 1

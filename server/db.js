@@ -112,6 +112,20 @@ const SCHEMA = {
       created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_crash_game ON crashes (game_id, id)`,
+    // JOKE BOOK: one row per player per day they opened the game. `day` is a
+    // calendar date in US Eastern (see easternDay() in server.js), NOT a
+    // timestamp and NOT UTC — under UTC the day would roll over at ~7-8pm ET
+    // and split a single evening's play across two dates.
+    //
+    // The composite PRIMARY KEY is the whole idempotency story: the client
+    // pings this on every boot, and a second ping on the same day is an
+    // INSERT OR IGNORE that changes nothing.
+    `CREATE TABLE IF NOT EXISTS logins (
+      player_uuid TEXT NOT NULL,
+      day         TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (player_uuid, day)
+    )`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -215,6 +229,15 @@ const SCHEMA = {
       PRIMARY KEY (id),
       KEY idx_crash_game (game_id, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    // See the sqlite copy above for what `day` means. DATE, not DATETIME:
+    // the value is a calendar day the server already resolved, so there is
+    // no time part to get reinterpreted by a session timezone.
+    `CREATE TABLE IF NOT EXISTS logins (
+      player_uuid CHAR(36) NOT NULL,
+      day         DATE     NOT NULL,
+      created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (player_uuid, day)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
 
@@ -312,6 +335,33 @@ async function createPlayer(uuid, ip) {
 async function playerExists(uuid) {
   const row = await get("SELECT uuid FROM players WHERE uuid = ?", [uuid]);
   return !!row;
+}
+
+// ---------------------------------------------------------------- joke book
+// Mark this player present for `day` (a YYYY-MM-DD the caller resolved).
+// Idempotent: the PK makes a repeat ping on the same day a no-op, so the
+// client can ping on every single boot without thinking about it.
+async function recordLogin(uuid, day) {
+  const verb = DRIVER === "sqlite" ? "INSERT OR IGNORE" : "INSERT IGNORE";
+  await run(`${verb} INTO logins (player_uuid, day) VALUES (?, ?)`, [uuid, day]);
+}
+
+// The days this player was present, from `fromDay` to `toDay` inclusive, as
+// an array of YYYY-MM-DD strings. Deliberately returns the raw days rather
+// than a streak: MySQL 5.5 has no window functions, so the run-length walk
+// happens in JS (see jokeBook() in server.js) where it is testable anyway.
+async function loginDays(uuid, fromDay, toDay) {
+  const rows = await all(
+    `SELECT day FROM logins
+      WHERE player_uuid = ? AND day >= ? AND day <= ?
+      ORDER BY day DESC`,
+    [uuid, fromDay, toDay]
+  );
+  // MySQL hands back a JS Date for a DATE column; sqlite hands back the
+  // string it stored. Normalise to YYYY-MM-DD so callers never have to care.
+  return rows.map((r) =>
+    r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day)
+  );
 }
 
 // ---------------------------------------------------------------- plays
@@ -743,6 +793,8 @@ module.exports = {
   recentCrashes,
   createPlayer,
   playerExists,
+  recordLogin,
+  loginDays,
   secondsSinceLastPlay,
   recordPlay,
   recordBeatdowns,

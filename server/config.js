@@ -21,6 +21,23 @@ const base = {
   // Rows per leaderboard page. Must match PAGE_SIZE in scenes/scoreboard.gd.
   pageSize: 10,
 
+  // JOKE BOOK — the daily-login grid and the streak bonus it pays out.
+  // Server-side on purpose: these are the numbers that decide a score, so a
+  // client is never asked what its own bonus should be.
+  jokeBook: {
+    // Calendar days shown in the grid, and the ceiling on the streak. 90 is
+    // 10 pages of a 3x3 grid in scenes/scoreboard.gd — change both together.
+    windowDays: 90,
+    // Points per CONSECUTIVE day beyond the first. A first-ever login is
+    // worth 0, the next day 50, and so on; at a full 90-day streak that is
+    // 89 * 50 = 4,450, which is the most this can ever pay.
+    pointsPerDay: 50,
+    // The day boundary. Not UTC: under UTC the date rolls at ~7-8pm Eastern,
+    // which would split one evening's play across two days and break streaks
+    // for exactly the US evening players this is meant to reward.
+    timeZone: "America/New_York",
+  },
+
   // Shared secret for the read-only /stats endpoint behind admin.html. The
   // page forwards its pwd= query param. This file is public, so the real
   // value lives ONLY in the gitignored config.dev.js / config.prod.js;
@@ -40,6 +57,9 @@ const base = {
     // player would have to crash 12 times in an hour to hit this — and a
     // scripted flood is bounded by it AND by crashMaxRows below.
     crashesPerHourPerIp: 12,
+    // JOKE BOOK pings. The client sends one per boot, and the write is
+    // idempotent, so this only exists to bound a scripted flood.
+    loginsPerHourPerIp: 60,
   },
 
   // Disk ceiling for the crash table. A row is ~300 bytes, so the cap below
@@ -75,5 +95,6 @@ module.exports = {
   ...base,
   ...overrides,
   limits: { ...base.limits, ...(overrides.limits || {}) },
+  jokeBook: { ...base.jokeBook, ...(overrides.jokeBook || {}) },
   db: { ...base.db, ...(overrides.db || {}) },
 };

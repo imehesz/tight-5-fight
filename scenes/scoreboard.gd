@@ -7,10 +7,15 @@ extends MenuBase
 ##            times each was KO'd as an enemy. One pager drives both panels.
 ##   VENUES — one board: which venue doors players walk through the most,
 ##            counted per run alongside the KO tally.
-## All tabs are paged 10 rows at a time. LOCAL is shown first and never
-## needs the network, so the screen is useful even with the server down.
+##   JOKE BOOK — this player's daily attendance: a 3x3 grid of the last 90
+##            days, newest first, each day a check or a cross. Gated behind
+##            Leaderboard.JOKE_BOOK_ENABLED; the tab is not built at all when
+##            the feature is off.
+## The first three tabs are paged 10 rows at a time; JOKE BOOK pages 9 cells
+## at a time. LOCAL is shown first and never needs the network, so the screen
+## is useful even with the server down.
 
-enum Tab { LOCAL, GLOBAL, VENUES }
+enum Tab { LOCAL, GLOBAL, VENUES, JOKE_BOOK }
 
 ## Must match Leaderboard.PAGE_SIZE (and pageSize in server/config.js). Not
 ## `= Leaderboard.PAGE_SIZE`: an autoload lookup isn't a constant expression.
@@ -32,6 +37,39 @@ const PANEL_W := 272
 const PANEL_GAP := 8
 const PANEL_HEADER_H := 14
 
+## JOKE BOOK grid: 3x3 cells a page, 10 pages, 90 days — which must match
+## jokeBook.windowDays in server/config.js. The server sends exactly that many
+## day entries newest-first, so the client never does date arithmetic; it
+## slices the array it was handed.
+const JOKE_COLS := 3
+const JOKE_ROWS := 3
+const JOKE_PER_PAGE := JOKE_COLS * JOKE_ROWS
+const JOKE_PAGES := 10
+## Each day is the same bordered square the CHARACTERS grid pads its short
+## pages with (character_select.gd _empty_card), holding the date and the mark
+## together. 58 rather than that grid's 64: three of those plus the streak
+## line do not fit the fixed well this screen shares with the GLOBAL tab
+## (14 + 10*18 = 194px tall), and the well is what stops the layout jumping
+## when you switch tabs.
+const JOKE_CELL := 56
+const JOKE_CELL_INSET := 2
+## Breathing room between the STREAK line and the grid. Paid for by the two
+## pixels off JOKE_CELL above — the well is a fixed 194px and the grid was
+## already using most of it.
+const JOKE_HEAD_GAP := 8
+## Press Start 2P has NO check or cross glyph (verified against the font's
+## cmap — U+2713/U+2717 are absent), so drawing them as text would render two
+## tofu boxes. They are stroked in _draw() instead, which also lets them be
+## as big as the square allows without a second font.
+const JOKE_YES := Color(0.45, 0.9, 0.5)
+const JOKE_NO := Color(0.95, 0.38, 0.38)
+## Frame styling lifted from character_select.gd's blank card, so a JOKE BOOK
+## square and a CHARACTERS filler square are visibly the same object.
+const JOKE_FRAME_BG := Color(1, 1, 1, 0.04)
+const JOKE_FRAME_EDGE := Color(0.45, 0.45, 0.52, 0.35)
+const MONTHS := ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
+		"Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."]
+
 const TAB_ON := Color(1.0, 0.85, 0.4)
 const TAB_OFF := Color(0.6, 0.6, 0.68)
 const TEXT := Color(0.85, 0.85, 0.9)
@@ -42,6 +80,7 @@ var _tab := Tab.LOCAL
 var _local_page := 0
 var _global_page := 0
 var _venues_page := 0
+var _joke_page := 0
 ## Page counts reported by the server; 1 until the first response lands.
 var _global_pages := 1
 var _venues_pages := 1
@@ -65,6 +104,9 @@ func _ready() -> void:
 	Leaderboard.board_failed.connect(_on_board_failed)
 	Leaderboard.venues_loaded.connect(_on_venues_loaded)
 	Leaderboard.venues_failed.connect(_on_venues_failed)
+	if Leaderboard.JOKE_BOOK_ENABLED:
+		Leaderboard.jokebook_loaded.connect(_on_jokebook_loaded)
+		Leaderboard.jokebook_failed.connect(_on_jokebook_failed)
 
 	var box := build_backdrop()
 	# Ten tall global rows leave little room to spare, so this screen packs its
@@ -109,6 +151,14 @@ func _build_tabs() -> HBoxContainer:
 	tabs.add_child(_tab_button(Tab.LOCAL, "LOCAL"))
 	tabs.add_child(_tab_button(Tab.GLOBAL, "GLOBAL"))
 	tabs.add_child(_tab_button(Tab.VENUES, "VENUES"))
+	# Four tabs no longer fit at the three-tab width on a 640-wide design view,
+	# so they share the row out instead of each keeping 130px.
+	if Leaderboard.JOKE_BOOK_ENABLED:
+		tabs.add_child(_tab_button(Tab.JOKE_BOOK, "JOKE BOOK"))
+		tabs.add_theme_constant_override("separation", 6)
+		for b in _tab_buttons.values():
+			b.custom_minimum_size = Vector2(96, 28)
+			b.add_theme_font_size_override("font_size", 8)
 	return tabs
 
 
@@ -143,6 +193,9 @@ func _page_count() -> int:
 		return maxi(_global_pages, 1)
 	if _tab == Tab.VENUES:
 		return maxi(_venues_pages, 1)
+	if _tab == Tab.JOKE_BOOK:
+		# Fixed: the window is always the full 90 days, present or not.
+		return JOKE_PAGES
 	return maxi(ceili(GameState.high_scores.size() / float(ROWS_PER_PAGE)), 1)
 
 
@@ -152,6 +205,8 @@ func _page() -> int:
 			return _global_page
 		Tab.VENUES:
 			return _venues_page
+		Tab.JOKE_BOOK:
+			return _joke_page
 		_:
 			return _local_page
 
@@ -165,6 +220,9 @@ func _turn_page(dir: int) -> void:
 		Tab.VENUES:
 			_venues_page = next
 			_load_venues()
+		Tab.JOKE_BOOK:
+			_joke_page = next
+			_render_jokebook()
 		_:
 			_local_page = next
 			_render_local()
@@ -185,8 +243,159 @@ func _show_tab(tab: Tab) -> void:
 			_load_global()
 		Tab.VENUES:
 			_load_venues()
+		Tab.JOKE_BOOK:
+			_render_jokebook()
 		_:
 			_render_local()
+
+
+# ---------------------------------------------------------------- joke book
+## One day's tick or cross, stroked rather than typed — see JOKE_MARK_H.
+class DayMark:
+	extends Control
+	var played := false
+	var yes: Color
+	var no: Color
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		var c := (w * 0.5)
+		var r := minf(w, h) * 0.34
+		var width := maxf(r * 0.26, 2.0)
+		if played:
+			# Tick: short down-stroke into a long up-stroke, drawn as two
+			# joined segments so the elbow stays sharp at any size.
+			var a := Vector2(c - r, h * 0.5)
+			var b := Vector2(c - r * 0.25, h * 0.5 + r * 0.72)
+			var d := Vector2(c + r, h * 0.5 - r * 0.72)
+			draw_line(a, b, yes, width, true)
+			draw_line(b, d, yes, width, true)
+		else:
+			var m := h * 0.5
+			draw_line(Vector2(c - r, m - r), Vector2(c + r, m + r), no, width, true)
+			draw_line(Vector2(c + r, m - r), Vector2(c - r, m + r), no, width, true)
+
+
+## "2026-08-17" -> "Aug. 17." Falls back to the raw string on anything
+## unexpected, so a server that changes shape shows an odd label rather than
+## an empty grid.
+func _pretty_day(day: String) -> String:
+	var parts := day.split("-")
+	if parts.size() != 3:
+		return day
+	var m := int(parts[1])
+	if m < 1 or m > 12:
+		return day
+	return "%s %d." % [MONTHS[m - 1], int(parts[2])]
+
+
+func _on_jokebook_loaded(_data: Dictionary) -> void:
+	if _tab == Tab.JOKE_BOOK:
+		_render_jokebook()
+
+
+func _on_jokebook_failed(reason: String) -> void:
+	if _tab == Tab.JOKE_BOOK:
+		_message("JOKE BOOK UNAVAILABLE\n(%s)" % reason.to_upper())
+		_update_pager()
+
+
+## The 3x3 grid for the current page. Reads the cached payload rather than
+## fetching: Leaderboard pings on boot, so by the time anyone opens this the
+## answer is usually already here — and if it isn't, the ping's signal
+## re-renders us.
+func _render_jokebook() -> void:
+	_clear_rows()
+	_update_pager()
+	var book: Dictionary = Leaderboard.jokebook()
+	if book.is_empty():
+		_message("CHECKING IN ...")
+		return
+	var days: Array = book.get("days", [])
+	if days.is_empty():
+		_message("NO DAYS RECORDED YET")
+		return
+
+	# Streak summary: the whole reason the grid exists, so it says plainly what
+	# the attendance is currently worth.
+	var streak := int(book.get("streak", 0))
+	var head := Label.new()
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.add_theme_font_size_override("font_size", 8)
+	head.add_theme_color_override("font_color", YOU if streak > 1 else DIM)
+	head.text = "STREAK %d DAY%s" % [streak, "" if streak == 1 else "S"]
+	_rows.add_child(head)
+	add_spacer(_rows, JOKE_HEAD_GAP)
+
+	var grid := GridContainer.new()
+	grid.columns = JOKE_COLS
+	grid.add_theme_constant_override("h_separation", 22)
+	grid.add_theme_constant_override("v_separation", 2)
+	# Shrink-centred, not expand-fill: the squares are a fixed size now, so
+	# spreading them over the full two-panel width would strand them at the
+	# edges of a mostly empty well.
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_rows.add_child(grid)
+
+	var start := _joke_page * JOKE_PER_PAGE
+	for i in JOKE_PER_PAGE:
+		var idx := start + i
+		# A short last page can't happen at 90/9, but pad anyway rather than
+		# let the grid reflow if windowDays is ever retuned server-side.
+		if idx >= days.size():
+			var pad := Control.new()
+			pad.custom_minimum_size = Vector2(JOKE_CELL, JOKE_CELL)
+			grid.add_child(pad)
+			continue
+		var entry: Dictionary = days[idx]
+		grid.add_child(_joke_cell(String(entry.get("day", "")),
+				bool(entry.get("played", false)), idx == 0))
+
+
+## One day, as the same bordered square the CHARACTERS grid uses for its
+## blank filler cards — date across the top, mark filling the rest. `is_today`
+## golds the frame and the date so the grid always says plainly where now is.
+func _joke_cell(day: String, played: bool, is_today: bool) -> Panel:
+	var frame := Panel.new()
+	frame.custom_minimum_size = Vector2(JOKE_CELL, JOKE_CELL)
+	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = JOKE_FRAME_BG
+	sb.set_corner_radius_all(3)
+	sb.set_border_width_all(2)
+	sb.border_color = YOU if is_today else JOKE_FRAME_EDGE
+	frame.add_theme_stylebox_override("panel", sb)
+
+	# anchors AND offsets: anchors alone leave the box at its own size in the
+	# corner, which is the classic way a full-rect child silently doesn't fill.
+	var col := VBoxContainer.new()
+	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	col.add_theme_constant_override("separation", 0)
+	col.offset_left = JOKE_CELL_INSET
+	col.offset_top = JOKE_CELL_INSET - 1
+	col.offset_right = -JOKE_CELL_INSET
+	col.offset_bottom = -JOKE_CELL_INSET
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(col)
+
+	# Font 6, not the 8 used elsewhere: "Sep. 30." is 8 glyphs and Press Start
+	# 2P is a wide monospace at ~1em each, so 8 would run the full 52px of
+	# usable width and touch both borders.
+	var date := Label.new()
+	date.text = _pretty_day(day)
+	date.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	date.add_theme_font_size_override("font_size", 6)
+	date.add_theme_color_override("font_color", YOU if is_today else TEXT)
+	col.add_child(date)
+
+	var mark := DayMark.new()
+	mark.played = played
+	mark.yes = JOKE_YES
+	mark.no = JOKE_NO
+	mark.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(mark)
+	return frame
 
 
 func _clear_rows() -> void:

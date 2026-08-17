@@ -267,6 +267,127 @@ async function postPlayer(req, res) {
   json(res, 200, { uuid });
 }
 
+// ---------------------------------------------------------------- joke book
+// The calendar day a moment falls on, in the JOKE BOOK's timezone, as
+// YYYY-MM-DD. 'en-CA' is the locale trick that formats as ISO already.
+//
+// Guarded because this silently degrades rather than throwing: a Node built
+// with small-icu knows only "UTC", and would hand back a UTC date while
+// looking like it worked — which is exactly the ~7-8pm rollover bug the
+// timezone was chosen to avoid. Better to notice at boot.
+const JOKE_TZ = config.jokeBook.timeZone;
+let jokeTzChecked = false;
+
+function easternDay(at = new Date()) {
+  const fmt = (tz) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(at);
+  if (!jokeTzChecked) {
+    jokeTzChecked = true;
+    try {
+      // A build without full ICU throws on an unknown zone; one that silently
+      // aliases it to UTC is caught by the January comparison below, where
+      // Eastern is 5 hours behind and the dates must differ at 00:00 UTC.
+      const probe = new Date("2026-01-15T02:00:00Z");
+      const same = new Intl.DateTimeFormat("en-CA", { timeZone: JOKE_TZ }).format(probe)
+        === new Intl.DateTimeFormat("en-CA", { timeZone: "UTC" }).format(probe);
+      if (same) {
+        console.error(`WARN: this Node cannot resolve ${JOKE_TZ} (small-icu?); ` +
+          "JOKE BOOK days are falling back to UTC and will roll over mid-evening");
+      }
+    } catch (e) {
+      console.error(`WARN: ${JOKE_TZ} rejected by Intl; JOKE BOOK days are UTC`, e.message);
+      return fmt("UTC");
+    }
+  }
+  try {
+    return fmt(JOKE_TZ);
+  } catch (e) {
+    return fmt("UTC");
+  }
+}
+
+// `day` shifted by `delta` calendar days, as YYYY-MM-DD. Done on a UTC
+// midnight so it is pure date arithmetic with no DST hour to trip over —
+// the input is already a resolved calendar day, not a moment in time.
+function shiftDay(day, delta) {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+// How many consecutive days ending at `today` appear in `present`.
+// 1 when they showed up today only, 0 if they somehow have no today row.
+//
+// In JS rather than SQL because prod is MySQL 5.5: no window functions, so
+// no LAG()/ROW_NUMBER() gap-and-islands trick. A 90-element walk is nothing.
+function streakEndingToday(present, today, windowDays) {
+  const seen = new Set(present);
+  let streak = 0;
+  for (let i = 0; i < windowDays; i++) {
+    if (!seen.has(shiftDay(today, -i))) break;
+    streak++;
+  }
+  return streak;
+}
+
+// The bonus a streak is worth. The first day of a streak pays nothing — the
+// points are for having COME BACK — so it is (streak - 1) * pointsPerDay,
+// and the window caps it (89 * 50 = 4,450 at the default settings).
+function streakBonus(streak) {
+  const { pointsPerDay, windowDays } = config.jokeBook;
+  return Math.max(Math.min(streak, windowDays) - 1, 0) * pointsPerDay;
+}
+
+// POST /login { uuid } -> { today, streak, bonus, pointsPerDay, windowDays, days: [...] }
+// Marks the player present for today and hands back everything the JOKE BOOK
+// pane and the run-start bonus need, in one round trip. Idempotent: the
+// client pings this on every boot and a repeat on the same day changes
+// nothing, so there is no "have I already pinged?" state to keep.
+//
+// `days` is newest-first and always exactly windowDays long — days[0] is
+// today — so the client can page it 9 at a time without any date maths.
+async function postLogin(req, res) {
+  const ip = clientIp(req);
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (e) {
+    return json(res, 400, { error: e.message });
+  }
+  const { uuid } = body;
+  if (typeof uuid !== "string" || !/^[0-9a-f-]{36}$/i.test(uuid)) {
+    return json(res, 400, { error: "bad uuid" });
+  }
+  // Same gate as /play: an unknown UUID never went through /player, which is
+  // what makes the per-IP mint cap the real cost of scripted spam.
+  if (!(await db.playerExists(uuid))) return json(res, 403, { error: "unknown player" });
+  if (overLimit("login", ip, config.limits.loginsPerHourPerIp)) {
+    return json(res, 429, { error: "too many logins from this address" });
+  }
+
+  const { windowDays } = config.jokeBook;
+  const today = easternDay();
+  await db.recordLogin(uuid, today);
+  chargeHit("login", ip);
+
+  const from = shiftDay(today, -(windowDays - 1));
+  const present = await db.loginDays(uuid, from, today);
+  const seen = new Set(present);
+  const days = [];
+  for (let i = 0; i < windowDays; i++) {
+    const day = shiftDay(today, -i);
+    days.push({ day, played: seen.has(day) });
+  }
+  const streak = streakEndingToday(present, today, windowDays);
+  json(res, 200, {
+    today,
+    streak,
+    bonus: streakBonus(streak),
+    pointsPerDay: config.jokeBook.pointsPerDay,
+    windowDays,
+    days,
+  });
+}
+
 // POST /play { gameId, character, uuid, score?, seconds?, weapon? } -> { ok: true }
 // Records one play (with the run's final score, feeding the per-character
 // TOP SCORE board, and how many seconds the run lasted, feeding the run-length
@@ -727,6 +848,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "POST" && route === "/player") return await postPlayer(req, res);
     if (req.method === "POST" && route === "/play") return await postPlay(req, res);
+    if (req.method === "POST" && route === "/login") return await postLogin(req, res);
     if (req.method === "POST" && route === "/crash") return await postCrash(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
