@@ -16,9 +16,13 @@ extends Node2D
 ## GameState.count_billboard_impression), and `counted` round-trips through
 ## street_state so re-walking a restored street never double-bills a sponsor.
 
-## Ad panel: the 640x460 ad scaled to 170px wide, plus frame around it.
-const AD_W := 170.0
-const AD_H := AD_W * 460.0 / 640.0  # ≈ 122
+## Ad panel: the 640x460 ad scaled to AD_W wide, plus frame around it.
+## Bumped 15% on 2026-08-16 (was 170.0) — sponsors pay for these spots, so the
+## ad needs to read at a walk-by. Everything panel-mounted is derived from
+## AD_W and follows along; the supports below deliberately do NOT, so the
+## legs/post keep their old thickness under a wider board.
+const AD_W := 195.5
+const AD_H := AD_W * 460.0 / 640.0  # ≈ 141
 const FRAME := 6.0
 ## Panel bottom sits this far above the ground — high street furniture,
 ## fully above the fighters' heads but inside the 360px design view.
@@ -250,10 +254,12 @@ func _maybe_spawn_birds() -> void:
 		return
 	var panel_top := PANEL_BOTTOM - AD_H - FRAME * 2.0
 	# Landing slots along the top edge, clear of the three lamp stems.
-	var slots := [-72.0, -30.0, 28.0, 70.0]
+	# Fractions of AD_W, not fixed pixels — the stems sit at ±0.33·AD_W, so a
+	# hardcoded slot stops clearing them the moment the board is resized.
+	var slots := [-0.42 * AD_W, -0.18 * AD_W, 0.16 * AD_W, 0.41 * AD_W]
 	slots.shuffle()
 	for i in randi_range(1, 3):
 		var bird := BillboardBird.new()
 		_panel.add_child(bird)
-		bird.setup(Vector2(slots[i], panel_top - 1.0),
+		bird.setup(Vector2(slots[i], panel_top),
 				randf_range(0.2, 1.4) + i * randf_range(0.5, 0.9))

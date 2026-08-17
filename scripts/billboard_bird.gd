@@ -16,7 +16,12 @@ const CELL := 96.0
 ## Perched bird ends up ~15px tall on the 640x360 design view.
 const BIRD_SCALE := 0.24
 ## Perched pose's feet sit this far below the (centered) cell midpoint.
-const FOOT_DROP := 31.0
+## Measured off the sheet, not guessed: cell 0's toes bottom out at texture
+## row 76 of 96, i.e. 28 below the midpoint, and the last 2-3 rows under that
+## are stray antialiased pixels. 31 was aiming at those strays, which parked
+## the whole bird ~2px high — set a hair under the real toes so it grips the
+## frame edge instead of hovering over it.
+const FOOT_DROP := 27.0
 const FLAP_TIME := 0.09
 
 enum { WAITING, FLYING_IN, PERCHED, FLYING_OUT }
