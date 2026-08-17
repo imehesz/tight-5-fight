@@ -53,6 +53,12 @@
       "VenueName": "Tin Roof",
       "ExteriorSpritePath": "assets/venues/tin-roof_ext.png",
       "InteriorSpritePath": "assets/venues/tin-roof_int.png" 
+    },
+    {
+      "VenueId": "fbhq",
+      "VenueName": "FBHQ",
+      "ExteriorSpritePath": "assets/venues/fbhq_ext.png",
+      "InteriorSpritePath": "assets/venues/fbhq_int.png"
     }
   ]
 }

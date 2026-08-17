@@ -5,6 +5,12 @@
       "VenueName": "Comedy Mothership",
       "ExteriorSpritePath": "assets/venues/mothership_ext.png",
       "InteriorSpritePath": "assets/venues/mothership_int.png" 
+    },
+    {
+      "VenueId": "fbhq",
+      "VenueName": "FBHQ",
+      "ExteriorSpritePath": "assets/venues/fbhq_ext.png",
+      "InteriorSpritePath": "assets/venues/fbhq_int.png"
     }
   ]
 }

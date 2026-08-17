@@ -20,9 +20,11 @@
   "projectileSprite": "assets/misc/bottle.png",
 
   "planeBanners": [
-    "WELCOME to FLORIDA!",
+    "WELCOME to FLORIDA ... KIND OF",
     "GULF OF AMERICA?",
-    "TIME ZONES!"
+    "TIME ZONES!",
+    "GUNS AND AMMO!",
+    "HURRICANES SEASON 24/7"
   ],
 
   "boss": {

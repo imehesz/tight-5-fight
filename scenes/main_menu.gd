@@ -9,9 +9,9 @@ extends MenuBase
 
 #var _sponsors_btn: Button
 
-## The Tight 5 Games socials. Publisher-level, not per-edition — every city
-## build points at the same two pages, so these stay constants here rather
-## than in the per-game manifest.
+## The Tight 5 Games socials, plus the tip jar. Publisher-level, not
+## per-edition — every city build points at the same pages, so these stay
+## constants here rather than in the per-game manifest.
 const SOCIALS := [
 	{
 		"icon": "res://shared/assets/ui/social_facebook.png",
@@ -22,6 +22,11 @@ const SOCIALS := [
 		"icon": "res://shared/assets/ui/social_instagram.png",
 		"url": "https://www.instagram.com/tight5games/",
 		"tip": "@tight5games on Instagram",
+	},
+	{
+		"icon": "res://shared/assets/ui/social_coffee.png",
+		"url": "https://buymeacoffee.com/tight5games",
+		"tip": "Buy us a coffee",
 	},
 ]
 

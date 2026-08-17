@@ -47,6 +47,12 @@
       "VenueName": "The Wobbly Whale",
       "ExteriorSpritePath": "assets/venues/wobbly-whale_ext.png",
       "InteriorSpritePath": "assets/venues/wobbly-whale_int.png" 
+    },
+    {
+      "VenueId": "fbhq",
+      "VenueName": "FBHQ",
+      "ExteriorSpritePath": "assets/venues/fbhq_ext.png",
+      "InteriorSpritePath": "assets/venues/fbhq_int.png"
     }
   ]
 }

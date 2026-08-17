@@ -11,6 +11,30 @@
       "VenueName": "Comedy School",
       "ExteriorSpritePath": "assets/venues/comedy-school_ext.png",
       "InteriorSpritePath": "assets/venues/comedy-school_int.png" 
+    },
+    { 
+      "VenueId": "fbhq",
+      "VenueName": "FBHQ",
+      "ExteriorSpritePath": "assets/venues/fbhq_ext.png",
+      "InteriorSpritePath": "assets/venues/fbhq_int.png" 
+    },
+    { 
+      "VenueId": "standys",
+      "VenueName": "St Andy'S",
+      "ExteriorSpritePath": "assets/venues/standys_ext.png",
+      "InteriorSpritePath": "assets/venues/standys_int.png" 
+    },
+    { 
+      "VenueId": "slice-house",
+      "VenueName": "Slice House",
+      "ExteriorSpritePath": "assets/venues/slice-house_ext.png",
+      "InteriorSpritePath": "assets/venues/slice-house_int.png" 
+    },
+    { 
+      "VenueId": "sound-collective",
+      "VenueName": "Sound Collective",
+      "ExteriorSpritePath": "assets/venues/sound-collective_ext.png",
+      "InteriorSpritePath": "assets/venues/sound-collective_int.png" 
     }
   ]
 }

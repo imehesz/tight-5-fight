@@ -10,6 +10,7 @@
 	{ "VenueId": "bonkers", "VenueName": "Bonkers", "ExteriorSpritePath": "assets/venues/bonkers_ext.png", "InteriorSpritePath": "assets/venues/bonkers_int.png" },
 	{ "VenueId": "comedy-school", "VenueName": "Comedy School", "ExteriorSpritePath": "assets/venues/comedy-school_ext.png", "InteriorSpritePath": "assets/venues/comedy-school_int.png" },
 	{ "VenueId": "bay-street-grille", "VenueName": "Bay Street Grille", "ExteriorSpritePath": "assets/venues/bay-street_ext.png", "InteriorSpritePath": "assets/venues/bay-street_int.png" },
-	{ "VenueId": "rooftop-comedy-show", "VenueName": "Rooftop Comedy Show", "ExteriorSpritePath": "assets/venues/rooftop_ext.png", "InteriorSpritePath": "assets/venues/rooftop_int.png" }
+	{ "VenueId": "rooftop-comedy-show", "VenueName": "Rooftop Comedy Show", "ExteriorSpritePath": "assets/venues/rooftop_ext.png", "InteriorSpritePath": "assets/venues/rooftop_int.png" },
+	{ "VenueId": "fbhq", "VenueName": "FBHQ", "ExteriorSpritePath": "assets/venues/fbhq_ext.png", "InteriorSpritePath": "assets/venues/fbhq_int.png" }
   ]
 }

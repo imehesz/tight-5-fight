@@ -13,7 +13,6 @@ in the making of this game. Just their egos.
 
 Built with Godot. Powered by cheap laughs."""
 
-const SUPPORT_URL := "https://buymeacoffee.com/imehesz"
 const LEGAL_URL := "https://games.imstandup.com/tight5fight/legal.html"
 
 ## Everyone who gets a nod, in the order they appear on screen.
@@ -46,13 +45,6 @@ func _ready() -> void:
 	scroll.add_child(body)
 
 	add_text(body, BLURB, 8)
-	add_spacer(body, 10)
-	add_text(body, "Enjoying the fight? Keep the mic on:", 8)
-	# Inside a fill-width column a button would stretch edge to edge; keep it
-	# the same 220-wide target every other menu uses.
-	var coffee := add_button(body, "BUY ME A COFFEE", func(): OS.shell_open(SUPPORT_URL))
-	coffee.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-
 	add_spacer(body, 14)
 	add_title(body, "SPECIAL THANKS", 12)
 	add_spacer(body, 2)
