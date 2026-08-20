@@ -28,6 +28,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "jay",
+      "CharacterName": "J",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/j.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
+    },
+    {
       "CharacterId": "janet-fortune",
       "CharacterName": "Janet Fortune",
       "HeadScale": 1,
@@ -81,7 +90,7 @@
       "BodyType": "M",
       "SkinColor": "#ae8c7f"
     },
-{
+    {
       "CharacterId": "natalie-lovejoy",
       "CharacterName": "Natalie Lovejoy",
       "HeadScale": 1,
@@ -89,6 +98,24 @@
       "HeadSpritePath": "assets/heads/natalie-lovejoy.png",
       "BodyType": "F",
       "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "ronda",
+      "CharacterName": "Ronda",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ronda.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "tekk-johnson",
+      "CharacterName": "Tekk Johnson",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/tekk-johnson.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
     },
     {
       "CharacterId": "mr-open-micer",
