@@ -20,7 +20,7 @@
     },
     { 
       "VenueId": "standys",
-      "VenueName": "St Andy'S",
+      "VenueName": "St Andy's",
       "ExteriorSpritePath": "assets/venues/standys_ext.png",
       "InteriorSpritePath": "assets/venues/standys_int.png" 
     },
