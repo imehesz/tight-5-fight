@@ -12,6 +12,15 @@
     "streetTile": "assets/backgrounds/street_tile.png"
   },
 
+  "advancedParallax": true,
+  "parallax": {
+    "stars":   { "sprite": "assets/backgrounds/parallax_stars.png",   "factor": 0.1 },
+    "twinkleA": { "sprite": "assets/backgrounds/parallax_twinkle_a.png", "factor": 0.1, "twinkle": 2.7 },
+    "twinkleB": { "sprite": "assets/backgrounds/parallax_twinkle_b.png", "factor": 0.1, "twinkle": 4.1 },
+    "skyline": { "sprite": "assets/backgrounds/parallax_skyline.png", "factor": 0.5 },
+    "street":  { "sprite": "assets/backgrounds/parallax_street.png",  "factor": 1.0 }
+  },
+
   "audio": {
     "musicMain":  "assets/audio/song",
     "musicVenue": "assets/audio/song_venue"

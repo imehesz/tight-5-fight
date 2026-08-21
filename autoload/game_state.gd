@@ -509,6 +509,75 @@ func street_tile_path() -> String:
 	return _bg_path("streetTile", "assets/backgrounds/street_tile.png")
 
 
+## The street's scrolling background, FURTHEST LAYER FIRST.
+##
+## Default — and every edition whose art hasn't been re-cut — is the single
+## full-height tile the game has always drawn, with the sky, the stars and the
+## road all baked into the one PNG. A game whose manifest says
+## `"advancedParallax": true` gets the three-layer stack below instead, each
+## layer drifting at its own fraction of the player's walking speed.
+##
+## Any field can be overridden per game under a `parallax` block, so tuning a
+## city's look never needs an engine change:
+##
+##     "advancedParallax": true,
+##     "parallax": { "skyline": { "sprite": "...", "factor": 0.35 } }
+##
+## Layer WIDTH is deliberately not configurable — each strip is recycled at its
+## own texture's width, so a wider skyline just repeats less often and the art
+## is the only thing that has to change.
+## `twinkle` is the seconds for one full fade-out-and-back; 0 means a steady
+## layer. The two twinkle strips are OPTIONAL — an edition that ships only the
+## three core PNGs gets a steady sky instead of falling back to the old tile.
+const PARALLAX_STACK := [
+	{"key": "stars",    "sprite": "assets/backgrounds/parallax_stars.png",     "factor": 0.1, "z": -30},
+	{"key": "twinkleA", "sprite": "assets/backgrounds/parallax_twinkle_a.png", "factor": 0.1, "z": -28, "optional": true, "twinkle": 2.7},
+	{"key": "twinkleB", "sprite": "assets/backgrounds/parallax_twinkle_b.png", "factor": 0.1, "z": -27, "optional": true, "twinkle": 4.1},
+	{"key": "skyline",  "sprite": "assets/backgrounds/parallax_skyline.png",   "factor": 0.5, "z": -20},
+	{"key": "street",   "sprite": "assets/backgrounds/parallax_street.png",    "factor": 1.0, "z": -10},
+]
+
+## How far a twinkle strip fades down. Never to 0: stars that vanish outright
+## read as a rendering glitch rather than as a night sky.
+const TWINKLE_MIN_ALPHA := 0.15
+
+
+func advanced_parallax() -> bool:
+	return bool(manifest.get("advancedParallax", false))
+
+
+## [{path, factor, z}] for street.gd to build strips from.
+func parallax_layers() -> Array:
+	var legacy := [{"path": street_tile_path(), "factor": 1.0, "z": -10, "twinkle": 0.0, "twinkle_min": 1.0}]
+	if not advanced_parallax():
+		return legacy
+	var cfg: Dictionary = manifest.get("parallax", {})
+	var out: Array = []
+	for d in PARALLAX_STACK:
+		var layer: Dictionary = cfg.get(d["key"], {})
+		var path := game_path(String(layer.get("sprite", d["sprite"])))
+		if not ResourceLoader.exists(path):
+			# A missing twinkle strip is just one fewer blinking star: it sits
+			# ON TOP of the opaque sky, so dropping it costs nothing.
+			if bool(d.get("optional", false)):
+				continue
+			# The three core layers are all or nothing, on purpose: half a stack
+			# looks BROKEN rather than merely plain, because the cut-out street
+			# layer is transparent above the rooftops — losing the sky behind it
+			# leaves a black band, not the old background. So one missing PNG
+			# drops the whole game back to its single tile, which always ships.
+			push_warning("advancedParallax: %s is missing %s — falling back to streetTile" % [active_game, path])
+			return legacy
+		out.append({
+			"path": path,
+			"factor": float(layer.get("factor", d["factor"])),
+			"z": int(layer.get("z", d["z"])),
+			"twinkle": float(layer.get("twinkle", d.get("twinkle", 0.0))),
+			"twinkle_min": float(layer.get("twinkleMin", TWINKLE_MIN_ALPHA)),
+		})
+	return out
+
+
 ## Optional assets: empty string means "no override" — the consumer applies its
 ## own placeholder (boss/projectile) rather than crashing on a missing file.
 func boss_head_path() -> String:
