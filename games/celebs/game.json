@@ -12,6 +12,8 @@
     "streetTile": "assets/backgrounds/street_tile.png"
   },
 
+  "advancedParallax": true,
+
   "audio": {
     "musicMain":  "assets/audio/song",
     "musicVenue": "assets/audio/song_venue"
