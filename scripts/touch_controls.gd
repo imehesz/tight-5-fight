@@ -4,9 +4,14 @@ extends CanvasLayer
 ## (up = enter doors, down = duck), punch/kick/throw/swing buttons on the
 ## right. Buttons emit the same input actions as the keyboard bindings.
 
-const SCALE := 1.5
-## The attack cluster runs 1.3x the D-pad — thumbs hunt for it mid-brawl.
-const ACTION_SCALE := SCALE * 1.3
+const SCALE := 1.95
+## Movement and attack clusters run the SAME size. They used to differ (the
+## D-pad at 1.5, attacks 1.3x bigger on the theory that thumbs hunt for the
+## attack cluster mid-brawl) but on a real phone that left the D-pad too
+## small to hit reliably, which is the one control you are holding constantly.
+## Kept as its own name so the two clusters can diverge again without
+## re-touching every entry in BUTTONS.
+const ACTION_SCALE := SCALE
 ## Positions are the original 1x layout for 40px buttons on the 640x360
 ## viewport; _ready() scales each corner cluster outward from its screen
 ## corner so margins grow proportionally and nothing hangs off-screen.
