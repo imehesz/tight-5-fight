@@ -38,7 +38,7 @@ func _ready() -> void:
 	add_spacer(box, 12)
 	add_button(box, "PLAY", func(): GameState.change_scene(GameState.SCENE_CHARACTER_SELECT))
 	add_button(box, "SETTINGS", func(): GameState.change_scene(GameState.SCENE_SETTINGS))
-	add_button(box, "SCOREBOARD", func(): GameState.change_scene(GameState.SCENE_SCOREBOARD))
+	add_button(box, "LEADERBOARD", func(): GameState.change_scene(GameState.SCENE_SCOREBOARD))
 	add_button(box, "ABOUT", func(): GameState.change_scene(GameState.SCENE_ABOUT))
 	add_spacer(box, 6)
 	add_link_row(box, SOCIALS)
