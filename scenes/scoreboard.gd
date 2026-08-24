@@ -213,9 +213,9 @@ func _tab_button(tab: Tab, text: String) -> Button:
 	b.text = text
 	b.custom_minimum_size = Vector2(112, 28)
 	b.add_theme_font_size_override("font_size", 11)
-	b.pressed.connect(func():
+	b.pressed.connect(guard_tap(func():
 		GameState.play_sfx("click")
-		_show_tab(tab))
+		_show_tab(tab)))
 	_tab_buttons[tab] = b
 	return b
 
@@ -580,11 +580,11 @@ func _beef_list_row(r: Dictionary) -> Button:
 	var on := character == _beef_attacker
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(BEEF_LEFT_W, BEEF_ROW_HEIGHT)
-	b.tooltip_text = "Show %s's beef" % character
+	set_tip(b, "Show %s's beef" % character)
 	_style_beef_row(b, on)
-	b.pressed.connect(func():
+	b.pressed.connect(guard_tap(func():
 		GameState.play_sfx("click")
-		_select_attacker(character))
+		_select_attacker(character)))
 
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

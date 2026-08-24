@@ -275,7 +275,7 @@ func _outfit_picker() -> GridContainer:
 	for i in CharacterFactory.OUTFITS.size():
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(52, 24)
-		b.tooltip_text = String(CharacterFactory.OUTFITS[i]["name"])
+		set_tip(b, String(CharacterFactory.OUTFITS[i]["name"]))
 		_add_gradient_face(b, i)
 		b.pressed.connect(func():
 			GameState.play_sfx("click")
@@ -379,7 +379,7 @@ func _weapon_card(index: int) -> VBoxContainer:
 	var btn := Button.new()
 	btn.custom_minimum_size = CARD_SIZE
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	btn.tooltip_text = Weapons.weapon_name(index)
+	set_tip(btn, Weapons.weapon_name(index))
 	btn.set_meta("weapon", index)
 
 	# The weapon sits on the button as a child rather than as an icon: these

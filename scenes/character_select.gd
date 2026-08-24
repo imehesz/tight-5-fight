@@ -317,9 +317,9 @@ func _random_card() -> VBoxContainer:
 	btn.add_theme_font_size_override("font_size", 40)
 	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		btn.add_theme_color_override(state, Color(1.0, 0.85, 0.4))
-	btn.pressed.connect(func():
+	btn.pressed.connect(guard_tap(func():
 		GameState.play_sfx("click")
-		_select(RANDOM))
+		_select(RANDOM)))
 	card.add_child(btn)
 	var name_label := Label.new()
 	name_label.text = "RANDOM"
@@ -362,9 +362,9 @@ func _character_card(index: int, cfg: Dictionary) -> VBoxContainer:
 	btn.ignore_texture_size = true
 	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	btn.custom_minimum_size = Vector2(64, 64)
-	btn.pressed.connect(func():
+	btn.pressed.connect(guard_tap(func():
 		GameState.play_sfx("click")
-		_select(index))
+		_select(index)))
 	card.add_child(btn)
 	var name_label := Label.new()
 	name_label.text = String(cfg.get("CharacterName", "?"))
