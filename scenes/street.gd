@@ -120,11 +120,13 @@ var _plane_timer := randf_range(4.0, PLANE_FIRST_WAIT_MAX)
 var _critter_timer := randf_range(3.0, CRITTER_WAIT_MAX)
 var _plane: PlaneFlyby
 var _hint_sign: Node2D
-## The doorway popup while it is up — non-null means the game is frozen behind
-## it, which is also what stops a second one being built every frame. The flag
-## outlives the popup: without it, an editor run (where the lesson is always
-## due) would pop it again the frame after it closes, since the player is
-## still standing in the doorway.
+## Whichever teaching popup is up — the welcome one on the run's first frame,
+## or the doorway one later. Non-null means the game is frozen behind it,
+## which is also what stops a second one being built every frame, and what
+## keeps the doorway lesson from stacking on top of the welcome. The flag
+## below is the doorway lesson's own "already spent this scene": without it,
+## an editor run (where the lesson is always due) would pop it again the
+## frame after it closes, since the player is still standing in the doorway.
 var _hint_popup: HintPopup
 var _hint_shown := false
 var _busy := false
@@ -187,6 +189,7 @@ func _ready() -> void:
 		# "fresh street", so walking back out of venue 1 stays hint-free.
 		if GameState.venues_entered == 0:
 			_spawn_hint_sign()
+			_show_intro_hint()
 	camera.position = Vector2(maxf(player.position.x, 320.0), 180.0)
 	camera.reset_smoothing()
 	# Before the first frame is drawn, so a restored street opens with its
@@ -747,6 +750,35 @@ func _on_shake(px: float) -> void:
 ## first-timer can walk past every venue in the run without finding out.
 ## Shown once per save (GameState persists it), never during a fight, and
 ## never while the street is mid-transition.
+## The welcome popup, shown once ever, on a player's very first run. Same
+## freeze-and-explain treatment as the doorway lesson below, and the same
+## "always due in the editor, once ever in a real build" rule
+## (GameState.intro_hint_due(), plus ?hints=1 on the web).
+##
+## Called from _ready() on a FRESH street only, and only with no venue entered
+## yet, so it can never interrupt a run in progress — walking back out of a
+## venue, or restarting after game over, both leave it alone.
+func _show_intro_hint() -> void:
+	if not GameState.intro_hint_due():
+		return
+	_hint_popup = HintPopup.new()
+	# menu_title(), not a literal: every edition of the game shares this scene
+	# and each one has its own name in game.json.
+	_hint_popup.title_text = "WELCOME TO %s" % GameState.menu_title()
+	_hint_popup.body_text = "FIGHT HECKLERS AND RIVAL COMEDIANS" \
+			+ "\nON THE STREET AND IN THE VENUES." \
+			+ "\n(Use WASD and UIJK on PC)" \
+			+ "\n\nGOOD LUCK!"
+	# Paused BEFORE the popup enters the tree, so the run's very first frame
+	# is already frozen: the clock does not tick and the opening heckler does
+	# not close in while the player is still reading.
+	GameState.set_paused(true)
+	add_child(_hint_popup)
+	# Only now is the greeting spent — marking it before the popup was really
+	# up would burn the one showing it ever gets on any failure along the way.
+	GameState.mark_intro_hint_seen()
+
+
 ## The first-run doorway lesson: freeze the game and explain the UP key.
 ## Deliberately as dumb as it can be — standing at an open door is the whole
 ## condition. Every extra guard this had (no heckler within 150px, then 70px,
