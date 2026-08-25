@@ -7,6 +7,18 @@
 		     is exactly where the bottom row of buttons lives. Stock Godot
 		     meta keeps the page inside the safe area. -->
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<!-- iPhone Safari ships no Fullscreen API at all (iPad does), so the
+		     first-tap requestFullscreen below can never hide its URL bar. The
+		     one chrome-free route left on iOS is "Add to Home Screen", which
+		     these enable. Harmless during normal browsing: they only take
+		     effect for a home-screen launch. Note that iOS gives a standalone
+		     launch its own storage partition, so a player who adds the game
+		     starts with fresh local settings — the server leaderboard is
+		     unaffected. -->
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+		<meta name="apple-mobile-web-app-title" content="$GODOT_PROJECT_NAME">
 		<title>$GODOT_PROJECT_NAME</title>
 		<style>
 html, body, #canvas {
@@ -1020,6 +1032,92 @@ const engine = new Engine(GODOT_CONFIG);
 	document.addEventListener('fullscreenchange', lockLandscape);
 	document.addEventListener('webkitfullscreenchange', lockLandscape);
 	window.addEventListener('load', lockLandscape);
+}());
+
+// --- Fullscreen on the first tap ------------------------------------------
+// A phone browser will not go fullscreen on page load — it has to be asked
+// from inside a user gesture. The splash screen's "TAP TO START" is already
+// that gesture (it is what unlocks web audio too), so we piggyback on it from
+// the DOM side and ask for fullscreen on the same touch. That is what finally
+// gets the URL bar out of the way, and as a bonus it is also the only state
+// in which Android honours the screen-orientation lock above.
+//
+// Which event matters: fullscreen needs TRANSIENT ACTIVATION, and touchstart
+// / pointerdown-from-touch do not grant it. touchend, pointerup, mouseup and
+// keydown do — so those are what we listen for, not the press events the
+// audio unlock uses.
+(function () {
+	const el = document.documentElement;
+	const request = el.requestFullscreen || el.webkitRequestFullscreen;
+	// Touch devices only. On a desktop the browser chrome is not in the way,
+	// and yanking someone's window fullscreen because they clicked once is
+	// hostile.
+	const coarse = window.matchMedia
+			&& window.matchMedia('(pointer: coarse)').matches;
+	if (!request || !coarse) {
+		return;
+	}
+	const EVENTS = ['touchend', 'pointerup', 'mouseup', 'keydown'];
+	// A browser can refuse the first ask (activation already consumed, a
+	// permissions policy, an iPad in Stage Manager). A couple of retries on
+	// later taps costs nothing; retrying forever would fight a player who
+	// deliberately left fullscreen, so it is capped.
+	const MAX_TRIES = 3;
+	let tries = 0;
+	let done = false;
+
+	function detach() {
+		EVENTS.forEach(function (type) {
+			window.removeEventListener(type, goFullscreen, true);
+		});
+	}
+
+	function goFullscreen() {
+		if (done) {
+			return;
+		}
+		tries += 1;
+		if (tries >= MAX_TRIES) {
+			done = true;
+		}
+		let promise = null;
+		try {
+			promise = request.call(el, { navigationUI: 'hide' });
+		} catch (err) {
+			/* older signature, or refused outright */
+		}
+		if (promise && typeof promise.then === 'function') {
+			promise.then(function () {
+				done = true;
+				detach();
+			}, function () {
+				// Left armed for the next tap, unless the cap is spent.
+				if (done) {
+					detach();
+				}
+			});
+		} else {
+			// Prefixed webkit call returns nothing: trust the next
+			// fullscreenchange to tell us, and stop asking either way.
+			done = true;
+			detach();
+		}
+	}
+
+	// Once the player exits fullscreen themselves, that is their call — never
+	// drag them back in on their next tap.
+	function onChange() {
+		if (document.fullscreenElement || document.webkitFullscreenElement) {
+			done = true;
+			detach();
+		}
+	}
+	document.addEventListener('fullscreenchange', onChange);
+	document.addEventListener('webkitfullscreenchange', onChange);
+
+	EVENTS.forEach(function (type) {
+		window.addEventListener(type, goFullscreen, { capture: true });
+	});
 }());
 
 (function () {

@@ -262,6 +262,9 @@ var game_paused := false
 ## venue doorway, never again. Persisted with the settings, so it survives the
 ## session — `?hints=1` on the web build forces it back for testing.
 var venue_hint_seen := false
+## Same contract, for the popup that greets a brand-new player on the run's
+## opening street: shown once ever, then never again.
+var intro_hint_seen := false
 ## Seconds left on the run clock, and whether it is ticking. Only gameplay
 ## scenes run it (see change_scene) — menus, character select and game over
 ## leave it frozen. The HUD polls run_time_left rather than listening on a
@@ -889,6 +892,22 @@ func mark_venue_hint_seen() -> void:
 	if venue_hint_seen:
 		return
 	venue_hint_seen = true
+	_save_settings()
+
+
+## Whether the welcome popup is still owed. Same editor/?hints=1 escape as
+## venue_hint_due() — testing a first-run popup must never mean hand-editing
+## a save file between attempts.
+func intro_hint_due() -> bool:
+	if OS.has_feature("editor") or _replay_hints:
+		return true
+	return not intro_hint_seen
+
+
+func mark_intro_hint_seen() -> void:
+	if intro_hint_seen:
+		return
+	intro_hint_seen = true
 	_save_settings()
 
 
@@ -1718,6 +1737,7 @@ func _load_settings() -> void:
 	random_select = bool(d.get("random", false))
 	# Sticky once true: the doorway popup is a first-run lesson, not a setting.
 	venue_hint_seen = bool(d.get("venueHintSeen", false))
+	intro_hint_seen = bool(d.get("introHintSeen", false))
 	_apply_volume("Music", music_volume)
 	_apply_volume("SFX", sfx_volume)
 
@@ -1738,6 +1758,7 @@ func _save_settings() -> void:
 				else String(characters[clampi(own, 0, characters.size() - 1)].get("CharacterName", "")),
 		"random": _random_before_deeplink if borrowed else random_select,
 		"venueHintSeen": venue_hint_seen,
+		"introHintSeen": intro_hint_seen,
 	})
 
 
