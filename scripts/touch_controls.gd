@@ -15,23 +15,34 @@ const ACTION_SCALE := SCALE
 ## Positions are the original 1x layout for 40px buttons on the 640x360
 ## viewport; _ready() scales each corner cluster outward from its screen
 ## corner so margins grow proportionally and nothing hangs off-screen.
+## Both clusters were shoved 13px further out toward their own screen edge —
+## the whole group, one shared offset, so the spacing WITHIN each cluster is
+## untouched. 13 is where "80% closer to the edge" lands: each cluster used to
+## keep a 16px design margin (31px on screen at SCALE), and 16 - 13 = 3 leaves
+## a fifth of it, about 6px on screen.
+##
+## Two things that buys, worth knowing before shoving them out any further:
+## the right cluster's halo is _GLOW_PAD (6px) wide, so its outer edge now
+## falls off-screen and the glow is clipped on that side; and the D-pad now
+## sits inside the strip where iOS reads a drag from the edge as a back-swipe.
 const BUTTONS := [
 	# LEFT/RIGHT are pulled 4px in from their old 12/100 so the D-pad reads as
-	# one cluster. 4 is the most they can close up: at 16 and 96 their inner
-	# edges land exactly on UP/DOWN's 56..96 column, and any tighter would
-	# overlap it — TouchScreenButton falls back to its texture RECT for hit
+	# one cluster. 4 is the most they can close up: their inner edges land
+	# exactly on UP/DOWN's column, and any tighter would overlap it —
+	# TouchScreenButton falls back to its texture RECT for hit
 	# testing, so overlapping buttons would both fire on a corner tap.
-	{"action": "move_left", "tex": "res://shared/assets/ui/btn_left.png", "pos": Vector2(16, 284), "scale": SCALE},
-	{"action": "move_right", "tex": "res://shared/assets/ui/btn_right.png", "pos": Vector2(96, 284), "scale": SCALE},
-	# UP drops 4px to match, from its old 240 — its bottom edge now sits flush
-	# on LEFT/RIGHT's 284 row, closing the cluster up vertically too.
-	{"action": "interact", "tex": "res://shared/assets/ui/btn_up.png", "pos": Vector2(56, 252), "scale": SCALE},
-	{"action": "duck", "tex": "res://shared/assets/ui/btn_down.png", "pos": Vector2(56, 316), "scale": SCALE},
-	{"action": "punch", "tex": "res://shared/assets/ui/btn_punch.png", "pos": Vector2(536, 296), "scale": ACTION_SCALE},
-	{"action": "kick", "tex": "res://shared/assets/ui/btn_kick.png", "pos": Vector2(584, 248), "scale": ACTION_SCALE},
+	{"action": "move_left", "tex": "res://shared/assets/ui/btn_left.png", "pos": Vector2(3, 284), "scale": SCALE},
+	{"action": "move_right", "tex": "res://shared/assets/ui/btn_right.png", "pos": Vector2(83, 284), "scale": SCALE},
+	# UP dropped from its old 240 to close the cluster up vertically. It now
+	# hangs 8px past LEFT/RIGHT's 284 row, which is fine only because their
+	# columns merely touch: overlap in ONE axis is not an overlapping rect.
+	{"action": "interact", "tex": "res://shared/assets/ui/btn_up.png", "pos": Vector2(43, 252), "scale": SCALE},
+	{"action": "duck", "tex": "res://shared/assets/ui/btn_down.png", "pos": Vector2(43, 316), "scale": SCALE},
+	{"action": "punch", "tex": "res://shared/assets/ui/btn_punch.png", "pos": Vector2(549, 296), "scale": ACTION_SCALE},
+	{"action": "kick", "tex": "res://shared/assets/ui/btn_kick.png", "pos": Vector2(597, 248), "scale": ACTION_SCALE},
 	# Beer under kick, swing above punch — the four make a 2x2 grid.
-	{"action": "throw", "tex": "res://shared/assets/ui/btn_beer.png", "pos": Vector2(584, 296), "scale": ACTION_SCALE},
-	{"action": "swing", "tex": "res://shared/assets/ui/btn_swing.png", "pos": Vector2(536, 248), "scale": ACTION_SCALE},
+	{"action": "throw", "tex": "res://shared/assets/ui/btn_beer.png", "pos": Vector2(597, 296), "scale": ACTION_SCALE},
+	{"action": "swing", "tex": "res://shared/assets/ui/btn_swing.png", "pos": Vector2(549, 248), "scale": ACTION_SCALE},
 ]
 const BUTTON_PX := 40.0  # source texture size, before SCALE
 
@@ -51,6 +62,9 @@ var _swing_tex := {}
 ## available. Punch and kick keep theirs lit for the whole run.
 var _throw_glow: Sprite2D
 var _swing_glow: Sprite2D
+## Buttons that blink on their own action firing (PUNCH, KICK):
+## [{action, node, lit, stock, glow, gen}]. See _register_flash().
+var _flash: Array = []
 
 
 func _ready() -> void:
@@ -60,9 +74,7 @@ func _ready() -> void:
 		# The stock (gray-bordered) art. Everything green — the tinted border
 		# and the halo alike — is derived from it, so keep it around.
 		var base := _swing_texture() if b.action == "swing" else _load_tex(b.tex)
-		# Punch and kick have no gate — they wear the ready border all run.
-		btn.texture_normal = _tint_border(base, _BORDER_READY) \
-				if b.action == "punch" or b.action == "kick" else base
+		btn.texture_normal = base
 		btn.action = b.action
 		btn.scale = Vector2(b.scale, b.scale)
 		btn.passby_press = true
@@ -70,7 +82,13 @@ func _ready() -> void:
 		_buttons.append({"node": btn, "pos": b.pos, "scale": b.scale})
 		match b.action:
 			"punch", "kick":
-				_add_glow(btn, base)
+				# No gate on these two, so they wear the ready border for the
+				# whole run — and drop out of it for a beat on every tap,
+				# which is the only acknowledgement they can give.
+				var lit := _border_variants(base)
+				btn.texture_normal = lit[true]
+				_register_flash(btn, b.action, lit[true], lit[false],
+						_add_glow(btn, base))
 			"throw":
 				_throw_btn = btn
 				_throw_pos = b.pos
@@ -291,6 +309,59 @@ func _add_glow(btn: TouchScreenButton, base: Texture2D) -> Sprite2D:
 	else:
 		glow.modulate.a = _GLOW_ALPHA
 	return glow
+
+
+## How long PUNCH and KICK drop back to the gray, unlit chrome when used.
+## Short enough to read as a button depressing rather than as a cooldown —
+## SWING and BEER have real gates to show, these two have nothing, and the
+## point is that the player sees SOMETHING change on the button.
+const _TAP_FLASH_TIME := 0.12
+
+
+## Register an always-available button to blink back to its stock chrome
+## whenever its action fires.
+##
+## Driven off the INPUT ACTION, not TouchScreenButton's `pressed` signal.
+## That signal only fires for a touch or a mouse press landing on the button
+## itself, so on a keyboard it never fired at all and the flash was invisible
+## on desktop. TouchScreenButton feeds its taps through Input.action_press(),
+## so watching the action catches the on-screen button too — one path for
+## thumb and keyboard both, and no double-trigger from wiring up both.
+func _register_flash(btn: TouchScreenButton, action: String, lit: Texture2D,
+		stock: Texture2D, glow: Sprite2D) -> void:
+	_flash.append({
+		"action": action, "node": btn, "lit": lit, "stock": stock,
+		"glow": glow, "gen": 0,
+	})
+
+
+func _process(_delta: float) -> void:
+	for f in _flash:
+		if Input.is_action_just_pressed(f.action):
+			_flash_button(f)
+
+
+## Timer-driven rather than waiting on the action's release: a finger sliding
+## off a passby_press button, or a scene torn down mid-press, can cost you the
+## release, and a button stuck gray forever is worse than a flash that ends a
+## hair early. The generation counter is for mashing — a press landing while
+## the button is still dark takes ownership, so the earlier press's timer
+## cannot re-light a button that is being pressed again.
+func _flash_button(f: Dictionary) -> void:
+	f.gen += 1
+	var mine: int = f.gen
+	var btn: TouchScreenButton = f.node
+	btn.texture_normal = f.stock
+	if is_instance_valid(f.glow):
+		f.glow.visible = false
+	# process_always, so a popup opening on the same frame as the punch does
+	# not leave the button gray behind it.
+	await get_tree().create_timer(_TAP_FLASH_TIME, true, false, true).timeout
+	if f.gen != mine or not is_instance_valid(btn):
+		return
+	btn.texture_normal = f.lit
+	if is_instance_valid(f.glow):
+		f.glow.visible = true
 
 
 ## One shared additive material for every halo: the buttons sit over dark
