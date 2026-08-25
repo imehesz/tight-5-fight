@@ -15,9 +15,30 @@ run/main_scene="res://scenes/splash.tscn"
 config/features=PackedStringArray("4.4")
 boot_splash/image="uid://c1jxih1omtwo3"
 config/icon="res://shared/assets/icon.png"
+; CHOPPY-AUDIO FIX (2026-08-24). Godot's web build renders on
+; requestAnimationFrame, so a 120Hz phone (Pixel 10 Pro, iPhone Pro) draws
+; TWICE the frames of a 60Hz one for zero visual gain on a 640x360 pixel-art
+; game -- and with variant/thread_support=false the audio mixer shares that
+; main thread, so every wasted frame is stolen from the mixer. 60 halves the
+; render load on both platforms. Raise to 0 (uncapped) to A/B it.
+run/max_fps=60
 
 [audio]
 
+; THE CHOPPY-AUDIO FIX (2026-08-24). Stream mode above mixes on the main
+; thread (variant/thread_support=false), and Godot sizes the web mix buffer
+; from this value -- the default is ~15ms, so ANY frame longer than 15ms
+; tears a hole in the sound. That is every frame during heavy action and
+; every scene transition, on any phone: confirmed on device 2026-08-24 with
+; ?dpr=1&nosfx=1 (music alone, minimal canvas load) still crackling at
+; nav -> character select -> game start and under heavy action, while resting
+; audio was clean. 120ms holds ~8 frames of slack, so the main thread can
+; fall behind and catch up inaudibly.
+; TUNING: cost is SFX firing up to ~100ms late. If that feels mushy, step
+; down to 80. If crackle survives, step up to 200 before touching anything
+; else. A single scene load that blocks longer than the buffer will still
+; break through -- that is a preload problem, not an audio one.
+driver/output_latency.web=120
 general/default_playback_type.web=0
 
 [autoload]
