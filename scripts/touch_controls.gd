@@ -16,9 +16,16 @@ const ACTION_SCALE := SCALE
 ## viewport; _ready() scales each corner cluster outward from its screen
 ## corner so margins grow proportionally and nothing hangs off-screen.
 const BUTTONS := [
-	{"action": "move_left", "tex": "res://shared/assets/ui/btn_left.png", "pos": Vector2(12, 284), "scale": SCALE},
-	{"action": "move_right", "tex": "res://shared/assets/ui/btn_right.png", "pos": Vector2(100, 284), "scale": SCALE},
-	{"action": "interact", "tex": "res://shared/assets/ui/btn_up.png", "pos": Vector2(56, 240), "scale": SCALE},
+	# LEFT/RIGHT are pulled 4px in from their old 12/100 so the D-pad reads as
+	# one cluster. 4 is the most they can close up: at 16 and 96 their inner
+	# edges land exactly on UP/DOWN's 56..96 column, and any tighter would
+	# overlap it — TouchScreenButton falls back to its texture RECT for hit
+	# testing, so overlapping buttons would both fire on a corner tap.
+	{"action": "move_left", "tex": "res://shared/assets/ui/btn_left.png", "pos": Vector2(16, 284), "scale": SCALE},
+	{"action": "move_right", "tex": "res://shared/assets/ui/btn_right.png", "pos": Vector2(96, 284), "scale": SCALE},
+	# UP drops 4px to match, from its old 240 — its bottom edge now sits flush
+	# on LEFT/RIGHT's 284 row, closing the cluster up vertically too.
+	{"action": "interact", "tex": "res://shared/assets/ui/btn_up.png", "pos": Vector2(56, 252), "scale": SCALE},
 	{"action": "duck", "tex": "res://shared/assets/ui/btn_down.png", "pos": Vector2(56, 316), "scale": SCALE},
 	{"action": "punch", "tex": "res://shared/assets/ui/btn_punch.png", "pos": Vector2(536, 296), "scale": ACTION_SCALE},
 	{"action": "kick", "tex": "res://shared/assets/ui/btn_kick.png", "pos": Vector2(584, 248), "scale": ACTION_SCALE},
