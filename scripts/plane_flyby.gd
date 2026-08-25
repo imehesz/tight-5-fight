@@ -101,10 +101,17 @@ func _ready() -> void:
 
 	_engine = AudioStreamPlayer.new()
 	_engine.bus = "SFX"
+	GameState.apply_playback_type(_engine)
 	add_child(_engine)
 	if not GameState.is_sfx_muted("plane") \
-			and ResourceLoader.exists("res://shared/assets/sfx/plane.ogg"):
-		var s: AudioStream = load("res://shared/assets/sfx/plane.ogg")
+			and ResourceLoader.exists("res://shared/assets/sfx/plane.wav"):
+		var s: AudioStream = load("res://shared/assets/sfx/plane.wav")
+		# The engine drone has to repeat for the whole flyby. As a WAV that is
+		# set at import time (edit/loop_mode=1 in plane.wav.import) rather than
+		# here — a WAV ignores the .loop property this branch used to set, so
+		# without the import change the plane would fall silent mid-pass. The
+		# Ogg branch stays for the sfx_ogg_backup rollback, where looping IS a
+		# runtime property.
 		if s is AudioStreamOggVorbis:
 			s.loop = true
 		_engine.stream = s

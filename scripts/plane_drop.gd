@@ -39,7 +39,11 @@ const CHUTE_TEX := "res://shared/assets/parts/t5f-good-set-box_parachute.png"
 const BOX_TEX := "res://shared/assets/parts/t5f-good-set-box_no-parachute.png"
 const BEER_CHUTE_TEX := "res://shared/assets/parts/t5f-free-beer-box_parachute.png"
 const BEER_BOX_TEX := "res://shared/assets/parts/t5f-free-beer-box_no-parachute.png"
-const WHISTLE := "res://shared/assets/sfx/sfx-bomb-drop.ogg"
+## NOTE: extension is load-bearing. Unlike GameState._load_stream(), which
+## tries .ogg/.mp3/.wav in turn, this path is literal -- it silently
+## no-ops if the file is not found. Changed .ogg -> .wav on 2026-08-24
+## with the Vorbis-to-QOA swap; keep in sync with shared/assets/sfx/.
+const WHISTLE := "res://shared/assets/sfx/sfx-bomb-drop.wav"
 
 var kind := "bomb"  # "bomb" | "box" | "beer", set by the plane before add_child
 var dir := 1        # travel direction inherited from the plane
@@ -141,6 +145,7 @@ func _start_whistle() -> void:
 	_whistle = AudioStreamPlayer.new()
 	_whistle.stream = load(WHISTLE)
 	_whistle.bus = "SFX"
+	GameState.apply_playback_type(_whistle)
 	_whistle.volume_db = linear_to_db(0.75)  # the raw wav runs hot
 	add_child(_whistle)
 	_whistle.play()
