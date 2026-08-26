@@ -1,28 +1,11 @@
 <!doctype html>
-<!--
-  TIGHT 5 FIGHT! — landing page.
-
-  ADD A THEME (60-second edit):
-    1. Copy one <div class="card"> ... </div> block below (marked THEME CARD).
-    2. Change the three hrefs (PLAY -> the game build, STATS -> stats/<theme>/,
-       MORE INFO -> info/<theme>/), the name, and the description (keep it to
-       ~3 lines / ~70 characters — the description box is fixed-height so
-       titles align). Both stats/ and info/ pages are generated for you by
-       helper-tools/sync_stats_assets.sh.
-    3. Optional splash background: drop imgs/card_<theme>.jpg next to this
-       file (~800px wide keeps the page light) and change the url(...) at
-       the END of the card's style attribute. If the image is missing the
-       card still renders fine (the gradient scrim doubles as the fallback).
-    A not-yet-live theme: copy the COMING SOON block instead (it's a plain
-    <div>, not a link).
--->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TIGHT 5 FIGHT! — a comedian beat-'em-up</title>
+<title>TIGHT 5 GAMES — a comedian beat-'em-up</title>
 <meta name="description" content="A comedian beat-'em-up. Pick your city, pick your comic, survive the hecklers.">
-<meta property="og:title" content="TIGHT 5 FIGHT!">
+<meta property="og:title" content="TIGHT 5 GAMES">
 <meta property="og:description" content="A comedian beat-'em-up. Pick your city, pick your comic, survive the hecklers.">
 <meta property="og:url" content="https://games.imstandup.com/">
 <meta property="og:type" content="website">
@@ -32,442 +15,418 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="imgs/t5f-logo_mid.png">
 <style>
   :root {
-    --night:   #0b0716;
-    --street:  #141022;
-    --panel:   #1a1130;
-    --pink:    #ff59cc;
-    --purple:  #7326bf;
-    --gold:    #ffd966;
-    --paper:   #f5eee4;
-    --dim:     #b9a8d6;
+    --night:  #0b0716;
+    --street: #141022;
+    --panel:  #1a1130;
+    --pink:   #ff59cc;
+    --purple: #7326bf;
+    --gold:   #ffd966;
+    --paper:  #f5eee4;
+    --dim:    #b9a8d6;
+
+    /* cabinet metrics, measured off the three slices (see comment at top) */
+    --rail-l:  14.747%;
+    --rail-r:  14.991%;
+    --band-t:  23.522%;
+    --band-b:  16.575%;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { max-width: 100%; }
+  html { background: #0a0810; }
   body {
-    font-family: "Press Start 2P", "Courier New", monospace;
+    background: #0a0810;
     color: var(--paper);
-    background:
-      radial-gradient(1px 1px at 15% 12%, #fff8 50%, transparent 51%),
-      radial-gradient(1px 1px at 42% 28%, #fff6 50%, transparent 51%),
-      radial-gradient(1px 1px at 71% 9%,  #fff7 50%, transparent 51%),
-      radial-gradient(1px 1px at 88% 22%, #fff5 50%, transparent 51%),
-      radial-gradient(1px 1px at 58% 17%, #fff5 50%, transparent 51%),
-      radial-gradient(2px 2px at 30% 6%,  #fff4 50%, transparent 51%),
-      linear-gradient(180deg, var(--night) 0%, var(--night) 45%, #170d2b 78%, var(--street) 100%);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 28px 16px 20px;
-    text-align: center;
+    font-family: "Press Start 2P", "Courier New", monospace;
+    /* the cabinet runs edge to edge: top of the marquee is the top of the
+       page, bottom of the control panel is the bottom of it */
+    padding: 0 clamp(6px, 1.5vw, 20px) 0;
+    overflow-x: hidden;
   }
 
-  /* ---------- header ---------- */
-  h1 {
-    font-size: clamp(22px, 6.5vw, 42px);
-    line-height: 1.3;
-    color: var(--pink);
-    text-shadow:
-      0 0 6px  var(--pink),
-      0 0 18px var(--pink),
-      0 0 42px var(--purple),
-      3px 3px 0 #3a0f33;
-    animation: flicker 4.5s infinite;
+  /* ---------- the cabinet ---------- */
+  .cabinet { width: min(100%, 1180px); margin: 0 auto; }
+  /* .cab-bot is the last element on the page — nothing sits under the machine */
+  .cab-bot:last-child { margin-bottom: 0; }
+
+  .cab-top {
+    position: relative;
+    aspect-ratio: 1641 / 702;
+    background: url("imgs/t5f-cabinet_top.png") center top / 100% 100% no-repeat;
   }
-  @keyframes flicker {
-    0%, 6%, 8%, 100% { opacity: 1; }
-    7%               { opacity: .55; }
-    62%, 66%         { opacity: 1; }
-    64%              { opacity: .8; }
+  /* flex so the screen's negative margins move the SCREEN, not this box
+     (a flex container never collapses margins with its children) */
+  .cab-mid {
+    display: flex;
+    flex-direction: column;
+    min-height: 40px;
+    background: url("imgs/t5f-cabinet_middle.png") center top / 100% auto repeat-y;
+  }
+  .cab-bot {
+    position: relative;
+    z-index: 1;
+    aspect-ratio: 1641 / 578;
+    background: url("imgs/t5f-cabinet_bottom.png") center bottom / 100% 100% no-repeat;
+  }
+
+  /* the marquee sits in the cabinet's own light box */
+  .marquee {
+    position: absolute;
+    left: 9.019%; top: 2.422%;
+    width: 80.865%; height: 34.615%;
+    background: #0e050f;
+    box-shadow: inset 0 0 18px #000, 0 0 30px #ff59cc26;
+    animation: buzz 6s infinite;
+  }
+  .marquee img { display: block; width: 100%; height: 100%; object-fit: fill; }
+  /* the marquee tube is old and flickers */
+  @keyframes buzz {
+    0%, 92%, 96%, 100% { filter: brightness(1); }
+    94%                { filter: brightness(.8); }
+  }
+
+  /* ---------- the screen: content, pulled into both black bands ---------- */
+  .screen {
+    position: relative;
+    z-index: 2;                 /* above .cab-bot, so the overlap shows content */
+    margin: calc(-1 * var(--band-t)) var(--rail-r) calc(-1 * var(--band-b)) var(--rail-l);
+    padding: 3.5% 3.5% 4.5%;
+    text-align: center;
+    background:
+      radial-gradient(1px 1px at 15% 6%,  #fff8 50%, transparent 51%),
+      radial-gradient(1px 1px at 42% 14%, #fff6 50%, transparent 51%),
+      radial-gradient(1px 1px at 71% 4%,  #fff7 50%, transparent 51%),
+      radial-gradient(1px 1px at 88% 11%, #fff5 50%, transparent 51%),
+      radial-gradient(2px 2px at 30% 3%,  #fff4 50%, transparent 51%),
+      linear-gradient(180deg, var(--night) 0%, #120b22 55%, var(--street) 100%);
+  }
+  /* scanlines over the content only */
+  .screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(180deg, #00000038 0 1px, #0000 1px 3px);
+    box-shadow: inset 0 0 90px #000a;
+  }
+
+  /* ---------- in-screen header ---------- */
+  .title-art {
+    width: min(88%, 560px);
+    height: auto;
+    margin: 0 auto;
+    display: block;
+    filter: drop-shadow(0 0 18px #ff59cc55);
   }
   .pitch {
-    margin: 18px auto 0;
-    max-width: 560px;
-    font-size: clamp(10px, 2.6vw, 13px);
+    margin: 16px auto 0;
+    max-width: 46ch;
+    font-size: clamp(8px, 2.1vw, 11px);
     line-height: 1.9;
     color: var(--gold);
     text-shadow: 2px 2px 0 #000;
   }
-  .marquee {
-    margin-top: 26px;
-    font-size: clamp(9px, 2.4vw, 12px);
+  .pick {
+    margin-top: 16px;
+    font-size: clamp(7px, 1.9vw, 10px);
     color: var(--dim);
     letter-spacing: 2px;
   }
-  .marquee .arrow {
-    display: inline-block;
-    color: var(--gold);
-    animation: bob 1.1s ease-in-out infinite;
-  }
-  @keyframes bob {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(5px); }
-  }
+  .pick .arrow { display: inline-block; color: var(--gold); animation: bob 1.1s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
 
-  /* ---------- theme cards ---------- */
-  .cards {
-    margin: 26px auto 0;
+  /* ---------- city tiles ---------- */
+  .tiles {
+    margin: 24px auto 0;
     width: 100%;
-    max-width: 900px;
+    max-width: 880px;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
   }
-  .card {
-    display: flex;
-    flex-direction: column;
-    min-height: 270px;
-    text-decoration: none;
-    color: var(--paper);
-    background-color: var(--panel);
-    background-size: cover;
-    background-position: center top;
-    border: 3px solid var(--purple);
-    border-radius: 10px;
-    box-shadow: 0 0 14px #7326bf66, inset 0 0 30px #0007;
-    overflow: hidden;
-    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
-  }
-  a.card:hover, a.card:focus-visible,
-  div.card:not(.soon):hover, div.card:focus-within {
-    transform: translateY(-3px);
-    border-color: var(--pink);
-    box-shadow: 0 0 22px #ff59cc88, inset 0 0 30px #0007;
-    outline: none;
-  }
-  .card-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 16px 14px 18px;
-  }
-  .card-name {
-    font-size: clamp(22px, 5.5vw, 28px);
-    color: var(--gold);
-    text-shadow: 2px 2px 0 #000, 0 0 10px #ffd96655;
-    line-height: 1.2;
-  }
-  .card-edition {
-    display: block;
-    margin-top: 8px;
-    font-size: clamp(13px, 3.4vw, 17px);
-    line-height: 1.4;
-  }
-  .card-desc {
-    margin: auto 0; /* centers the description between the title and the button */
-    padding: 12px 0;
-    font-size: clamp(9px, 2.3vw, 11px);
-    line-height: 1.8;
-    color: var(--dim);
-    text-shadow: 1px 1px 0 #000;
-  }
-  /* PLAY + STATS + MORE INFO side by side (live cards are a <div>, each
-     button its own link — links can't nest, which is why the card isn't an
-     <a> anymore). Three buttons don't fit one narrow card row, so the row
-     wraps and stays centered. */
-  .actions {
-    align-self: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .actions a { text-decoration: none; }
-  .stats-btn, .info-btn {
-    display: inline-flex;
-    align-items: center;
-    min-height: 48px;
-    padding: 0 16px;
-    font-size: clamp(11px, 2.8vw, 13px);
-    color: var(--gold);
-    background: #0b0716cc;
-    border: 2px solid var(--gold);
-    border-radius: 8px;
-    box-shadow: 0 0 10px #ffd96655, 0 4px 0 #6b5416;
-    text-shadow: 2px 2px 0 #000;
-  }
-  .stats-btn:hover, .stats-btn:focus-visible,
-  .info-btn:hover, .info-btn:focus-visible {
-    box-shadow: 0 0 18px #ffd966aa, 0 4px 0 #6b5416;
-    outline: none;
-  }
-  .play {
-    align-self: center;
-    min-height: 48px;
-    display: inline-flex;
-    align-items: center;
-    padding: 0 26px;
-    font-size: clamp(12px, 3vw, 14px);
-    color: #fff;
-    background: linear-gradient(180deg, var(--pink), #c1279a);
-    border: 2px solid #ffb3e6;
-    border-radius: 8px;
-    box-shadow: 0 0 12px #ff59cc99, 0 4px 0 #7a1560;
-    text-shadow: 2px 2px 0 #0008;
-  }
-  .card:hover .play { box-shadow: 0 0 20px #ff59cccc, 0 4px 0 #7a1560; }
-
-  /* not-yet-live theme */
-  .card.soon { border-style: dashed; }
-  .soon-badge {
-    align-self: center;
-    min-height: 48px;
-    display: inline-flex;
-    align-items: center;
-    padding: 0 22px;
-    font-size: clamp(11px, 2.8vw, 13px);
-    color: var(--gold);
-    background: #0b0716cc;
-    border: 2px dashed var(--gold);
-    border-radius: 8px;
-    text-shadow: 2px 2px 0 #000;
-    animation: flicker 4.5s infinite;
-  }
-
-  /* ---------- testimonials ---------- */
-  .quotes-wrap {
-    margin-top: 40px;
-    width: 100%;
-    max-width: 900px;
-  }
-  .quotes-title {
-    font-size: clamp(14px, 4vw, 20px);
-    color: var(--gold);
-    text-shadow: 2px 2px 0 #000, 0 0 10px #ffd96655;
-  }
-  .quotes-sub {
-    margin-top: 10px;
-    font-size: clamp(8px, 2.2vw, 10px);
-    color: var(--dim);
-    letter-spacing: 1px;
-  }
-  .quotes-bar {
-    margin-top: 20px;
-    height: 5px;
-    border-radius: 3px;
-    background: #7326bf33;
-    overflow: hidden;
-  }
-  .quotes-bar-fill {
-    width: 0;
-    height: 100%;
-    background: linear-gradient(90deg, var(--purple), var(--pink));
-    box-shadow: 0 0 8px #7326bfaa;
-  }
-  .quotes-bar-fill.paused {
-    background: var(--gold);
-    box-shadow: 0 0 8px #ffd966aa;
-  }
-  .quotes {
-    margin-top: 14px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    opacity: 1;
-    transition: opacity .9s ease;
-  }
-  .quotes.fading { opacity: 0; }
-  @media (max-width: 640px) {
-    .quotes { grid-template-columns: 1fr; }
-  }
-  .quote {
+  .tile {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 14px 14px 16px;
-    background-color: var(--panel);
-    border: 3px solid var(--purple);
-    border-radius: 10px;
-    box-shadow: 0 0 14px #7326bf44, inset 0 0 30px #0007;
-    text-align: left;
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--panel);
+    /* DEFAULT: quiet. The neon frame is a hover/focus state only. */
+    border: 3px solid #3a2b57;
+    box-shadow: inset 0 0 24px #0007;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
   }
-  .quote-stars {
-    font-size: clamp(11px, 3vw, 14px);
-    letter-spacing: 2px;
+  .tile:hover,
+  .tile:focus-within {
+    border-color: var(--pink);
+    box-shadow: 0 0 0 2px #ff59cc44, 0 0 22px #ff59ccaa, inset 0 0 24px #ff59cc22;
+    transform: translateY(-2px);
   }
-  .quote-stars .off { opacity: .25; filter: grayscale(1); }
-  .quote-text {
+  .tile-art {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #0d0819;
+    border: 2px solid #00000080;
+  }
+  .tile-name {
+    font-size: clamp(11px, 2.6vw, 14px);
+    color: var(--gold);
+    text-shadow: 2px 2px 0 #000;
+    padding: 8px 4px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #2a1b48, #1d1233);
+    border: 2px solid #4b3374;
+  }
+  .tile-desc {
     flex: 1;
-    font-size: clamp(9px, 2.3vw, 11px);
-    line-height: 1.9;
+    font-size: clamp(7px, 1.9vw, 9px);
+    line-height: 1.95;
     color: var(--paper);
     text-shadow: 1px 1px 0 #000;
-    overflow-wrap: anywhere;
+    padding: 0 2px;
   }
-  .quote-text b { color: var(--gold); }
-  .quote-text i { color: var(--dim); }
-  .quote-name {
-    font-size: clamp(8px, 2.2vw, 10px);
-    color: var(--pink);
-    text-shadow: 1px 1px 0 #000;
+  .tile-actions { display: flex; flex-direction: column; gap: 7px; }
+  /* 46px keeps every tap target comfortably above the 44px floor on phones */
+  .btn-play {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 6px 10px;
+    font-size: clamp(9px, 2.2vw, 11px);
+    color: #2b0a20;
+    text-decoration: none;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffe27a, var(--gold));
+    border: 2px solid #7a5a12;
+    box-shadow: 0 3px 0 #7a5a12, inset 0 1px 0 #fff8;
+    text-shadow: 0 1px 0 #ffffff66;
   }
-  .quote-name::before { content: "— "; }
-  @media (prefers-reduced-motion: reduce) {
-    .quotes { transition: none; }
-    .quotes-bar { display: none; }
+  .btn-play:hover { background: linear-gradient(180deg, #fff0ad, #ffe27a); }
+  .btn-play:active { transform: translateY(2px); box-shadow: 0 1px 0 #7a5a12; }
+  .sub-actions { display: flex; gap: 7px; }
+  .btn-sub {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    font-size: clamp(7px, 1.8vw, 8px);
+    color: var(--dim);
+    text-decoration: none;
+    border-radius: 7px;
+    background: #150e26;
+    border: 2px solid #3a2b57;
+  }
+  .btn-sub:hover { color: var(--paper); border-color: var(--pink); }
+
+  /* coming soon + your city */
+  .tile.soon { opacity: .72; }
+  .tile.soon .tile-art { filter: grayscale(.55) brightness(.72); }
+  .soon-badge {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(8px, 2vw, 10px);
+    color: var(--night);
+    background: linear-gradient(180deg, #ff8fdd, var(--pink));
+    border: 2px solid #7a1f5c;
+    border-radius: 8px;
+    text-shadow: 0 1px 0 #ffffff55;
+  }
+  .tile.wanted { border-style: dashed; }
+  .tile.wanted .tile-art {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    color: var(--gold);
   }
 
-  /* ---------- footer ---------- */
-  footer {
-    margin-top: 34px;
+  /* ---------- support + legal, on the screen itself ---------- */
+  .screen-foot {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 12px;
+    margin-top: 34px;
+    padding-top: 22px;
+    border-top: 2px solid #33244f;
   }
   .coffee {
     display: inline-flex;
     align-items: center;
-    min-height: 48px;
-    padding: 0 18px;
-    font-size: clamp(9px, 2.4vw, 11px);
+    min-height: 44px;
+    padding: 10px 18px;
+    font-size: clamp(8px, 2vw, 10px);
     color: var(--night);
-    background: var(--gold);
-    border-radius: 8px;
-    border: 2px solid #fff2c0;
-    box-shadow: 0 0 12px #ffd96677, 0 3px 0 #8a6a1c;
     text-decoration: none;
-    text-shadow: none;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffe27a, var(--gold));
+    border: 2px solid #7a5a12;
+    box-shadow: 0 3px 0 #7a5a12;
   }
-  .coffee:hover { box-shadow: 0 0 20px #ffd966bb, 0 3px 0 #8a6a1c; }
+  .coffee:active { transform: translateY(2px); box-shadow: 0 1px 0 #7a5a12; }
   .credits {
-    margin-top: 14px;
-    font-size: 8px;
-    line-height: 2;
+    font-size: clamp(6px, 1.6vw, 8px);
+    line-height: 2.1;
     color: var(--dim);
+    text-align: center;
   }
-  .legal-link {
-    color: var(--gold);
-    text-decoration: underline;
-    /* generous tap area without changing the line's look */
-    padding: 16px 6px;
-    margin: -16px -6px;
-  }
+  .credits a { color: var(--gold); }
+  .legal-link { text-decoration: underline; }
+
+  a:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--gold); border-radius: 8px; }
 
   @media (prefers-reduced-motion: reduce) {
-    h1, .marquee .arrow, .soon-badge { animation: none; }
-    .card, .play, .coffee { transition: none; }
-    a.card:hover, a.card:focus-visible,
-    div.card:not(.soon):hover, div.card:focus-within { transform: none; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
-<link rel="icon" href="favicon.ico" sizes="any">
-<link rel="apple-touch-icon" href="imgs/t5f-logo_mid.png">
+<style>
+  .quotes-wrap { margin: 34px auto 0; width: 100%; max-width: 880px; }
+  .quotes-title { font-size: clamp(11px, 3vw, 15px); color: var(--gold); text-shadow: 2px 2px 0 #000, 0 0 10px #ffd96655; }
+  .quotes-sub { margin-top: 10px; font-size: clamp(6px, 1.7vw, 8px); color: var(--dim); letter-spacing: 1px; }
+  .quotes-bar { margin-top: 16px; height: 5px; border-radius: 3px; background: #7326bf33; overflow: hidden; }
+  .quotes-bar-fill { width: 0; height: 100%; background: linear-gradient(90deg, var(--purple), var(--pink)); box-shadow: 0 0 8px #7326bfaa; }
+  .quotes-bar-fill.paused { background: var(--gold); box-shadow: 0 0 8px #ffd966aa; }
+  .quotes { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; opacity: 1; transition: opacity .9s ease; }
+  .quotes.fading { opacity: 0; }
+  @media (max-width: 700px) { .quotes { grid-template-columns: 1fr; } }
+  .quote { display: flex; flex-direction: column; gap: 10px; padding: 13px; background-color: var(--panel);
+           border: 3px solid var(--purple); border-radius: 10px; box-shadow: 0 0 14px #7326bf44, inset 0 0 30px #0007; text-align: left; }
+  .quote-stars { font-size: clamp(9px, 2.4vw, 12px); letter-spacing: 2px; }
+  .quote-stars .off { opacity: .25; filter: grayscale(1); }
+  .quote-text { flex: 1; font-size: clamp(7px, 1.9vw, 9px); line-height: 1.95; color: var(--paper); text-shadow: 1px 1px 0 #000; overflow-wrap: anywhere; }
+  .quote-text b { color: var(--gold); }
+  .quote-text i { color: var(--dim); }
+  .quote-name { font-size: clamp(6px, 1.7vw, 8px); color: var(--pink); text-shadow: 1px 1px 0 #000; }
+  .quote-name::before { content: "— "; }
+  @media (prefers-reduced-motion: reduce) { .quotes { transition: none; } .quotes-bar { display: none; } }
+</style>
 </head>
 <body>
 
-<header>
-  <h1>TIGHT 5<br>FIGHT!</h1>
-  <p class="pitch">A comedian beat-'em-up. Pick your city, pick your comic, survive&nbsp;the&nbsp;hecklers.</p>
-  <p class="marquee"><span class="arrow">▼</span>&nbsp; PICK YOUR SCENE &nbsp;<span class="arrow">▼</span></p>
-</header>
+<div class="cabinet">
 
-<main class="cards">
-
-  <!-- ==================== THEME CARD: JAX ==================== -->
-  <div class="card"
-     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_jax.jpg')">
-    <span class="card-body">
-      <span class="card-name">JAX<span class="card-edition">EDITION</span></span>
-      <span class="card-desc">Jacksonville's own comedians brawl through the 904's open mics.</span>
-      <span class="actions">
-        <a class="play" href="https://games.imstandup.com/tight5fight/jax/">▶ PLAY</a>
-        <a class="stats-btn" href="stats/jax/">STATS</a>
-        <a class="info-btn" href="info/jax/">MORE INFO</a>
-      </span>
-    </span>
+  <!-- ===== TOP SLICE: marquee light box + the top of the screen ===== -->
+  <div class="cab-top">
+    <div class="marquee">
+      <img src="imgs/marquee_tight5games.jpg" alt="TIGHT 5 GAMES">
+    </div>
   </div>
 
-  <div class="card"
-     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_daytona.png')">
-    <span class="card-body">
-      <span class="card-name">DAYTONA<span class="card-edition">EDITION</span></span>
-      <span class="card-desc">The World Center of Racing gets its own roster. Hecklers at 200&nbsp;mph.</span>
-      <span class="actions">
-        <a class="play" href="https://games.imstandup.com/tight5fight/daytona/">▶ PLAY</a>
-        <a class="stats-btn" href="stats/daytona/">STATS</a>
-        <a class="info-btn" href="info/daytona/">MORE INFO</a>
-      </span>
-    </span>
-  </div>
+  <!-- ===== MIDDLE SLICE: one 4px row, repeated for as long as the content is ===== -->
+  <div class="cab-mid">
+    <div class="screen">
 
-  <!-- ==================== THEME CARD: CELEBS ==================== -->
-   <!--
-  <a class="card" href="https://games.imstandup.com/tight5fight/celebs/"
-     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_celebs.jpg')">
-    <span class="card-body">
-      <span class="card-name">CELEBS<span class="card-edition">EDITION</span></span>
-      <span class="card-desc">The biggest names in comedy throw down. No two crowds alike.</span>
-      <span class="play">▶ PLAY</span>
-    </span>
-  </a>
--->
+      <img class="title-art" src="imgs/title_tight5fight.png" alt="TIGHT 5 FIGHT!">
+      <p class="pitch">A comedian beat-'em-up. Pick your city, pick your comic, survive&nbsp;the&nbsp;hecklers.</p>
+      <p class="pick"><span class="arrow">&#9660;</span>&nbsp; PICK YOUR SCENE &nbsp;<span class="arrow">&#9660;</span></p>
 
-  <!-- ==================== THEME CARD: ORLANDO ==================== -->
-  <div class="card"
-     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_orlando.jpg')">
-    <span class="card-body">
-      <span class="card-name">ORLANDO<span class="card-edition">EDITION</span></span>
-      <span class="card-desc">Tourists, tolls and I-4. The City Beautiful's comics take the mic.</span>
-      <span class="actions">
-        <a class="play" href="https://games.imstandup.com/tight5fight/orlando/">▶ PLAY</a>
-        <a class="stats-btn" href="stats/orlando/">STATS</a>
-        <a class="info-btn" href="info/orlando/">MORE INFO</a>
-      </span>
-    </span>
-  </div>
+      <main class="tiles">
 
-  <!-- ==================== THEME CARD: PANHANDLE ====================
-       Placeholder art: imgs/card_panhandle.jpg is the generic TIGHT 5 FIGHT!
-       splash — swap in a real Panhandle card when the art is ready. -->
-  <div class="card"
-     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_panhandle.jpg')">
-    <span class="card-body">
-      <span class="card-name">PANHANDLE<span class="card-edition">EDITION</span></span>
-      <span class="card-desc">Beach bars and Gulf Coast open mics. The 850 gets its shot.</span>
-      <span class="actions">
-        <a class="play" href="https://games.imstandup.com/tight5fight/panhandle/">▶ PLAY</a>
-        <a class="stats-btn" href="stats/panhandle/">STATS</a>
-        <a class="info-btn" href="info/panhandle/">MORE INFO</a>
-      </span>
-    </span>
-  </div>
+        <!-- ==================== THEME TILE: JAX ==================== -->
+        <article class="tile">
+          <img class="tile-art" src="imgs/tile_jax.jpg" alt="">
+          <h2 class="tile-name">JAX</h2>
+          <p class="tile-desc">Jacksonville's own comedians brawl through the 904's open mics.</p>
+          <div class="tile-actions">
+            <a class="btn-play" href="https://games.imstandup.com/tight5fight/jax/">&#9654; PLAY NOW</a>
+            <div class="sub-actions">
+              <a class="btn-sub" href="stats/jax/">STATS</a>
+              <a class="btn-sub" href="info/jax/">MORE INFO</a>
+            </div>
+          </div>
+        </article>
 
-  <!-- ==================== COMING SOON: MIAMI ====================
-       Placeholder art: imgs/card_miami.jpg is the generic TIGHT 5 FIGHT!
-       splash — swap in a real Miami card when the art is ready. -->
-  <div class="card soon"
-     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_miami.jpg')">
-    <span class="card-body">
-      <span class="card-name">MIAMI<span class="card-edition">EDITION</span></span>
-      <span class="card-desc">Nightclubs, Cuban coffee and the 305. Miami's comics step&nbsp;up.</span>
-      <span class="soon-badge">COMING SOON</span>
-    </span>
-  </div>
+        <!-- ==================== THEME TILE: DAYTONA ==================== -->
+        <article class="tile">
+          <img class="tile-art" src="imgs/tile_daytona.jpg" alt="">
+          <h2 class="tile-name">DAYTONA</h2>
+          <p class="tile-desc">The World Center of Racing gets its own roster. Hecklers at 200&nbsp;mph.</p>
+          <div class="tile-actions">
+            <a class="btn-play" href="https://games.imstandup.com/tight5fight/daytona/">&#9654; PLAY NOW</a>
+            <div class="sub-actions">
+              <a class="btn-sub" href="stats/daytona/">STATS</a>
+              <a class="btn-sub" href="info/daytona/">MORE INFO</a>
+            </div>
+          </div>
+        </article>
 
-  <!-- ==================== THEME CARD: YOUR CITY (mailto) ==================== -->
-  <a class="card" href="mailto:tight5contact@gmail.com?subject=TIGHT%205%20FIGHT%20in%20MY%20CITY"
-     style="background-image: linear-gradient(180deg, #0b071680 0%, #0b0716bf 40%, #1a1130f2 68%, #1a1130 100%), url('imgs/card_yourcity.jpg')">
-    <span class="card-body">
-      <span class="card-name">YOUR CITY<span class="card-edition">EDITION</span></span>
-      <span class="card-desc">Want your scene in the game? Get your city's comics on the card.</span>
-      <span class="play">✉ FIGHT IN YOUR CITY</span>
-    </span>
-  </a>
+        <!-- ==================== THEME TILE: CELEBS ====================
+             Kept commented out, exactly as it was on the old page.
+             imgs/tile_celebs.jpg is already generated and waiting.
+        <article class="tile">
+          <img class="tile-art" src="imgs/tile_celebs.jpg" alt="">
+          <h2 class="tile-name">CELEBS</h2>
+          <p class="tile-desc">The biggest names in comedy throw down. No two crowds alike.</p>
+          <div class="tile-actions">
+            <a class="btn-play" href="https://games.imstandup.com/tight5fight/celebs/">&#9654; PLAY NOW</a>
+            <div class="sub-actions">
+              <a class="btn-sub" href="stats/celebs/">STATS</a>
+              <a class="btn-sub" href="info/celebs/">MORE INFO</a>
+            </div>
+          </div>
+        </article>
+        ==================================================================== -->
 
-  <!-- ==================== ADD NEW THEME CARDS ABOVE THIS LINE ====================
-       Copy a card block, change the PLAY + STATS + MORE INFO hrefs, name, description
-       (+ optional image URL). Coming-soon panel: copy <div class="card soon">.
-  ============================================================================== -->
+        <!-- ==================== THEME TILE: ORLANDO ==================== -->
+        <article class="tile">
+          <img class="tile-art" src="imgs/tile_orlando.jpg" alt="">
+          <h2 class="tile-name">ORLANDO</h2>
+          <p class="tile-desc">Tourists, tolls and I-4. The City Beautiful's comics take the mic.</p>
+          <div class="tile-actions">
+            <a class="btn-play" href="https://games.imstandup.com/tight5fight/orlando/">&#9654; PLAY NOW</a>
+            <div class="sub-actions">
+              <a class="btn-sub" href="stats/orlando/">STATS</a>
+              <a class="btn-sub" href="info/orlando/">MORE INFO</a>
+            </div>
+          </div>
+        </article>
 
-</main>
+        <!-- ==================== THEME TILE: PANHANDLE ==================== -->
+        <article class="tile">
+          <img class="tile-art" src="imgs/tile_panhandle.jpg" alt="">
+          <h2 class="tile-name">PANHANDLE</h2>
+          <p class="tile-desc">Beach bars and Gulf Coast open mics. The 850 gets its shot.</p>
+          <div class="tile-actions">
+            <a class="btn-play" href="https://games.imstandup.com/tight5fight/panhandle/">&#9654; PLAY NOW</a>
+            <div class="sub-actions">
+              <a class="btn-sub" href="stats/panhandle/">STATS</a>
+              <a class="btn-sub" href="info/panhandle/">MORE INFO</a>
+            </div>
+          </div>
+        </article>
 
-<p>
-  <br><br><br>
-</p>
+        <!-- ==================== COMING SOON: MIAMI ==================== -->
+        <article class="tile soon">
+          <img class="tile-art" src="imgs/tile_miami.jpg" alt="">
+          <h2 class="tile-name">MIAMI</h2>
+          <p class="tile-desc">Nightclubs, Cuban coffee and the 305. Miami's comics step&nbsp;up.</p>
+          <div class="tile-actions">
+            <span class="soon-badge">COMING SOON</span>
+          </div>
+        </article>
+
+        <!-- ==================== THEME TILE: YOUR CITY (mailto) ==================== -->
+        <article class="tile wanted">
+          <div class="tile-art">?</div>
+          <h2 class="tile-name">YOUR CITY</h2>
+          <p class="tile-desc">Want your scene in the game? Get your city's comics on the card.</p>
+          <div class="tile-actions">
+            <a class="btn-play" href="mailto:tight5contact@gmail.com?subject=TIGHT%205%20FIGHT%20in%20MY%20CITY">&#9993; GET IN TOUCH</a>
+          </div>
+        </article>
+
+        <!-- ============ ADD NEW THEME TILES ABOVE THIS LINE ============ -->
+
+      </main>
 
 <!-- ==================== TESTIMONIALS ====================
      Quotes live in testimonials.json next to this file — edit that, not this.
@@ -485,6 +444,23 @@
   <div class="quotes-bar"><div class="quotes-bar-fill" id="quotes-bar-fill"></div></div>
   <div class="quotes" id="quotes"></div>
 </section>
+
+
+
+      <!-- ===== support + legal: inside the screen, last thing on it ===== -->
+      <footer class="screen-foot">
+        <a class="coffee" href="https://buymeacoffee.com/tight5games" target="_blank" rel="noopener">&#9749; BUY ME A COFFEE</a>
+        <p class="credits">PARODY — NOT AFFILIATED WITH OR ENDORSED BY ANYONE DEPICTED<br>
+        MADE IN JACKSONVILLE, FL &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; <a class="legal-link" href="legal.html">LEGAL</a></p>
+      </footer>
+
+    </div><!-- /.screen -->
+  </div><!-- /.cab-mid -->
+
+  <!-- ===== BOTTOM SLICE: bottom of the screen + control panel ===== -->
+  <div class="cab-bot"></div>
+
+</div><!-- /.cabinet -->
 
 <script>
 (function () {
@@ -628,16 +604,6 @@
     .catch(function () { /* no quotes, no section */ });
 })();
 </script>
-
-<p>
-<br><br><br>
-</p>
-
-<footer>
-  <a class="coffee" href="https://buymeacoffee.com/tight5games" target="_blank" rel="noopener">☕ BUY ME A COFFEE</a>
-  <p class="credits">PARODY — NOT AFFILIATED WITH OR ENDORSED BY ANYONE DEPICTED<br>
-  MADE IN JACKSONVILLE, FL &nbsp;·&nbsp; © 2026 &nbsp;·&nbsp; <a class="legal-link" href="legal.html">LEGAL</a></p>
-</footer>
 
 </body>
 </html>
