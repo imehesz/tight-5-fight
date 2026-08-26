@@ -4,7 +4,10 @@ extends CanvasLayer
 ## (up = enter doors, down = duck), punch/kick/throw/swing buttons on the
 ## right. Buttons emit the same input actions as the keyboard bindings.
 
-const SCALE := 1.95
+## 1.755 is 10% off the old 1.95: on a real phone the clusters ate more of
+## the screen than they needed to, and the buttons stayed comfortably above
+## the touch-target floor after the trim.
+const SCALE := 1.755
 ## Movement and attack clusters run the SAME size. They used to differ (the
 ## D-pad at 1.5, attacks 1.3x bigger on the theory that thumbs hunt for the
 ## attack cluster mid-brawl) but on a real phone that left the D-pad too
@@ -18,8 +21,8 @@ const ACTION_SCALE := SCALE
 ## Both clusters were shoved 13px further out toward their own screen edge —
 ## the whole group, one shared offset, so the spacing WITHIN each cluster is
 ## untouched. 13 is where "80% closer to the edge" lands: each cluster used to
-## keep a 16px design margin (31px on screen at SCALE), and 16 - 13 = 3 leaves
-## a fifth of it, about 6px on screen.
+## keep a 16px design margin (28px on screen at SCALE), and 16 - 13 = 3 leaves
+## a fifth of it, about 5px on screen.
 ##
 ## Two things that buys, worth knowing before shoving them out any further:
 ## the right cluster's halo is _GLOW_PAD (6px) wide, so its outer edge now
@@ -54,7 +57,7 @@ var _throw_btn: TouchScreenButton
 var _throw_pos := Vector2.ZERO
 var _throw_badge: Label
 var _swing_btn: TouchScreenButton
-## {true: green-bordered texture, false: stock gray} for the two gated
+## {true: purple-bordered texture, false: stock gray} for the two gated
 ## buttons, built once in _ready() so a refresh is just a swap.
 var _throw_tex := {}
 var _swing_tex := {}
@@ -71,7 +74,7 @@ func _ready() -> void:
 	layer = 90
 	for b in BUTTONS:
 		var btn := TouchScreenButton.new()
-		# The stock (gray-bordered) art. Everything green — the tinted border
+		# The stock (gray-bordered) art. Everything lit — the tinted border
 		# and the halo alike — is derived from it, so keep it around.
 		var base := _swing_texture() if b.action == "swing" else _load_tex(b.tex)
 		btn.texture_normal = base
@@ -184,7 +187,12 @@ const _BTN_ART_BOX := Vector2(26.0, 30.0)
 ## Ready-state border for the right-hand action cluster. The stock
 ## _BTN_BORDER gray now means "you can't do this right now": the mic is on
 ## cooldown, or you're out of bottles.
-const _BORDER_READY := Color(64 / 255.0, 230 / 255.0, 98 / 255.0, 200 / 255.0)
+## Same violet as MenuBase.PURPLE_BORDER, which every menu's primary button
+## wears — green appeared nowhere else in the game and read as a stray. Kept
+## as a literal (plus the border's 200/255 alpha) rather than a reference so
+## this file stays independent of the menu theme; if that violet moves, move
+## this with it.
+const _BORDER_READY := Color(0.85, 0.6, 1.0, 200 / 255.0)
 ## Halo geometry and breathing. _GLOW_PAD is in SOURCE pixels (the button art
 ## is 40px before ACTION_SCALE), and is deliberately smaller than the 8px gap
 ## between neighbours in the 2x2 grid so the four halos don't pile up on each
@@ -259,7 +267,7 @@ func _tint_border(src: Texture2D, color: Color) -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
-## A soft green halo sitting behind one button, sized to the art plus
+## A soft violet halo sitting behind one button, sized to the art plus
 ## _GLOW_PAD on every side. Returns null if the art has no ring to trace.
 func _glow_texture(src: Texture2D) -> Texture2D:
 	var img := _decoded(src)
@@ -366,7 +374,7 @@ func _flash_button(f: Dictionary) -> void:
 
 ## One shared additive material for every halo: the buttons sit over dark
 ## street/venue art, so adding light reads as a glow where alpha-blending
-## just reads as a green smudge.
+## just reads as a flat violet smudge.
 var _glow_mat: CanvasItemMaterial
 
 func _glow_material() -> CanvasItemMaterial:
