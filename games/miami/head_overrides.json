@@ -1,0 +1,9 @@
+{
+  "burtkreischer": {"query": "Bert Kreischer"},
+  "jerreysignfeld": {"query": "Jerry Seinfeld"},
+  "rychardpryor": {"query": "Richard Pryor"},
+  "taylortomlison": {"query": "Taylor Tomlinson"},
+  "michellewolfe": {"query": "Michelle Wolf comedian"},
+  "kylekanine": {"name": "Kyle Kanine", "gender": "M", "skin": "light"},
+  "joelbyars": {"name": "Joel Byars", "gender": "M", "skin": "light"}
+}
