@@ -225,6 +225,26 @@
   }
   .btn-sub:hover { color: var(--paper); border-color: var(--pink); }
 
+  /* Phones: the city blurb eats most of the tile, so drop it and let the art,
+     the name and the two buttons have the room. .tile-desc was also the flex
+     spacer that bottom-aligned the buttons across a row, so .tile-actions
+     takes over that job when it is gone. */
+  @media (max-width: 700px) {
+    .tile-desc { display: none; }
+    .tile-actions { margin-top: auto; }
+
+    /* Two cards minimum, so the list is half as tall to scroll. The cabinet
+       rails take ~30% of the viewport, leaving ~247px at 390px wide -- about
+       116px per card. Padding, gaps and type all come down to fit; the button
+       HEIGHTS deliberately do not, so tap targets stay full size. */
+    .tiles     { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .tile      { padding: 6px; gap: 6px; border-width: 2px; }
+    .tile-name { font-size: clamp(8px, 2.4vw, 11px); padding: 6px 2px; }
+    .btn-play  { font-size: clamp(7px, 2vw, 9px); padding: 6px 4px; }
+    .btn-sub   { font-size: clamp(6px, 1.7vw, 7px); }
+    .soon-badge{ font-size: clamp(7px, 1.9vw, 9px); }
+  }
+
   /* coming soon + your city */
   .tile.soon { opacity: .72; }
   .tile.soon .tile-art { filter: grayscale(.55) brightness(.72); }
@@ -339,7 +359,8 @@
           <div class="tile-actions">
             <a class="btn-play" href="https://games.imstandup.com/tight5fight/jax/">&#9654; PLAY NOW</a>
             <div class="sub-actions">
-              <a class="btn-sub" href="stats/jax/">STATS</a>
+              <!-- STATS hidden for now - restore in a later release
+                   <a class="btn-sub" href="stats/jax/">STATS</a> -->
               <a class="btn-sub" href="info/jax/">MORE INFO</a>
             </div>
           </div>
@@ -353,7 +374,8 @@
           <div class="tile-actions">
             <a class="btn-play" href="https://games.imstandup.com/tight5fight/daytona/">&#9654; PLAY NOW</a>
             <div class="sub-actions">
-              <a class="btn-sub" href="stats/daytona/">STATS</a>
+              <!-- STATS hidden for now - restore in a later release
+                   <a class="btn-sub" href="stats/daytona/">STATS</a> -->
               <a class="btn-sub" href="info/daytona/">MORE INFO</a>
             </div>
           </div>
@@ -384,7 +406,8 @@
           <div class="tile-actions">
             <a class="btn-play" href="https://games.imstandup.com/tight5fight/orlando/">&#9654; PLAY NOW</a>
             <div class="sub-actions">
-              <a class="btn-sub" href="stats/orlando/">STATS</a>
+              <!-- STATS hidden for now - restore in a later release
+                   <a class="btn-sub" href="stats/orlando/">STATS</a> -->
               <a class="btn-sub" href="info/orlando/">MORE INFO</a>
             </div>
           </div>
@@ -398,7 +421,8 @@
           <div class="tile-actions">
             <a class="btn-play" href="https://games.imstandup.com/tight5fight/panhandle/">&#9654; PLAY NOW</a>
             <div class="sub-actions">
-              <a class="btn-sub" href="stats/panhandle/">STATS</a>
+              <!-- STATS hidden for now - restore in a later release
+                   <a class="btn-sub" href="stats/panhandle/">STATS</a> -->
               <a class="btn-sub" href="info/panhandle/">MORE INFO</a>
             </div>
           </div>
