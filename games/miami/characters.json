@@ -28,6 +28,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "eli-rodriguez",
+      "CharacterName": "Eli Rodriguez",
+      "HeadScale": 1,
+      "HeadOffsetY": 3,
+      "HeadSpritePath": "assets/heads/eli-rodriguez.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "joel-pedro",
       "CharacterName": "Joel Pedro",
       "HeadScale": 1,
