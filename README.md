@@ -76,16 +76,56 @@ Adding one:
    that the swing and carry code sizes everything from. Add `--rotate180` for
    anything swung by the end that is normally drawn at the bottom (the guitars
    are held by the neck, so their body has to end up at the top).
-3. Add a row to `WEAPONS` in `scripts/weapons.gd`. Two fields to think about:
-   - `grip` — the texture-space y where the player's hand closes, which is what
-     keeps a sword held under its crossguard and a bat down by its knob.
-   - `grip_up` — `true` for anything worn handle-up on the back so it could be
-     drawn (swords, bat, chainsaw, shovel, cue). `false` for the mic stand and
-     the chain, the two that really do hang the other way up. Affects the
-     carried sprite only, never the swing.
+3. Add a row to `shared/assets/weapons/weapons.json` — data, not code, so no
+   `.gd` file is touched. `WeaponId` (what saves store), `WeaponName` (what the
+   picker shows) and `SpritePath` (relative to that JSON's own folder) are the
+   obvious three; two more are worth thinking about:
+   - `GripY` — the texture-space y where the player's hand closes, which is what
+     keeps a sword held under its crossguard and a bat down by its knob. It also
+     sets the on-screen size: the swing scales grip-to-tip to a fixed length, so
+     a bigger `GripY` draws a smaller weapon. The shipped set runs 690-795.
+   - `GripUp` — `true` for anything worn handle-up on the back so it could be
+     drawn (swords, bat, chainsaw, shovel, cue). `false` for the mic stand, the
+     chain and the keyboard, which have no business end to point away. Affects
+     the carried sprite only, never the swing.
 
 The picker lists only weapons whose art actually imported, and the rack
 scrolls, so the grid never needs touching as the list grows.
+
+## Street decor
+
+The small stuff dressing the foreground strip below the fighters' feet: litter
+lying on the pavement, critters that scurry through. Purely decorative — no
+collision, no pickups, nothing that can change a run. Roster lives in
+`shared/assets/decor/decor.json`, read by `scripts/street_decor.gd`; a game may
+ship its own `games/<id>/decor.json` to replace it (a beach edition wanting
+seagulls and soda cups needs no code, just the file).
+
+Two pools, because they have two lifetimes:
+
+* **`litter`** — static, scattered once per venue gap, then streamed in and out
+  with the venues and saved with the street, so the trash is where you left it
+  when you walk back out of a venue.
+* **`critters`** — run in from off-screen, stop to look around, run back out and
+  free themselves. Nothing about them is persisted.
+
+Adding one:
+
+1. Generate the art on flat white with a **bold dark outline** — the outline is
+   what stops the background cut-out leaking into pale art. Prompt recipe is in
+   `helper-tools/README.md`.
+2. `python3 helper-tools/normalize_decor.py raw.png shared/assets/decor/decor_<id>.png`
+   — cuts the background out, trims, and scales to a source height. It also
+   prints the alpha profile you read `FootFrac` off.
+3. Add a row to the `litter` or `critters` array in `decor.json`. `Scale` is the
+   only size control (design px per source px) — nothing is baked into the art,
+   so a prop that lands too big is a JSON edit, not a regeneration. Field
+   reference is the header comment of `scripts/street_decor.gd`.
+
+Critters need no sprite sheet: at ~10 design px tall there is nothing legible to
+animate, so the scurry is a coded bob (`BobPx`/`BobHz`) and "looking around" is a
+horizontal flip, the same trick `BillboardBird` uses. One clean side view facing
+LEFT is the whole asset.
 
 ## Placeholder art
 
@@ -113,3 +153,30 @@ Music plays on the `Music` bus, effects through a pooled `SFX` bus — both
 wired to the Settings sliders (persisted to `user://settings.json`). Trigger
 effects from code with `GameState.play_sfx("punch")`. Swapping any file for
 a new one with the same name is all it takes to replace a sound.
+
+## Web audio & frame pacing (the choppy-audio fix, 2026-08-24)
+
+Three project settings carry the fix. Godot's editor rewrites `project.godot`
+through its ConfigFile serializer, which drops every comment — so the reasoning
+lives here instead, and the `;` notes in that file will vanish the next time the
+editor saves project settings.
+
+- `application/run/max_fps=60` — the web build renders on `requestAnimationFrame`,
+  so a 120Hz phone (Pixel 10 Pro, iPhone Pro) draws twice the frames of a 60Hz
+  one for zero visual gain on a 640x360 pixel-art game. With
+  `variant/thread_support=false` the audio mixer shares the main thread, so every
+  wasted frame is stolen from the mixer. 60 halves the render load on both
+  platforms. Raise to 0 (uncapped) to A/B it.
+- `audio/driver/output_latency.web=120` — Godot sizes the web mix buffer from
+  this. The ~15ms default means ANY frame longer than 15ms tears a hole in the
+  sound: that is every frame under heavy action and every scene transition, on
+  any phone. Confirmed on device 2026-08-24 with `?dpr=1&nosfx=1` (music alone,
+  minimal canvas load) still crackling at nav → character select → game start,
+  while resting audio was clean. 120ms holds ~8 frames of slack, so the main
+  thread can fall behind and catch up inaudibly.
+  **Tuning:** the cost is SFX firing up to ~100ms late. If that feels mushy, step
+  down to 80. If crackle survives, step up to 200 before touching anything else.
+  A single scene load that blocks longer than the buffer will still break
+  through — that is a preload problem, not an audio one.
+- `audio/general/default_playback_type.web=0` — Stream mode, which is what mixes
+  on the main thread above.
