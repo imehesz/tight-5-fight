@@ -19,22 +19,34 @@
       "InteriorSpritePath": "assets/venues/fbhq_int.png" 
     },
     { 
-      "VenueId": "standys",
-      "VenueName": "St Andy's",
-      "ExteriorSpritePath": "assets/venues/standys_ext.png",
-      "InteriorSpritePath": "assets/venues/standys_int.png" 
+      "VenueId": "birdcage",
+      "VenueName": "Birdcage",
+      "ExteriorSpritePath": "assets/venues/birdcage_ext.png",
+      "InteriorSpritePath": "assets/venues/birdcage_int.png" 
     },
     { 
-      "VenueId": "slice-house",
-      "VenueName": "Slice House",
-      "ExteriorSpritePath": "assets/venues/slice-house_ext.png",
-      "InteriorSpritePath": "assets/venues/slice-house_int.png" 
+      "VenueId": "the-peach",
+      "VenueName": "The Peach",
+      "ExteriorSpritePath": "assets/venues/the-peach_ext.png",
+      "InteriorSpritePath": "assets/venues/the-peach_int.png" 
     },
     { 
-      "VenueId": "sound-collective",
-      "VenueName": "Sound Collective",
-      "ExteriorSpritePath": "assets/venues/sound-collective_ext.png",
-      "InteriorSpritePath": "assets/venues/sound-collective_int.png" 
+      "VenueId": "the-taurus",
+      "VenueName": "The Taurus",
+      "ExteriorSpritePath": "assets/venues/the-taurus_ext.png",
+      "InteriorSpritePath": "assets/venues/the-taurus_int.png" 
+    },
+    { 
+      "VenueId": "the-bend",
+      "VenueName": "The Bend Liquor Lounge",
+      "ExteriorSpritePath": "assets/venues/the-bend_ext.png",
+      "InteriorSpritePath": "assets/venues/the-bend_int.png" 
+    },
+    { 
+      "VenueId": "cruise-ship",
+      "VenueName": "Funny Cruiser",
+      "ExteriorSpritePath": "assets/venues/cruise-ship_ext.png",
+      "InteriorSpritePath": "assets/venues/cruise-ship_int.png" 
     }
   ]
 }
