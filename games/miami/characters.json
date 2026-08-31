@@ -1,11 +1,110 @@
 {
   "characters": [
     {
+      "CharacterId": "abby-ballin",
+      "CharacterName": "Abby Ballin",
+      "HeadScale": 1,
+      "HeadOffsetY": 4,
+      "HeadSpritePath": "assets/heads/abby-ballin.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "anna-lepeley",
+      "CharacterName": "Dr. Anna Lepeley",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/dr-anna-lepeley.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "benji",
+      "CharacterName": "Benji",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/benji.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "joel-pedro",
+      "CharacterName": "Joel Pedro",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/joel-pedro.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
+      "CharacterId": "jp-kauer",
+      "CharacterName": "JP Kauer",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/jp-kauer.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "lando-gonzalez",
+      "CharacterName": "Lando Gonzalez",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/lando-gonzalez.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "mac-lawson",
       "CharacterName": "Mac Lawson",
       "HeadScale": 1,
       "HeadOffsetY": 2,
       "HeadSpritePath": "assets/heads/mac-lawson.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "mike-dabba",
+      "CharacterName": "Mike Dabba",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/mike-dabba.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "oriel-rodriguez",
+      "CharacterName": "Oriel Rodriguez",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/oriel-rodriguez.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "shannon-laleem",
+      "CharacterName": "Shannon Laleem",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/shannon-laleem.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "valeria-nanetti",
+      "CharacterName": "Valeria Nanetti",
+      "HeadScale": 1,
+      "HeadOffsetY": 4,
+      "HeadSpritePath": "assets/heads/valeria-nanetti.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "starina",
+      "CharacterName": "Starina",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/starina.png",
       "BodyType": "F",
       "SkinColor": "#e9c098"
     },
