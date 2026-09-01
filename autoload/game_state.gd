@@ -178,6 +178,27 @@ const IOS_SILENT_SFX := [
 ## ?iosaudio=0 re-applies the silencing for that run (add &iosmute=1 to hear
 ## the silenced mix on a non-iOS device).
 const IOS_AUDIO_ON_BY_DEFAULT := true
+## ─────────────────────────── PER-PLATFORM PLAYBACK MODE ──────────────────
+## The two platforms want OPPOSITE things, and we spent a month proving it:
+##
+##   Sample mode — the browser plays each sound itself. Android was flawless
+##     on this for months. iOS LEAKS a worklet node per play and kills the
+##     tab (godotengine/godot#107390); that was the 2m03s crash.
+##   Stream mode — we mix on the main thread. iOS is happy. Android is not:
+##     the no-threads refill loop needs ~375 main-thread round trips a second
+##     and falls behind under load, dropping 26-30% of audio (measured with
+##     ?showfps=1, see requirements/iphone-crash-investigation.md).
+##
+## Neither mode is "correct". So each platform gets the one it has already
+## been observed working on: iOS keeps Stream, Android goes back to Sample.
+## This is not a new experiment — it is two known-good configurations.
+##
+## Desktop is deliberately left on the project default (Stream): it has ample
+## headroom either way, and every change here is risk we don't need to take.
+##
+## Flip to false and every platform is back on the global project setting.
+## Per-run override on any device: ?playback=sample|stream|default
+const ANDROID_USES_SAMPLE := true
 ## User-supplied crowd sounds use hyphen filenames (sfx-cricket.wav) —
 ## deliberately outside the sfx_ pool naming above.
 const HYPHEN_SFX_BASE := "res://shared/assets/sfx/sfx-"
@@ -244,6 +265,9 @@ var game_paused := false
 ## venue doorway, never again. Persisted with the settings, so it survives the
 ## session — `?hints=1` on the web build forces it back for testing.
 var venue_hint_seen := false
+## Same contract, for the popup that greets a brand-new player on the run's
+## opening street: shown once ever, then never again.
+var intro_hint_seen := false
 ## Seconds left on the run clock, and whether it is ticking. Only gameplay
 ## scenes run it (see change_scene) — menus, character select and game over
 ## leave it frozen. The HUD polls run_time_left rather than listening on a
@@ -360,6 +384,12 @@ var _ios_audio_forced := IOS_AUDIO_ON_BY_DEFAULT
 ## iPhone, so this is the only way to hear what the mitigation does without
 ## borrowing one. Detection itself still needs a real device.
 var _ios_mute_forced := false
+## ?playback=sample|stream|default — force a playback mode on ANY device, so
+## both halves of the split above can be A/B'd from one build. Empty = auto.
+var _playback_forced := ""
+## Resolved once at boot, applied to every AudioStreamPlayer this project
+## builds. DEFAULT means "obey the project setting" (Stream, see project.godot).
+var _playback_type := AudioServer.PLAYBACK_TYPE_DEFAULT
 ## ?sfxonly=punch — let exactly ONE sound through and silence every other,
 ## overriding even the iOS mitigation. Built for testing the silenced sounds
 ## back in one at a time on a borrowed iPhone, with no rebuild between runs.
@@ -391,6 +421,11 @@ var _sfx_players := {}
 func _ready() -> void:
 	randomize()
 	_read_debug_flags()
+	# After the flags (?playback= can override) and before _setup_audio()
+	# builds any player. Must not live inside _read_debug_flags(): that
+	# returns early on non-web, so desktop would never resolve a mode.
+	_playback_type = _resolve_playback_type()
+	print("[audio] playback mode: %s" % playback_mode_name())
 	_register_input_actions()
 	_load_active_game()
 	get_window().title = game_title()
@@ -510,6 +545,75 @@ func menu_bg_path() -> String:
 
 func street_tile_path() -> String:
 	return _bg_path("streetTile", "assets/backgrounds/street_tile.png")
+
+
+## The street's scrolling background, FURTHEST LAYER FIRST.
+##
+## Default — and every edition whose art hasn't been re-cut — is the single
+## full-height tile the game has always drawn, with the sky, the stars and the
+## road all baked into the one PNG. A game whose manifest says
+## `"advancedParallax": true` gets the three-layer stack below instead, each
+## layer drifting at its own fraction of the player's walking speed.
+##
+## Any field can be overridden per game under a `parallax` block, so tuning a
+## city's look never needs an engine change:
+##
+##     "advancedParallax": true,
+##     "parallax": { "skyline": { "sprite": "...", "factor": 0.35 } }
+##
+## Layer WIDTH is deliberately not configurable — each strip is recycled at its
+## own texture's width, so a wider skyline just repeats less often and the art
+## is the only thing that has to change.
+## `twinkle` is the seconds for one full fade-out-and-back; 0 means a steady
+## layer. The two twinkle strips are OPTIONAL — an edition that ships only the
+## three core PNGs gets a steady sky instead of falling back to the old tile.
+const PARALLAX_STACK := [
+	{"key": "stars",    "sprite": "assets/backgrounds/parallax_stars.png",     "factor": 0.1, "z": -30},
+	{"key": "twinkleA", "sprite": "assets/backgrounds/parallax_twinkle_a.png", "factor": 0.1, "z": -28, "optional": true, "twinkle": 2.7},
+	{"key": "twinkleB", "sprite": "assets/backgrounds/parallax_twinkle_b.png", "factor": 0.1, "z": -27, "optional": true, "twinkle": 4.1},
+	{"key": "skyline",  "sprite": "assets/backgrounds/parallax_skyline.png",   "factor": 0.5, "z": -20},
+	{"key": "street",   "sprite": "assets/backgrounds/parallax_street.png",    "factor": 1.0, "z": -10},
+]
+
+## How far a twinkle strip fades down. Never to 0: stars that vanish outright
+## read as a rendering glitch rather than as a night sky.
+const TWINKLE_MIN_ALPHA := 0.15
+
+
+func advanced_parallax() -> bool:
+	return bool(manifest.get("advancedParallax", false))
+
+
+## [{path, factor, z}] for street.gd to build strips from.
+func parallax_layers() -> Array:
+	var legacy := [{"path": street_tile_path(), "factor": 1.0, "z": -10, "twinkle": 0.0, "twinkle_min": 1.0}]
+	if not advanced_parallax():
+		return legacy
+	var cfg: Dictionary = manifest.get("parallax", {})
+	var out: Array = []
+	for d in PARALLAX_STACK:
+		var layer: Dictionary = cfg.get(d["key"], {})
+		var path := game_path(String(layer.get("sprite", d["sprite"])))
+		if not ResourceLoader.exists(path):
+			# A missing twinkle strip is just one fewer blinking star: it sits
+			# ON TOP of the opaque sky, so dropping it costs nothing.
+			if bool(d.get("optional", false)):
+				continue
+			# The three core layers are all or nothing, on purpose: half a stack
+			# looks BROKEN rather than merely plain, because the cut-out street
+			# layer is transparent above the rooftops — losing the sky behind it
+			# leaves a black band, not the old background. So one missing PNG
+			# drops the whole game back to its single tile, which always ships.
+			push_warning("advancedParallax: %s is missing %s — falling back to streetTile" % [active_game, path])
+			return legacy
+		out.append({
+			"path": path,
+			"factor": float(layer.get("factor", d["factor"])),
+			"z": int(layer.get("z", d["z"])),
+			"twinkle": float(layer.get("twinkle", d.get("twinkle", 0.0))),
+			"twinkle_min": float(layer.get("twinkleMin", TWINKLE_MIN_ALPHA)),
+		})
+	return out
 
 
 ## Optional assets: empty string means "no override" — the consumer applies its
@@ -803,6 +907,22 @@ func mark_venue_hint_seen() -> void:
 	_save_settings()
 
 
+## Whether the welcome popup is still owed. Same editor/?hints=1 escape as
+## venue_hint_due() — testing a first-run popup must never mean hand-editing
+## a save file between attempts.
+func intro_hint_due() -> bool:
+	if OS.has_feature("editor") or _replay_hints:
+		return true
+	return not intro_hint_seen
+
+
+func mark_intro_hint_seen() -> void:
+	if intro_hint_seen:
+		return
+	intro_hint_seen = true
+	_save_settings()
+
+
 # ------------------------------------------------------------------ run clock
 ## Ticks on the scaled delta on purpose: hitstop (and any future pause) freezes
 ## the clock exactly like it freezes the fight.
@@ -974,6 +1094,64 @@ func _is_ios_browser() -> bool:
 	return r != null and int(r) == 1
 
 
+## Android on any browser. Deliberately a plain UA test with no clever
+## fallbacks: unlike _is_ios_browser(), a miss here costs audio QUALITY, not a
+## crash, so the conservative failure (stay on the project default) is fine.
+func _is_android_browser() -> bool:
+	var r: Variant = JavaScriptBridge.eval(
+			"/Android/.test(navigator.userAgent) ? 1 : 0", true)
+	return r != null and int(r) == 1
+
+
+## Which playback mode this device gets. See ANDROID_USES_SAMPLE.
+func _resolve_playback_type() -> int:
+	match _playback_forced:
+		"sample":
+			return AudioServer.PLAYBACK_TYPE_SAMPLE
+		"stream":
+			return AudioServer.PLAYBACK_TYPE_STREAM
+		"default":
+			return AudioServer.PLAYBACK_TYPE_DEFAULT
+	if not OS.has_feature("web") or not ANDROID_USES_SAMPLE:
+		return AudioServer.PLAYBACK_TYPE_DEFAULT
+	# iOS is checked FIRST and wins outright. An Android string inside an iOS
+	# UA is vanishingly unlikely, but Sample mode on iOS is the crash we spent
+	# three weeks on, so it must not be reachable by a UA quirk.
+	if _is_ios_browser():
+		return AudioServer.PLAYBACK_TYPE_DEFAULT
+	if _is_android_browser():
+		return AudioServer.PLAYBACK_TYPE_SAMPLE
+	return AudioServer.PLAYBACK_TYPE_DEFAULT
+
+
+## Every AudioStreamPlayer in the project goes through here, including the two
+## built outside this autoload (scripts/plane_flyby.gd, scripts/plane_drop.gd).
+## Call it before the first play(); the property is read when playback starts.
+func apply_playback_type(p: AudioStreamPlayer) -> void:
+	p.playback_type = _playback_type
+
+
+## For logs and the ?showfps=1 readout.
+##
+## DEFAULT is reported as "default(stream)" / "default(sample)" rather than
+## bare "default", because on the phone the question being asked is always
+## "which mode am I actually in" — and on iOS the answer being STREAM is the
+## difference between working and the 2m03s crash. Bare "default" would make
+## the one reading that matters most the one reading you cannot act on. It
+## also double-checks that project.godot's web override reached the device.
+func playback_mode_name() -> String:
+	match _playback_type:
+		AudioServer.PLAYBACK_TYPE_SAMPLE:
+			return "sample"
+		AudioServer.PLAYBACK_TYPE_STREAM:
+			return "stream"
+	# 0 = Stream, 1 = Sample. ProjectSettings resolves the .web feature-tag
+	# override onto the base key at load, so this is the EFFECTIVE value.
+	var v := int(ProjectSettings.get_setting(
+			"audio/general/default_playback_type", 0))
+	return "default(%s)" % ("sample" if v == 1 else "stream")
+
+
 ## Split out from _read_debug_flags purely so the parsing can be exercised
 ## headlessly, with no browser and no JavaScriptBridge.
 func _apply_debug_flags(search: String) -> void:
@@ -998,6 +1176,9 @@ func _apply_debug_flags(search: String) -> void:
 	_ios_audio_forced = str(flags.get("iosaudio",
 			"1" if IOS_AUDIO_ON_BY_DEFAULT else "")) == "1"
 	_ios_mute_forced = str(flags.get("iosmute", "")) == "1"
+	var pb := str(flags.get("playback", ""))
+	if pb in ["sample", "stream", "default"]:
+		_playback_forced = pb
 	_sfx_only = str(flags.get("sfxonly", ""))
 	# ?hints=1 replays the first-run popups on a device that has already seen
 	# them — the saved flag is left alone, so this is one run only.
@@ -1193,6 +1374,7 @@ func current_venue_data() -> Dictionary:
 func _setup_audio() -> void:
 	_music_player = AudioStreamPlayer.new()
 	_music_player.bus = "Music"
+	apply_playback_type(_music_player)
 	add_child(_music_player)
 	var tracks := _music_tracks()
 	for track in tracks:
@@ -1208,6 +1390,7 @@ func _setup_audio() -> void:
 	for i in SFX_POOL_SIZE:
 		var p := AudioStreamPlayer.new()
 		p.bus = "SFX"
+		apply_playback_type(p)
 		add_child(p)
 		_sfx_pool.append(p)
 	for stinger_name in STINGER_NAMES:
@@ -1226,12 +1409,14 @@ func _setup_audio() -> void:
 				var p := AudioStreamPlayer.new()
 				p.bus = "SFX"
 				p.stream = source[sound_name]
+				apply_playback_type(p)
 				add_child(p)
 				_sfx_players[sound_name] = p
 	# Dedicated player, not the pool: pool voices get recycled by combat SFX,
 	# which would cut the stinger short and strand the music paused.
 	_stinger_player = AudioStreamPlayer.new()
 	_stinger_player.bus = "SFX"
+	apply_playback_type(_stinger_player)
 	add_child(_stinger_player)
 	_stinger_player.finished.connect(_on_stinger_finished)
 	# Same reasoning as the stinger's dedicated player, minus the music duck.
@@ -1240,6 +1425,7 @@ func _setup_audio() -> void:
 		_scream_player = AudioStreamPlayer.new()
 		_scream_player.bus = "SFX"
 		_scream_player.stream = _scream_stream
+		apply_playback_type(_scream_player)
 		add_child(_scream_player)
 
 
@@ -1563,6 +1749,7 @@ func _load_settings() -> void:
 	random_select = bool(d.get("random", false))
 	# Sticky once true: the doorway popup is a first-run lesson, not a setting.
 	venue_hint_seen = bool(d.get("venueHintSeen", false))
+	intro_hint_seen = bool(d.get("introHintSeen", false))
 	_apply_volume("Music", music_volume)
 	_apply_volume("SFX", sfx_volume)
 
@@ -1583,6 +1770,7 @@ func _save_settings() -> void:
 				else String(characters[clampi(own, 0, characters.size() - 1)].get("CharacterName", "")),
 		"random": _random_before_deeplink if borrowed else random_select,
 		"venueHintSeen": venue_hint_seen,
+		"introHintSeen": intro_hint_seen,
 	})
 
 

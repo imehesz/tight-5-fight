@@ -108,7 +108,7 @@ func add_button(box: Container, text: String, cb: Callable) -> Button:
 func add_share_button(box: Container, cb: Callable) -> Button:
 	var b := add_button(box, "", cb)
 	b.custom_minimum_size = SHARE_SIZE
-	b.tooltip_text = "Share this comedian"
+	set_tip(b, "Share this comedian")
 	var fills := {
 		"normal": Color(0.16, 0.10, 0.24),
 		"hover": Color(0.30, 0.17, 0.45),
@@ -188,6 +188,22 @@ const SOCIAL_SIZE := Vector2(46, 46)
 const SOCIAL_INSET := 5
 
 
+## A tooltip, but ONLY where a real pointer exists.
+##
+## On a touchscreen a Godot tooltip is a trap: it opens on the emulated hover
+## and then never closes, because a finger that lifts produces no mouse-leave
+## for it to close on — the virtual cursor just stays parked where you last
+## tapped. That is the "Buy us a coffee" caption that sat on top of the main
+## menu and would not go away.
+##
+## Static so hud.gd (not a MenuBase) can use it too. Desktop keeps its
+## tooltips; touch builds simply never create one.
+static func set_tip(c: Control, text: String) -> void:
+	if DisplayServer.is_touchscreen_available():
+		return
+	c.tooltip_text = text
+
+
 func add_link_row(box: Container, links: Array) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -206,7 +222,7 @@ func add_link_row(box: Container, links: Array) -> HBoxContainer:
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		b.custom_minimum_size = SOCIAL_SIZE
-		b.tooltip_text = String(link.get("tip", ""))
+		set_tip(b, String(link.get("tip", "")))
 		style_gray_button(b)
 		# The gray skin's default padding isn't symmetric; an even inset is
 		# what keeps the badge centered inside its border.
@@ -258,7 +274,7 @@ const EDGE_ARROW_MARGIN := 10.0
 ## tap targets. With aspect="expand" the anchors track the real screen edge.
 ## 1.5x the in-row arrows: edge targets are hit by feel, so they run big.
 func add_edge_arrow(text: String, on_right: bool, cb: Callable, min_size := Vector2(45, 90)) -> Button:
-	var b := make_arrow_button(text, cb, min_size)
+	var b := make_arrow_button(text, guard_tap(cb), min_size)
 	b.add_theme_font_size_override("font_size", 24)
 	var ax := 1.0 if on_right else 0.0
 	b.anchor_left = ax
@@ -350,7 +366,7 @@ static func style_gray_button(b: Button) -> void:
 static func make_back_button(cb: Callable) -> Button:
 	var b := Button.new()
 	b.icon = back_arrow_texture()
-	b.tooltip_text = "Back"
+	set_tip(b, "Back")
 	b.custom_minimum_size = BACK_SIZE
 	# With no text, a Button still parks its icon at the left edge — center it
 	# both ways so the arrow sits in the middle of the square.
@@ -385,7 +401,7 @@ static func make_back_button(cb: Callable) -> Button:
 
 
 func add_back_button(cb: Callable) -> Button:
-	var b := make_back_button(cb)
+	var b := make_back_button(guard_tap(cb))
 	# Top-left corner, growing right/down so a wider screen never moves it.
 	b.anchor_left = 0.0
 	b.anchor_right = 0.0
@@ -446,3 +462,105 @@ func make_arrow_button(text: String, cb: Callable, min_size := Vector2(30, 60)) 
 		GameState.play_sfx("click")
 		cb.call())
 	return b
+
+
+# ---------------------------------------------------------------- swipe paging
+## Horizontal swipe as a SECOND way to turn a page, alongside the edge arrows
+## above. Players kept trying it on the boards and nothing happened, so the
+## gesture now runs into the same _turn_page() the arrows already call — the
+## arrows are unchanged and still the discoverable path.
+##
+## It lives here rather than in the paging screens because the whole contract is
+## one method: any MenuBase subclass that defines `_turn_page(dir: int)` gets
+## swipe for free, and every screen that doesn't is untouched. Today that is
+## scenes/scoreboard.gd and scenes/character_select.gd; a future paged screen
+## needs no wiring.
+##
+## TABS ARE DELIBERATELY NOT SWIPEABLE — you tap to change tab, you swipe to
+## turn a page. That is why the recogniser calls _turn_page and nothing else.
+
+## Thresholds are in the 640x360 design space: stretch mode "canvas_items"
+## hands input over already scaled, so these numbers mean the same thing on
+## every screen size. Two knobs only, both meant to be tuned on a real phone.
+##
+## ~1/16 of the screen width — far enough not to be a fat-fingered tap, short
+## enough to flick without thinking about it.
+const SWIPE_MIN_X := 40.0
+## How much vertical wander to forgive. Generous on purpose: a thumb arcs, and
+## none of the paging screens scroll vertically, so there is no other gesture
+## for a sloppy diagonal to be confused with.
+const SWIPE_MAX_Y := 60.0
+
+var _swipe_from := Vector2.ZERO
+var _swipe_tracking := false
+## Which touch owns the gesture. NEVER assume 0: Godot's web export passes the
+## browser's raw Touch.identifier through as the index (see godot.js,
+## _godot_js_input_touch_cb), and that is browser-defined — Chrome/Android
+## counts up from 0, iOS Safari hands out arbitrary large integers. Testing
+## `index == 0` therefore worked on Android and matched NOTHING on iPhone.
+var _swipe_index := -1
+## True from the moment a swipe is recognised until the NEXT touch starts, so
+## the release that ENDS the swipe cannot also press the button the finger
+## happened to be resting on. See guard_tap().
+var _swipe_took_over := false
+
+
+## No time limit on the gesture, deliberately. A slow horizontal drag means
+## nothing else on these screens, and the failure we are fixing is a swipe that
+## does nothing — so this errs toward recognising too much rather than too
+## little. Add a duration cap here if resting thumbs start turning pages.
+func _input(event: InputEvent) -> void:
+	if not has_method("_turn_page"):
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			# The first finger down owns the gesture; a second one arriving
+			# mid-swipe is ignored rather than allowed to start a rival one.
+			if not _swipe_tracking:
+				_swipe_index = event.index
+				_swipe_from = event.position
+				_swipe_tracking = true
+				_swipe_took_over = false
+		elif event.index == _swipe_index:
+			_swipe_tracking = false
+		return
+	if not (event is InputEventScreenDrag and event.index == _swipe_index):
+		return
+	if not _swipe_tracking or _swipe_took_over:
+		return
+	var delta: Vector2 = event.position - _swipe_from
+	if absf(delta.y) > SWIPE_MAX_Y:
+		# Wandered off the horizontal. Abandon this touch outright rather than
+		# waiting to see whether it happens to drift back.
+		_swipe_tracking = false
+		return
+	if absf(delta.x) < SWIPE_MIN_X:
+		return
+	# Fire the moment the threshold is crossed rather than on release: the page
+	# turns under the finger, which is what separates a swipe from a slow tap.
+	# _swipe_took_over then locks the rest of this touch, so one drag can only
+	# ever move one page no matter how far it keeps going.
+	_swipe_took_over = true
+	# The same click the pager arrows make, so a swipe confirms itself the way
+	# every other control on the screen does. It belongs HERE and not inside
+	# _turn_page(): the arrows already play it themselves (see
+	# make_arrow_button), and moving it down there would double it on every tap.
+	GameState.play_sfx("click")
+	# Dragging LEFT pulls the next page in from the right, like every other
+	# paged list on a phone.
+	call("_turn_page", -1 if delta.x > 0.0 else 1)
+
+
+## Wraps a button callback so a swipe that STARTED on that button does not also
+## press it. Needed because a 40px swipe can begin and end inside one control —
+## a beef row is 220px wide, a character card 64px — and Godot fires `pressed`
+## on release-inside-rect knowing nothing about the gesture.
+##
+## Guards at the CALLBACK rather than consuming the release event on purpose:
+## swallowing the touch-up would leave the Button stuck in its held state,
+## since BaseButton clears that on the release it would then never receive.
+func guard_tap(cb: Callable) -> Callable:
+	return func():
+		if _swipe_took_over:
+			return
+		cb.call()

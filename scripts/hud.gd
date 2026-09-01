@@ -238,7 +238,7 @@ func _process(delta: float) -> void:
 func _build_pause_button() -> void:
 	_pause_btn = Button.new()
 	_pause_btn.custom_minimum_size = PAUSE_SIZE
-	_pause_btn.tooltip_text = "Pause"
+	MenuBase.set_tip(_pause_btn, "Pause")
 	_pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_pause_btn.offset_left = -PAUSE_MARGIN - PAUSE_SIZE.x
 	_pause_btn.offset_right = -PAUSE_MARGIN

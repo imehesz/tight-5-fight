@@ -91,6 +91,15 @@
       "SkinColor": "#a0683c"
     },
     {
+      "CharacterId": "larry-fulford",
+      "CharacterName": "Larry Fulford",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/larry-fulford.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "loose-cannon",
       "CharacterName": "Loose Cannon",
       "HeadScale": 1,
@@ -125,6 +134,15 @@
       "HeadSpritePath": "assets/heads/mike-ha-ha.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "omar-cruz",
+      "CharacterName": "Omar Cruz",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/omar-cruz.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
     },
     {
       "CharacterId": "patrick-sisk",

@@ -24,31 +24,124 @@ const BEAT_SEC := 2.0
 ## long already; it can wait three seconds more.
 const REPORT_DELAY_SEC := 3.0
 
+## ?showfps=1 — how often the on-screen readout redraws. Four times a second
+## is enough to read and slow enough to cost nothing.
+const HUD_REFRESH_SEC := 0.25
+
 var _iface: JavaScriptObject
 var _timer := 0.0
+## ?showfps=1 overlay, or null when the flag is absent (the normal case).
+var _hud: Label
+var _hud_timer := 0.0
 
 
 func _ready() -> void:
+	# The HUD is set up before the web/localStorage checks below, because it
+	# has to work on a build where __t5diag is missing — a stale cached
+	# index.html is exactly when you most want to see what the engine is doing.
+	_setup_hud()
 	# Web-only by construction: there is no localStorage anywhere else, and
 	# the bug is a browser bug.
 	if not OS.has_feature("web"):
-		set_process(false)
+		set_process(_hud != null)
 		return
 	_iface = JavaScriptBridge.get_interface("__t5diag")
 	if _iface == null:
 		# An older cached index.html without the shell half. The game plays
 		# exactly as before; we just have nothing to write to.
-		set_process(false)
+		set_process(_hud != null)
 		return
 	_report_pending.call_deferred()
 
 
 func _process(delta: float) -> void:
+	if _hud != null:
+		_hud_timer -= delta
+		if _hud_timer <= 0.0:
+			_hud_timer = HUD_REFRESH_SEC
+			_hud.text = _hud_line()
+	if _iface == null:
+		return
 	_timer -= delta
 	if _timer > 0.0:
 		return
 	_timer = BEAT_SEC
 	_iface.beat(JSON.stringify(_snapshot()))
+
+
+## ?showfps=1 — a corner readout of the two numbers the choppy-audio work
+## turns on, because neither can be checked on a phone any other way.
+##
+## `application/run/max_fps=60` (project.godot) is the uncertain half of that
+## fix: this web build has no ASYNCIFY, so Godot's frame limiter has no sleep
+## primitive to throttle with and the setting may simply be inert here. On a
+## 120Hz phone this readout settles the question in five seconds — ~60 means
+## the cap works, ~120 means it is a no-op and the rAF throttle in the shell
+## is the fallback. The dpr pair (real>effective) confirms the cap in
+## shell.html took, since a stale cached shell would silently undo it.
+##
+## Best-effort like the rest of this file: any failure leaves _hud null and
+## the game plays exactly as it does without the flag.
+func _setup_hud() -> void:
+	if not OS.has_feature("web"):
+		return
+	var search := ""
+	var raw = JavaScriptBridge.eval("window.location.search", true)
+	if raw != null:
+		search = str(raw)
+	if not search.contains("showfps=1"):
+		return
+	var layer := CanvasLayer.new()
+	# Above everything the game draws, including the pause/HUD layers.
+	layer.layer = 128
+	var label := Label.new()
+	label.position = Vector2(4, 2)
+	# The project theme font is PressStart2P at story sizes; force it small so
+	# the readout never covers anything that matters.
+	var settings := LabelSettings.new()
+	settings.font_size = 8
+	settings.font_color = Color(0.6, 1.0, 0.6)
+	settings.outline_size = 4
+	settings.outline_color = Color(0, 0, 0, 0.9)
+	label.label_settings = settings
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(label)
+	add_child(layer)
+	_hud = label
+
+
+## One line of the ?showfps=1 readout. Reads:
+##
+##     60 fps  dpr 2.625>2  buf 85ms drop 3.2% hitch 210ms
+##
+## `fps`/`dpr` verify the two settings that cannot be checked on a phone.
+## `buf`/`drop`/`hitch` are the crackle meter from web/shell.html — see the
+## long comment there for how to read them. In short: drop 0% means underrun
+## is NOT the cause and the diagnosis needs rethinking; buf well under the
+## configured output_latency.web means that setting never landed; hitch bigger
+## than buf means the main thread stalls longer than the buffer can cover.
+##
+## Caveat: backgrounding the tab suspends playback while wall-clock keeps
+## running, so `drop` inflates after a tab switch. Reload to reset it.
+func _hud_line() -> String:
+	var fps := int(Performance.get_monitor(Performance.TIME_FPS))
+	var dpr := "?"
+	var raw = JavaScriptBridge.eval(
+			"(function(){var r=window.__t5dpr;"
+			+ "return r?((r.real||0)+'>'+(r.effective||0)):'n/a';}())", true)
+	if raw != null:
+		dpr = str(raw)
+	var mix := ""
+	var raw_mix = JavaScriptBridge.eval(
+			"(function(){var a=window.__t5audio;"
+			+ "return (a&&a.mix)?a.mix():'';}())", true)
+	if raw_mix != null:
+		mix = str(raw_mix)
+	# Which playback mode this device resolved to (sample/stream/default).
+	# Without this the per-platform split is invisible on the phone, and a UA
+	# that fails to match would look exactly like a fix that did not work.
+	return "%d fps  dpr %s  %s  pb %s" % [
+			fps, dpr, mix, GameState.playback_mode_name()]
 
 
 ## What the engine knows about itself right now. Node/object/orphan counts are

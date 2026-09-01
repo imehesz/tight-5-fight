@@ -23,6 +23,12 @@ signal venues_failed(reason: String)
 signal jokebook_loaded(data: Dictionary)
 signal jokebook_failed(reason: String)
 
+## fetch_beef() resolves into exactly one of these. Its own pair for the same
+## reason as the venue signals: the BEEF tab must never render a late reply
+## meant for a board the player has already navigated away from.
+signal beef_loaded(data: Dictionary)
+signal beef_failed(reason: String)
+
 ## Production backend: Apache on games.imstandup.com proxies /tight5fight/api/
 ## to the node process (see server/README.md). The game is served from the same
 ## host (games.imstandup.com/tight5fight/<theme>), so this is a SAME-ORIGIN
@@ -199,6 +205,22 @@ func fetch_venues(page: int) -> void:
 		venues_loaded.emit(res.get("data", {}))
 	else:
 		venues_failed.emit(String(res.get("error", "unavailable")))
+
+
+## Fetch one page (0-based) of the BEEF board: comedians ranked by KOs they
+## have landed, plus the grudge detail for one of them. `attacker` names which
+## one; "" lets the server pick the top row of the page, which is what the
+## first load (and every page turn) sends. Same always-resolves contract as
+## fetch_board().
+func fetch_beef(page: int, attacker := "") -> void:
+	var path := "/beef?gameId=%s&page=%d" % [GameState.active_game.uri_encode(), maxi(page, 0)]
+	if attacker != "":
+		path += "&attacker=%s" % attacker.uri_encode()
+	var res := await _request(HTTPClient.METHOD_GET, path)
+	if bool(res.get("ok", false)):
+		beef_loaded.emit(res.get("data", {}))
+	else:
+		beef_failed.emit(String(res.get("error", "unavailable")))
 
 
 # ---------------------------------------------------------------- transport

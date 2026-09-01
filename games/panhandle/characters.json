@@ -10,6 +10,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "cameron-smith",
+      "CharacterName": "Cameron Smith",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/cameron-smith.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "elijah-cantu",
       "CharacterName": "Elijah Cantu",
       "HeadScale": 1,
@@ -26,6 +35,15 @@
       "HeadSpritePath": "assets/heads/george-penton.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "jay",
+      "CharacterName": "J",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/j.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
     },
     {
       "CharacterId": "janet-fortune",
@@ -81,7 +99,7 @@
       "BodyType": "M",
       "SkinColor": "#ae8c7f"
     },
-{
+    {
       "CharacterId": "natalie-lovejoy",
       "CharacterName": "Natalie Lovejoy",
       "HeadScale": 1,
@@ -89,6 +107,24 @@
       "HeadSpritePath": "assets/heads/natalie-lovejoy.png",
       "BodyType": "F",
       "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "ronda",
+      "CharacterName": "Ronda",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ronda.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "tekk-johnson",
+      "CharacterName": "Tekk Johnson",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/tekk-johnson.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
     },
     {
       "CharacterId": "mr-open-micer",

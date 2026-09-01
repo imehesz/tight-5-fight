@@ -1,0 +1,176 @@
+{
+  "characters": [
+    {
+      "CharacterId": "bailey-ferns",
+      "CharacterName": "Bailey Ferns",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/bailey-ferns.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "elijah-cantu",
+      "CharacterName": "Elijah Cantu",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/elijah-cantu.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
+    },
+    {
+      "CharacterId": "george-penton",
+      "CharacterName": "George Penton",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/george-penton.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "jay",
+      "CharacterName": "J",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/j.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
+    },
+    {
+      "CharacterId": "janet-fortune",
+      "CharacterName": "Janet Fortune",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/janet-fortune.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "jason-best",
+      "CharacterName": "Jason Best",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/jason-best.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
+    },
+  {
+      "CharacterId": "jason-hedden",
+      "CharacterName": "Jason Hedden",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/jason-hedden.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+{
+      "CharacterId": "liam-ulrich",
+      "CharacterName": "Liam Ulrich",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/liam-ulrich.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "malcolm-xavier",
+      "CharacterName": "Malcolm Xavier",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/malcolm-xavier.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
+    },
+{
+      "CharacterId": "mr-mic",
+      "CharacterName": "Mr. Mic",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mr-mic.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
+    },
+    {
+      "CharacterId": "natalie-lovejoy",
+      "CharacterName": "Natalie Lovejoy",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/natalie-lovejoy.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "ronda",
+      "CharacterName": "Ronda",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ronda.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "tekk-johnson",
+      "CharacterName": "Tekk Johnson",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/tekk-johnson.png",
+      "BodyType": "M",
+      "SkinColor": "#ae8c7f"
+    },
+    {
+      "CharacterId": "mr-open-micer",
+      "CharacterName": "Mr. Open Micer",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mr-anonymous.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "ms-open-micer",
+      "CharacterName": "Ms. Open Micer",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/ms-anonymous.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "a-karen",
+      "CharacterName": "A Karen",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/a-karen.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "santa",
+      "CharacterName": "Santa",
+      "isDisabled": true,
+      "HeadScale": 1,
+      "HeadOffsetY": 4,
+      "HeadSpritePath": "assets/heads/santa.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "paul",
+      "CharacterName": "Paul",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/paul.png",
+      "BodyType": "M",
+      "SkinColor": "#329622"
+    },
+    {
+      "CharacterId": "officer",
+      "CharacterName": "Officer",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/officer.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    }
+  ]
+}

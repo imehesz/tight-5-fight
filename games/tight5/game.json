@@ -13,6 +13,8 @@
     "streetTile": "assets/backgrounds/street_tile.png"
   },
 
+  "advancedParallax": true,
+
   "planeBanners": [
     "WELCOME to JACKSONVILLE!",
     "THIS AIN'T GEORGIA!",

@@ -65,7 +65,7 @@ func _ready() -> void:
 	set_share_enabled(_share_btn,
 			String(GameState.selected_character_data().get("CharacterId", "")) != "")
 	add_button(_box, "CHANGE COMEDIAN", func(): GameState.change_scene(GameState.SCENE_CHARACTER_SELECT))
-	add_button(_box, "SCOREBOARD", func(): GameState.change_scene(GameState.SCENE_SCOREBOARD))
+	add_button(_box, "LEADERBOARD", func(): GameState.change_scene(GameState.SCENE_SCOREBOARD))
 	# Copy confirmation, under the whole column (the share button's own row is
 	# the one it belongs to, but a reserved strip there would split the pair).
 	add_share_toast(_box, ROW_W)

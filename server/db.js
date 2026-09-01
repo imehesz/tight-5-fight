@@ -44,6 +44,7 @@ const SCHEMA = {
       id             INTEGER PRIMARY KEY AUTOINCREMENT,
       game_id        TEXT NOT NULL,
       character_name TEXT NOT NULL,
+      attacker_name  TEXT NOT NULL DEFAULT '',
       player_uuid    TEXT NOT NULL,
       count          INTEGER NOT NULL,
       created_at     TEXT NOT NULL DEFAULT (datetime('now'))
@@ -158,12 +159,14 @@ const SCHEMA = {
       id             INT         NOT NULL AUTO_INCREMENT,
       game_id        VARCHAR(32) NOT NULL,
       character_name VARCHAR(64) NOT NULL,
+      attacker_name  VARCHAR(64) NOT NULL DEFAULT '',
       player_uuid    CHAR(36)    NOT NULL,
       count          INT         NOT NULL,
       created_at     TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_beat_board (game_id, character_name),
-      KEY idx_beat_uuid (player_uuid, id)
+      KEY idx_beat_uuid (player_uuid, id),
+      KEY idx_beef (game_id, attacker_name, character_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
     `CREATE TABLE IF NOT EXISTS venue_visits (
       id          INT         NOT NULL AUTO_INCREMENT,
@@ -241,6 +244,21 @@ const SCHEMA = {
   ],
 };
 
+// Indexes over a column that migrate() may only just have added. These CANNOT
+// live in SCHEMA above: those statements run BEFORE migrate(), so on a database
+// created back when the column didn't exist, CREATE INDEX would name a column
+// that isn't there yet and take the whole boot down with it.
+//
+// MySQL needs no equivalent — its indexes ride inside CREATE TABLE, which is a
+// no-op on an existing table, so a live prod table simply doesn't get idx_beef
+// (see the note in migrate(); the beatdowns table is small enough not to care).
+const POST_MIGRATE = {
+  sqlite: [
+    `CREATE INDEX IF NOT EXISTS idx_beef ON beatdowns (game_id, attacker_name, character_name)`,
+  ],
+  mysql: [],
+};
+
 // Age of a row in seconds. The one place the dialects genuinely differ.
 const AGE_SEC = {
   sqlite: "(strftime('%s','now') - strftime('%s', created_at))",
@@ -276,6 +294,10 @@ async function init() {
     throw new Error(`unknown db driver "${DRIVER}"`);
   }
   await migrate();
+  for (const ddl of POST_MIGRATE[DRIVER]) {
+    if (DRIVER === "sqlite") sqlite.exec(ddl);
+    else await pool.query(ddl);
+  }
 }
 
 // Idempotent column additions for databases created before the column
@@ -294,6 +316,15 @@ async function migrate() {
     // send it — the popularity report skips those rather than inventing a
     // "mic" that was never actually reported.
     "ALTER TABLE plays ADD COLUMN weapon VARCHAR(24) NOT NULL DEFAULT ''",
+    // Who did the beating — the comedian the run was PLAYED as. '' on every
+    // row banked before this column existed; backfill_beef.js stamps what it
+    // can reconstruct, and the BEEF board excludes whatever stays ''.
+    // NB: the matching idx_beef index is NOT added here. The catch below only
+    // swallows "duplicate column", not "duplicate key", and broadening it is
+    // more invasive than it is worth on a table this small — fresh installs
+    // get the index from the CREATE, and an existing prod table can have it
+    // added by hand (see requirements/beef-meter-implementation.md).
+    "ALTER TABLE beatdowns ADD COLUMN attacker_name VARCHAR(64) NOT NULL DEFAULT ''",
   ];
   for (const sql of alters) {
     try {
@@ -389,11 +420,16 @@ async function recordPlay({ gameId, characterName, playerUuid, score, seconds, w
 // count, since one run KOs the same comedian many times). Same shape as
 // plays for the same reason: attributable to a player_uuid, so a cheater's
 // rows can be deleted and the SUMs below simply heal.
-async function recordBeatdowns({ gameId, playerUuid, counts }) {
+//
+// attackerName is the comedian the run was PLAYED as, so the row carries the
+// whole beef pair (attacker_name -> character_name) for the BEEF board. It is
+// roster-validated for free: postPlay only reaches here after the same string
+// passed validCharacter().
+async function recordBeatdowns({ gameId, attackerName, playerUuid, counts }) {
   for (const [name, count] of Object.entries(counts)) {
     await run(
-      "INSERT INTO beatdowns (game_id, character_name, player_uuid, count) VALUES (?, ?, ?, ?)",
-      [gameId, name, playerUuid, count]
+      "INSERT INTO beatdowns (game_id, character_name, attacker_name, player_uuid, count) VALUES (?, ?, ?, ?, ?)",
+      [gameId, name, attackerName || "", playerUuid, count]
     );
   }
 }
@@ -668,6 +704,101 @@ async function beatSize(gameId) {
   return Number(row ? row.n : 0);
 }
 
+// ---------------------------------------------------------------- beef
+// The BEEF METER reads the same beatdowns rows from the OTHER end: not "who
+// got beaten" but "who beat them". Every query below therefore excludes
+// attacker_name = '' — legacy rows the backfill could not match, which know
+// their victim but not their aggressor and would otherwise show up as a
+// nameless comedian with an enormous grudge.
+
+// One page of the left-hand list: comedians ranked by how many KOs players
+// have landed while playing AS them. Same stable ordering contract as
+// boardPage (ties break on name so paging can't drop or repeat a row).
+async function beefAttackerPage(gameId, offset, limit) {
+  return all(
+    `SELECT attacker_name AS attacker, SUM(count) AS kos
+       FROM beatdowns
+      WHERE game_id = ? AND attacker_name <> ''
+      GROUP BY attacker_name
+      ORDER BY kos DESC, attacker_name ASC
+      LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
+    [gameId]
+  );
+}
+
+// Distinct comedians with at least one KO to their name — the row count of
+// the attacker list, i.e. how many pages the pager spans.
+async function beefAttackerSize(gameId) {
+  const row = await get(
+    "SELECT COUNT(DISTINCT attacker_name) AS n FROM beatdowns WHERE game_id = ? AND attacker_name <> ''",
+    [gameId]
+  );
+  return Number(row ? row.n : 0);
+}
+
+// One comedian's grudge list: who they have KO'd the most, worst beef first.
+// This is the only place attacker_name is compared to a caller-supplied name,
+// and it arrives as a bound parameter that server.js already roster-checked.
+async function beefVictims(gameId, attacker, limit) {
+  return all(
+    `SELECT character_name, SUM(count) AS kos
+       FROM beatdowns
+      WHERE game_id = ? AND attacker_name = ?
+      GROUP BY character_name
+      ORDER BY kos DESC, character_name ASC
+      LIMIT ${Number(limit)}`,
+    [gameId, attacker]
+  );
+}
+
+// Both sides of one comedian's ledger: KOs they have DEALT (as the comedian a
+// run was played as) and KOs they have TAKEN (as an NPC someone else flattened).
+// Two scalar subqueries rather than two round trips; MySQL 5.5-safe, since a
+// SELECT of bare scalar subqueries needs no FROM.
+async function beefTotals(gameId, name) {
+  const row = await get(
+    `SELECT
+       (SELECT COALESCE(SUM(count), 0) FROM beatdowns
+         WHERE game_id = ? AND attacker_name  = ?) AS dealt,
+       (SELECT COALESCE(SUM(count), 0) FROM beatdowns
+         WHERE game_id = ? AND character_name = ?) AS taken`,
+    [gameId, name, gameId, name]
+  );
+  return { dealt: Number(row.dealt), taken: Number(row.taken) };
+}
+
+// ONE-TIME backfill: stamp each legacy beatdown with the comedian its run was
+// played as, matched on (player_uuid, game_id, created_at) — the columns the
+// same /play request wrote together. Exact in production, where the 60s play
+// cooldown spaces each player's runs far enough apart that a KO can only
+// belong to one run. A beatdown with no same-second play keeps '' and simply
+// never feeds the beef board. Idempotent: only attacker_name = '' is touched,
+// so a repeated or half-finished run cannot disturb captured rows.
+//
+// The UPDATE is a correlated subquery that runs on both drivers: the target
+// table is not in the subquery's own FROM, so MySQL's error 1093 doesn't apply.
+async function backfillBeef() {
+  const sql = `
+    UPDATE beatdowns
+       SET attacker_name = COALESCE((
+             SELECT p.character_name
+               FROM plays p
+              WHERE p.player_uuid = beatdowns.player_uuid
+                AND p.game_id     = beatdowns.game_id
+                AND p.created_at  = beatdowns.created_at
+              LIMIT 1
+           ), attacker_name)
+     WHERE attacker_name = ''`;
+  if (DRIVER === "sqlite") sqlite.exec(sql);
+  else await pool.query(sql);
+
+  const total = Number((await get("SELECT COUNT(*) AS n FROM beatdowns")).n);
+  const remaining = Number(
+    (await get("SELECT COUNT(*) AS n FROM beatdowns WHERE attacker_name = ''")).n
+  );
+  return { total, filled: total - remaining, remaining };
+}
+
 // ---------------------------------------------------------------- daily trends
 // Per-day counts over the last 30 days for a FIXED set of names — the all-time
 // top 5 the caller already picked (mostPlayedTop / beatPage / venuePage), so
@@ -809,6 +940,11 @@ module.exports = {
   mostPlayedTop,
   beatPage,
   beatSize,
+  beefAttackerPage,
+  beefAttackerSize,
+  beefVictims,
+  beefTotals,
+  backfillBeef,
   venuePage,
   venueSize,
   playVolume,
