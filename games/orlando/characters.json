@@ -154,6 +154,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "robin-love",
+      "CharacterName": "Robin Love",
+      "HeadScale": 1,
+      "HeadOffsetY": 3,
+      "HeadSpritePath": "assets/heads/robin-love.png",
+      "BodyType": "F",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "ryan-palmer",
       "CharacterName": "Ryan Palmer",
       "HeadScale": 1,
