@@ -352,15 +352,27 @@ func upgrade_level(weapon_id: String) -> int:
 	return int(ups.get(weapon_id, 0)) if ups is Dictionary else 0
 
 
-## Cost of one upgrade, and the ceiling on levels. Both come from the server so
-## the shop can be repriced without shipping a client — the fallbacks only
-## matter before the first reply lands, and the "+" is grey until then anyway.
-func upgrade_cost() -> int:
-	return int(_crafter.get("upgradeCost", 500))
+## What each star costs, in order. From the server so the shop can be repriced
+## without shipping a client; the fallback only matters before the first reply
+## lands, and every "+" is grey until then anyway.
+func upgrade_costs() -> Array:
+	var c = _crafter.get("upgradeCosts", [])
+	return c if c is Array and not c.is_empty() else [500, 1000, 2000]
 
 
+## What the NEXT star costs for this weapon — 500, then 1000, then 2000. 0 once
+## the weapon is maxed, which callers must treat as "not for sale" rather than
+## as "free".
+func next_upgrade_cost(weapon_id: String) -> int:
+	var lvl := upgrade_level(weapon_id)
+	var costs := upgrade_costs()
+	return int(costs[lvl]) if lvl < costs.size() else 0
+
+
+## The level cap. The server derives this from the length of its cost list, so
+## the two can never disagree about how many stars a weapon has.
 func max_upgrades() -> int:
-	return int(_crafter.get("maxUpgrades", 3))
+	return int(_crafter.get("maxUpgrades", upgrade_costs().size()))
 
 
 ## Fetch the crafter state without changing anything. A zero-component collect

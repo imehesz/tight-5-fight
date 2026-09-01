@@ -496,7 +496,8 @@ func _add_upgrade_overlay(btn: Button, index: int) -> void:
 func _on_plus_pressed(index: int) -> void:
 	var weapon_id := Weapons.id_of(index)
 	var level := Leaderboard.upgrade_level(weapon_id)
-	var cost := Leaderboard.upgrade_cost()
+	# Priced per LEVEL, so the popup quotes what this particular star costs.
+	var cost := Leaderboard.next_upgrade_cost(weapon_id)
 	if level >= Leaderboard.max_upgrades():
 		show_modal("WEAPON FULLY UPGRADED")
 		return
@@ -515,12 +516,15 @@ func _paint_upgrades() -> void:
 		return
 	if _jp_label != null:
 		_jp_label.text = "JOKE POINTS  JP%s" % String.num_int64(Leaderboard.joke_points()).pad_zeros(6)
-	var cost := Leaderboard.upgrade_cost()
 	var cap := Leaderboard.max_upgrades()
 	for index in _weapon_stars:
 		var weapon_id := Weapons.id_of(index)
 		var level := Leaderboard.upgrade_level(weapon_id)
 		_weapon_stars[index].text = Weapons.stars(index)
+		# Per weapon, not one shared price: a weapon on its third star costs
+		# 2000 while an untouched one costs 500, so affordability differs
+		# card by card even though the balance is the same.
+		var cost := Leaderboard.next_upgrade_cost(weapon_id)
 		# Gold only when a purchase is actually available right now: maxed out
 		# and can't-afford both read as grey, and the popup says which.
 		var buyable: bool = level < cap and Leaderboard.joke_points() >= cost

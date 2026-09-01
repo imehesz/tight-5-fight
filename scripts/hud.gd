@@ -258,7 +258,11 @@ func _build_component_counters() -> void:
 		add_child(icon)
 		var l := _label(Vector2(x + COMPONENT_ICON + 2.0, COMPONENT_ROW_Y - 1.0), 8)
 		l.modulate = tint
-		l.text = "0"
+		# Seeded from the live tally, NOT hardcoded to 0: this HUD is rebuilt
+		# on every scene change, so a fresh one built on entering a venue would
+		# otherwise show 0 for everything the player had already picked up on
+		# the street. The tally itself survives — only the display was wrong.
+		l.text = str(int(GameState.run_components.get(kind, 0)))
 		_component_labels[kind] = l
 		x += COMPONENT_GAP
 

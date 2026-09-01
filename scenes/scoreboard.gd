@@ -153,77 +153,6 @@ const JOKE_FRAME_EDGE := Color(0.45, 0.45, 0.52, 0.35)
 const MONTHS := ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
 		"Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."]
 
-## JOKE CRAFTER — the pane sharing this tab with the grid above. The well is a
-## fixed 552 wide; the grid takes 3 * JOKE_CELL + 2 * JOKE_GRID_SEP = 192, so
-## the crafter gets what is left after the gap. It re-flows the portrait mockup
-## into landscape because the well cannot grow: making it taller would move
-## everything above it every time the tab changes.
-const JOKE_GRID_SEP := 10
-const CRAFT_GAP := 8
-const CRAFT_W := PANEL_W * 2 - (JOKE_CELL * JOKE_COLS + JOKE_GRID_SEP * 2) - CRAFT_GAP
-## One row per component: | icon | name | owned | ADD | slot |. Widths sum to
-## 282, comfortably inside CRAFT_W, so the row never has to shrink a label.
-const CRAFT_ROW_H := 27
-const CRAFT_ICON := 18
-const CRAFT_NAME_W := 84
-const CRAFT_OWNED_W := 38
-const CRAFT_ADD_W := 58
-const CRAFT_SLOT_W := 40
-## The neon run between ADD and the slot.
-const CRAFT_LINK_W := 14
-## Digit widths, zero-padded. Four for what you own, three for what is loaded —
-## and these are real caps, matching maxInventory / maxCraft in
-## server/config.js, so the display can never be overrun by a number.
-const CRAFT_OWNED_DIGITS := 4
-const CRAFT_SLOT_DIGITS := 3
-## Hard ceiling on one batch, matching maxCraft in server/config.js and the
-## three digits the slot can show.
-const CRAFT_SLOT_MAX := 999
-## Per-kind tint, matching ComponentPickup.TINTS so a TAG is the same green in
-## the panel as it is lying on the street.
-const CRAFT_TINTS := {
-	"setups": Color(1.0, 0.92, 0.62),
-	"punchlines": Color(0.62, 0.90, 1.15),
-	"tags": Color(0.72, 1.12, 0.80),
-}
-const CRAFT_LABELS := {
-	"setups": "SETUPS", "punchlines": "PUNCHLINES", "tags": "TAGS",
-}
-const CRAFT_FILES := {
-	"setups": "setup", "punchlines": "punchline", "tags": "tag",
-}
-## The panel's chrome: a neon circuit frame with a deliberately empty middle,
-## so the rows sit ON something without fighting them for attention.
-const CRAFT_PANEL_ART := "res://shared/assets/ui/crafter_panel.png"
-## Padding between the art's glowing frame and the rows inside it. Measured off
-## the texture, not guessed: the frame's clear interior runs about y 31..163 of
-## the 194px panel, so anything above 30 sits on the top trace — which is
-## exactly where the title landed on the first pass.
-const CRAFT_PAD_X := 30
-const CRAFT_PAD_Y := 30
-
-
-## The short neon run between a row's ADD button and its slot — the mockup's
-## pipework, drawn rather than imported so it takes the kind's own colour and
-## stays crisp at any scale. A line, two solder nodes, and a brighter core.
-class CraftLink extends Control:
-	var tint := Color(1, 1, 1)
-
-	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		var mid := size.y / 2.0
-		var a := Vector2(0.0, mid)
-		var b := Vector2(size.x, mid)
-		# Glow first, hot core over it: two passes are what make a 1px line
-		# read as neon rather than as a hairline.
-		draw_line(a, b, tint * Color(1, 1, 1, 0.35), 4.0)
-		draw_line(a, b, tint, 1.5)
-		for p in [a, b]:
-			draw_circle(p, 3.0, tint * Color(1, 1, 1, 0.35))
-			draw_circle(p, 1.5, tint)
-
 const TAB_ON := Color(1.0, 0.85, 0.4)
 const TAB_OFF := Color(0.6, 0.6, 0.68)
 const TEXT := Color(0.85, 0.85, 0.9)
@@ -236,18 +165,6 @@ var _global_page := 0
 var _venues_page := 0
 var _beef_page := 0
 var _joke_page := 0
-## Components loaded into the crafter's slots but not yet crafted. Purely
-## local: the server is not told until GENERATE, so backing out of the tab
-## simply returns them (nothing ever left the player's inventory).
-var _slots := {"setups": 0, "punchlines": 0, "tags": 0}
-## Rebuilt every render, like _rows — the panel redraws wholesale whenever the
-## crafter state changes, so nothing here is kept across a rebuild.
-var _slot_labels := {}
-var _owned_labels := {}
-var _add_buttons := {}
-var _craft_btn: Button
-var _points_label: Label
-var _craft_status: Label
 ## Page counts reported by the server; 1 until the first response lands.
 var _global_pages := 1
 var _venues_pages := 1
@@ -281,8 +198,8 @@ func _ready() -> void:
 	if Leaderboard.JOKE_BOOK_ENABLED:
 		Leaderboard.jokebook_loaded.connect(_on_jokebook_loaded)
 		Leaderboard.jokebook_failed.connect(_on_jokebook_failed)
-		Leaderboard.crafter_loaded.connect(_on_crafter_loaded)
-		Leaderboard.crafter_failed.connect(_on_crafter_failed)
+		# The crafter panel listens to crafter_loaded/failed itself — this
+		# screen only places it.
 
 	var box := build_backdrop()
 	# Ten tall global rows leave little room to spare, so this screen packs its
@@ -519,38 +436,48 @@ func _render_jokebook() -> void:
 		_message("NO DAYS RECORDED YET")
 		return
 
-	# The tab is two panes side by side: the attendance grid on the left, the
-	# JOKE CRAFTER on the right. An HBox rather than two anchored Controls so
-	# the pair stays centred in the well whatever the crafter is showing.
-	var split := HBoxContainer.new()
-	split.add_theme_constant_override("separation", CRAFT_GAP)
-	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_rows.add_child(split)
+	var body := HBoxContainer.new()
+	body.alignment = BoxContainer.ALIGNMENT_CENTER
+	body.add_theme_constant_override("separation", 16)
+	_rows.add_child(body)
+
+	# The calendar column: streak line, then the grid. The streak used to sit
+	# in _rows above BOTH panes, so it centred across the whole 552px well and
+	# read as a heading for the notepad as much as the calendar. In here it
+	# centres over the grid it actually describes — and the 18px it was taking
+	# off the top of the well goes back to the notepad, which needs all 194.
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 0)
-	split.add_child(left)
+	body.add_child(left)
 
-	# Streak summary: the whole reason the grid exists, so it says plainly what
-	# the attendance is currently worth.
-	var streak := int(book.get("streak", 0))
-	var head := Label.new()
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	head.add_theme_font_size_override("font_size", 8)
-	head.add_theme_color_override("font_color", YOU if streak > 1 else DIM)
-	head.text = "STREAK %d DAY%s" % [streak, "" if streak == 1 else "S"]
-	left.add_child(head)
+	# The top gap stays where it was, so the calendar sits at the same height
+	# it always has — only the streak line moved out from under it.
 	add_spacer(left, JOKE_HEAD_GAP)
 
 	var grid := GridContainer.new()
 	grid.columns = JOKE_COLS
-	grid.add_theme_constant_override("h_separation", JOKE_GRID_SEP)
+	grid.add_theme_constant_override("h_separation", 22)
 	grid.add_theme_constant_override("v_separation", 2)
 	# Shrink-centred, not expand-fill: the squares are a fixed size now, so
 	# spreading them over the full two-panel width would strand them at the
 	# edges of a mostly empty well.
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	left.add_child(grid)
-	split.add_child(_build_crafter())
+
+	# Streak summary UNDER the calendar: it is a total of what the grid above
+	# shows, so it reads as a footer to it rather than a heading over the whole
+	# tab. Pinned to the grid's own width (3 cells + 2 separations) so "centred"
+	# means centred on the calendar, whatever else shares the row.
+	add_spacer(left, 2)
+	var streak := int(book.get("streak", 0))
+	var head := Label.new()
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.custom_minimum_size = Vector2(JOKE_CELL * JOKE_COLS + 22 * (JOKE_COLS - 1), 0)
+	head.add_theme_font_size_override("font_size", 8)
+	head.add_theme_color_override("font_color", YOU if streak > 1 else DIM)
+	head.text = "STREAK %d DAY%s" % [streak, "" if streak == 1 else "S"]
+	left.add_child(head)
+	body.add_child(JokeCrafterPanel.new())
 
 	var start := _joke_page * JOKE_PER_PAGE
 	for i in JOKE_PER_PAGE:
@@ -568,258 +495,9 @@ func _render_jokebook() -> void:
 
 
 # ---------------------------------------------------------------- crafter
-## How many of `kind` are still free to load — what the server says the player
-## owns, minus what is already sitting in a slot. Slots are local, so nothing
-## has actually left the inventory until GENERATE is pressed.
-func _available(kind: String) -> int:
-	return maxi(Leaderboard.components(kind) - int(_slots.get(kind, 0)), 0)
-
-
-## Whether ADD may load one more of `kind`.
-##
-## The cap is the smaller of what the OTHER two kinds total (slot plus
-## inventory), because a joke needs one of each: loading a seventh punchline
-## when only four tags exist in the world can never become a craft, and with no
-## way to take one back out it would strand the panel for good. Since slot plus
-## available always equals the owned total, that reduces to the owned totals of
-## the other two.
-func _can_add(kind: String) -> bool:
-	if _available(kind) <= 0:
-		return false
-	if int(_slots.get(kind, 0)) >= CRAFT_SLOT_MAX:
-		return false
-	var cap := 0x7FFFFFFF
-	for other in GameState.COMPONENT_KINDS:
-		if other != kind:
-			cap = mini(cap, Leaderboard.components(other))
-	return int(_slots.get(kind, 0)) < cap
-
-
-## The batch the loaded slots represent: the shared count when all three match,
-## 0 otherwise. GENERATE is lit on exactly this being non-zero.
-func _batch() -> int:
-	var n := int(_slots.get("setups", 0))
-	if n <= 0:
-		return 0
-	for k in GameState.COMPONENT_KINDS:
-		if int(_slots.get(k, 0)) != n:
-			return 0
-	return n
-
-
-func _build_crafter() -> Control:
-	# The art is a background sibling, not the column's own stylebox: a
-	# VBoxContainer paints its panel behind the CONTENT box, which would crop
-	# the frame's glow at the first row rather than wrapping the whole pane.
-	var host := Control.new()
-	host.custom_minimum_size = Vector2(CRAFT_W, PANEL_HEADER_H + ROWS_PER_PAGE * GLOBAL_ROW_HEIGHT)
-	if ResourceLoader.exists(CRAFT_PANEL_ART):
-		var art := TextureRect.new()
-		art.texture = load(CRAFT_PANEL_ART)
-		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		art.stretch_mode = TextureRect.STRETCH_SCALE
-		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		host.add_child(art)
-
-	var col := VBoxContainer.new()
-	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	col.offset_left = CRAFT_PAD_X
-	col.offset_right = -CRAFT_PAD_X
-	col.offset_top = CRAFT_PAD_Y
-	col.offset_bottom = -CRAFT_PAD_Y
-	# 1, not the usual 2: title + three rows + the footer + a status line has
-	# about 4px of slack inside the frame, and separation is what spends it.
-	col.add_theme_constant_override("separation", 1)
-	host.add_child(col)
-
-	var title := Label.new()
-	title.text = "JOKE CRAFTER"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 9)
-	title.add_theme_color_override("font_color", TAB_ON)
-	col.add_child(title)
-
-	_slot_labels = {}
-	_owned_labels = {}
-	_add_buttons = {}
-	for kind in GameState.COMPONENT_KINDS:
-		col.add_child(_craft_row(kind))
-
-	# GENERATE and the balance share the bottom line: the button is the action,
-	# the number is what it is for, and side by side they fit the well without
-	# a third row.
-	var foot := HBoxContainer.new()
-	foot.add_theme_constant_override("separation", 6)
-	_craft_btn = Button.new()
-	_craft_btn.text = "GENERATE JOKE!"
-	_craft_btn.custom_minimum_size = Vector2(CRAFT_NAME_W + CRAFT_ICON + CRAFT_OWNED_W, 24)
-	_craft_btn.add_theme_font_size_override("font_size", 8)
-	_craft_btn.pressed.connect(guard_tap(_on_craft_pressed))
-	foot.add_child(_craft_btn)
-	_points_label = Label.new()
-	_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_points_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_points_label.add_theme_font_size_override("font_size", 9)
-	_points_label.add_theme_color_override("font_color", TAB_ON)
-	_points_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	foot.add_child(_points_label)
-	col.add_child(foot)
-
-	# One line for whatever the server last said — "CRAFTED 5 JOKES", or why a
-	# call failed. Always present so the column height never changes.
-	_craft_status = Label.new()
-	_craft_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_craft_status.add_theme_font_size_override("font_size", 6)
-	_craft_status.add_theme_color_override("font_color", DIM)
-	col.add_child(_craft_status)
-
-	_paint_crafter()
-	return host
-
-
-## | icon | NAME | owned | ADD |-link-| slot |
-func _craft_row(kind: String) -> Control:
-	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(CRAFT_W, CRAFT_ROW_H)
-	row.add_theme_constant_override("separation", 4)
-	var tint: Color = CRAFT_TINTS.get(kind, TEXT)
-
-	var icon := TextureRect.new()
-	icon.custom_minimum_size = Vector2(CRAFT_ICON, CRAFT_ICON)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var path: String = "res://shared/assets/components/%s.png" % CRAFT_FILES.get(kind, "setup")
-	if ResourceLoader.exists(path):
-		icon.texture = load(path)
-	icon.modulate = tint
-	row.add_child(icon)
-
-	var name_label := Label.new()
-	name_label.text = String(CRAFT_LABELS.get(kind, kind.to_upper()))
-	name_label.custom_minimum_size = Vector2(CRAFT_NAME_W, 0)
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	# 7, not 8: "PUNCHLINES" is 10 glyphs and Press Start 2P is ~1em wide per
-	# glyph, so at 8 it exactly fills CRAFT_NAME_W with nothing to spare.
-	name_label.add_theme_font_size_override("font_size", 7)
-	name_label.add_theme_color_override("font_color", tint)
-	row.add_child(name_label)
-
-	var owned := Label.new()
-	owned.custom_minimum_size = Vector2(CRAFT_OWNED_W, 0)
-	owned.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	owned.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	owned.add_theme_font_size_override("font_size", 9)
-	owned.add_theme_color_override("font_color", TEXT)
-	row.add_child(owned)
-	_owned_labels[kind] = owned
-
-	var add := Button.new()
-	add.text = "ADD >"
-	add.custom_minimum_size = Vector2(CRAFT_ADD_W, 22)
-	add.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	add.add_theme_font_size_override("font_size", 8)
-	add.pressed.connect(guard_tap(func(): _on_add_pressed(kind)))
-	row.add_child(add)
-	_add_buttons[kind] = add
-
-	var link := CraftLink.new()
-	link.tint = tint
-	link.custom_minimum_size = Vector2(CRAFT_LINK_W, CRAFT_ROW_H)
-	link.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(link)
-
-	# The slot: a bordered box, so what is loaded reads as being IN something
-	# rather than as a fourth number in the row.
-	var slot_frame := Panel.new()
-	slot_frame.custom_minimum_size = Vector2(CRAFT_SLOT_W, CRAFT_ROW_H - 5)
-	slot_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = JOKE_FRAME_BG
-	sb.set_corner_radius_all(3)
-	sb.set_border_width_all(2)
-	sb.border_color = tint * Color(1, 1, 1, 0.55)
-	slot_frame.add_theme_stylebox_override("panel", sb)
-	var slot := Label.new()
-	slot.set_anchors_preset(Control.PRESET_FULL_RECT)
-	slot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	slot.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	slot.add_theme_font_size_override("font_size", 9)
-	slot.add_theme_color_override("font_color", tint)
-	slot_frame.add_child(slot)
-	row.add_child(slot_frame)
-	_slot_labels[kind] = slot
-
-	return row
-
-
-## Repaint every number and button state from the cached crafter state. Called
-## after a build, an ADD, and every server reply — one function, so the panel
-## can never show a count and a button that disagree.
-func _paint_crafter() -> void:
-	# Switching tabs frees these along with the rest of the well, and a freed
-	# node is not null — so validity, not a null check, is what makes a late
-	# server reply safe.
-	if not is_instance_valid(_craft_btn):
-		return
-	for kind in GameState.COMPONENT_KINDS:
-		if _owned_labels.has(kind):
-			_owned_labels[kind].text = _pad(_available(kind), CRAFT_OWNED_DIGITS)
-		if _slot_labels.has(kind):
-			_slot_labels[kind].text = _pad(int(_slots.get(kind, 0)), CRAFT_SLOT_DIGITS)
-		if _add_buttons.has(kind):
-			_add_buttons[kind].disabled = not _can_add(kind)
-	var n := _batch()
-	_craft_btn.disabled = n <= 0
-	_craft_btn.text = "GENERATE JOKE!" if n <= 0 else "GENERATE %d JOKE%s!" % [n, "" if n == 1 else "S"]
-	_points_label.text = "JP %s" % _pad(Leaderboard.joke_points(), 6)
-
-
-## Zero-padded to a fixed width, arcade style, and clamped so a number can
-## never render wider than the column it lives in.
-func _pad(v: int, digits: int) -> String:
-	var cap := int(pow(10, digits)) - 1
-	return String.num_int64(clampi(v, 0, cap)).pad_zeros(digits)
-
-
-func _on_add_pressed(kind: String) -> void:
-	if not _can_add(kind):
-		return
-	GameState.play_sfx("click")
-	_slots[kind] = int(_slots.get(kind, 0)) + 1
-	_paint_crafter()
-
-
-func _on_craft_pressed() -> void:
-	var n := _batch()
-	if n <= 0:
-		return
-	GameState.play_sfx("click")
-	_craft_status.text = "CRAFTING ..."
-	_craft_btn.disabled = true
-	# Cleared optimistically: the reply carries the full post-craft inventory,
-	# so leaving them loaded would double-count against it for a frame.
-	_slots = {"setups": 0, "punchlines": 0, "tags": 0}
-	Leaderboard.craft_jokes(n)
-
-
-func _on_crafter_loaded(_data: Dictionary) -> void:
-	if _tab != Tab.JOKE_BOOK:
-		return
-	if is_instance_valid(_craft_status):
-		_craft_status.text = ""
-	_paint_crafter()
-
-
-func _on_crafter_failed(reason: String) -> void:
-	if _tab != Tab.JOKE_BOOK or not is_instance_valid(_craft_status):
-		return
-	# The slots were cleared optimistically on GENERATE; a failure means the
-	# server never took them, and since inventory is re-read from the server
-	# the components are still there — only the loading is lost.
-	_craft_status.text = reason.to_upper()
-	_paint_crafter()
+## The JOKE CRAFTER is a control of its own (scripts/joke_crafter_panel.gd),
+## dropped straight into the row beside the grid. It owns its own state and
+## talks to Leaderboard itself, so this screen only has to place it.
 
 
 ## One day, as the same bordered square the CHARACTERS grid uses for its

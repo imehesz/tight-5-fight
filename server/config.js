@@ -56,11 +56,17 @@ const base = {
     // hand-rolled request can't overflow what the display can render.
     maxInventory: 9999,
     maxCraft: 999,
-    // Weapon upgrades. Three levels, +3%/+6%/+9% swing damage — the multiplier
-    // itself lives in scripts/weapons.gd, since the client has to apply it
-    // mid-run with no server round trip available.
-    upgradeCost: 500,
-    maxUpgrades: 3,
+    // Weapon upgrades: cost of the 1st, 2nd and 3rd star, in order. Doubling
+    // rather than flat, so the third star costs as much as the first two
+    // together and maxing ONE weapon (3,500) is a real commitment instead of
+    // three identical purchases. All twelve weapons fully starred is 42,000.
+    //
+    // The length of this array IS the level cap — server.js derives
+    // maxUpgrades from it, so the two can never drift apart.
+    //
+    // The damage those levels buy (+3%/+6%/+9%) lives in scripts/weapons.gd:
+    // the client has to apply it mid-run with no server round trip available.
+    upgradeCosts: [500, 1000, 2000],
   },
 
   // Shared secret for the read-only /stats endpoint behind admin.html. The

@@ -410,8 +410,9 @@ async function crafterPayload(uuid) {
     tags: state.tags,
     points: state.points,
     upgrades: await db.weaponUpgrades(uuid),
-    upgradeCost: config.jokeCrafter.upgradeCost,
-    maxUpgrades: config.jokeCrafter.maxUpgrades,
+    upgradeCosts: config.jokeCrafter.upgradeCosts,
+    // Derived, never configured separately — see upgradeCosts in config.js.
+    maxUpgrades: config.jokeCrafter.upgradeCosts.length,
   };
 }
 
@@ -519,14 +520,18 @@ async function postUpgrade(req, res) {
   if (!/^[a-z0-9-]{1,24}$/.test(weaponId)) {
     return json(res, 400, { error: "bad weapon" });
   }
-  const { upgradeCost, maxUpgrades } = config.jokeCrafter;
+  const { upgradeCosts } = config.jokeCrafter;
   const owned = await db.weaponUpgrades(body.uuid);
   const level = (owned[weaponId] || 0) + 1;
-  if (level > maxUpgrades) return json(res, 409, { error: "already fully upgraded" });
+  if (level > upgradeCosts.length) return json(res, 409, { error: "already fully upgraded" });
+  // The price of THIS level, not a flat fee: the client asks for "the next
+  // one" and the server decides what that costs, so a client cannot buy a
+  // third star at the first star's price.
+  const cost = upgradeCosts[level - 1];
   const state = await db.jokeCrafterState(body.uuid);
-  if (state.points < upgradeCost) return json(res, 409, { error: "not enough joke points" });
+  if (state.points < cost) return json(res, 409, { error: "not enough joke points" });
   const wrote = await db.recordUpgrade({
-    playerUuid: body.uuid, weaponId, level, cost: upgradeCost,
+    playerUuid: body.uuid, weaponId, level, cost,
   });
   if (!wrote) return json(res, 409, { error: "already fully upgraded" });
   chargeHit("upgrade", ip);
