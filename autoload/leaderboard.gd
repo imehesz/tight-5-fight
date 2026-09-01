@@ -93,9 +93,26 @@ func _ready() -> void:
 	# GameState is registered first in project.godot, so active_game is set.
 	_player_file = PLAYER_PATH % GameState.active_game
 	_load_uuid()
-	# Mark the player present as early as possible, so the streak bonus is
-	# already cached by the time they reach FIGHT!. Deliberately not awaited.
-	ping_login()
+	# Deliberately not awaited: boot must not wait on the network.
+	_boot_fetch()
+
+
+## The two things that have to be cached BEFORE the player reaches a run:
+## today's login (for the streak bonus) and the crafter state (for weapon
+## upgrade levels). Run in SEQUENCE, never in parallel.
+##
+## Both start with _ensure_uuid(), and on a fresh install that is a POST
+## /player. Fired concurrently they would both find _player_uuid empty and mint
+## a SECOND id, orphaning the first — so the await here is load-bearing, not
+## tidiness.
+##
+## Chaining it also fixes the bug this replaced: with only the login ping at
+## boot, upgrade_level() answered 0 until something opened the weapons panel,
+## which meant no stars on the swing button AND no upgrade damage for the whole
+## run — the levels were bought and paid for but silently inert.
+func _boot_fetch() -> void:
+	await ping_login()
+	await fetch_crafter()
 
 
 # ---------------------------------------------------------------- endpoint

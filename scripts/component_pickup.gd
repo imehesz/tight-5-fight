@@ -4,6 +4,9 @@ extends Area2D
 ## TAG. Walk over it to collect it. Spawned on the street and dropped by
 ## venue bosses.
 ##
+## Spins about its vertical axis rather than bobbing like the beer bottle, so
+## the two are tellable apart at a glance even before the colour registers.
+##
 ## Deliberately unlike BeerPickup in three ways, all of them because these are
 ## not a combat resource: there is NO carry cap (so a pickup never has to be
 ## left lying there), nothing consumes them during a run, and they are not
@@ -26,6 +29,18 @@ const LABELS := {
 	"tags": "+TAG",
 }
 
+## Base sprite scale. Kept as a constant because the spin below drives scale.x
+## off it every frame, so it can no longer just be set once in _ready.
+const SPRITE_SCALE := 0.85
+## Fake-3D spin: the sprite's x scale is driven by a cosine, so it squashes to
+## an edge and opens out mirrored — which is how a coin or a card reads as
+## turning about its vertical axis. Radians per second.
+const SPIN_SPEED := 3.2
+## The sprite never fully vanishes at the edge-on point. A true spin would hit
+## zero width, but at ~40px on a busy street that reads as flickering out of
+## existence rather than as turning, so it keeps a sliver.
+const SPIN_MIN := 0.07
+
 const SPRITE_PATH := "res://shared/assets/components/%s.png"
 ## Basenames are singular; the kind keys are plural (they are the server's
 ## field names). One place to bridge the two.
@@ -35,7 +50,9 @@ const FILES := {"setups": "setup", "punchlines": "punchline", "tags": "tag"}
 var kind := "setups"
 
 var _sprite: Sprite2D
-var _bob := 0.0
+## Spin phase. Randomised per pickup so two on screen at once are never
+## turning in lockstep, which would read as one animation on two objects.
+var _spin := 0.0
 
 
 func _ready() -> void:
@@ -48,7 +65,8 @@ func _ready() -> void:
 		_sprite.texture = load(path)
 	# The art is 48x48 and reads best a touch smaller than a beer bottle, which
 	# is the one thing on the street it must not be confused with.
-	_sprite.scale = Vector2(0.85, 0.85)
+	_sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
+	_spin = randf() * TAU
 	_sprite.modulate = TINTS.get(kind, Color.WHITE)
 	add_child(_sprite)
 	var cs := CollisionShape2D.new()
@@ -60,11 +78,16 @@ func _ready() -> void:
 	_glint()
 
 
-## Same soft bob as the beer bottle, so everything collectable on the street
-## moves the same way and reads as one category of thing.
+## Turns on the spot. Only the SPRITE is scaled — the Area2D's collision shape
+## is a sibling and keeps its full width, so the pickup is exactly as easy to
+## walk into edge-on as face-on. A spin that also narrowed the hitbox would
+## make collecting one a timing test, which is not what these are for.
 func _process(delta: float) -> void:
-	_bob += delta
-	_sprite.position.y = sin(_bob * 3.0) * 2.0
+	_spin += delta * SPIN_SPEED
+	var turn := cos(_spin)
+	# signf keeps the mirrored half genuinely mirrored: the sprite flips as it
+	# passes edge-on, which is what sells it as the back of the card.
+	_sprite.scale.x = SPRITE_SCALE * signf(turn) * maxf(absf(turn), SPIN_MIN)
 
 
 ## Pulses brightness around the kind's tint rather than around white, so the

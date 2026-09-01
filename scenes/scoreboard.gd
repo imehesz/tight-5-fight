@@ -163,12 +163,14 @@ const CRAFT_GAP := 8
 const CRAFT_W := PANEL_W * 2 - (JOKE_CELL * JOKE_COLS + JOKE_GRID_SEP * 2) - CRAFT_GAP
 ## One row per component: | icon | name | owned | ADD | slot |. Widths sum to
 ## 282, comfortably inside CRAFT_W, so the row never has to shrink a label.
-const CRAFT_ROW_H := 30
-const CRAFT_ICON := 20
-const CRAFT_NAME_W := 110
-const CRAFT_OWNED_W := 42
-const CRAFT_ADD_W := 66
-const CRAFT_SLOT_W := 44
+const CRAFT_ROW_H := 27
+const CRAFT_ICON := 18
+const CRAFT_NAME_W := 84
+const CRAFT_OWNED_W := 38
+const CRAFT_ADD_W := 58
+const CRAFT_SLOT_W := 40
+## The neon run between ADD and the slot.
+const CRAFT_LINK_W := 14
 ## Digit widths, zero-padded. Four for what you own, three for what is loaded —
 ## and these are real caps, matching maxInventory / maxCraft in
 ## server/config.js, so the display can never be overrun by a number.
@@ -190,6 +192,37 @@ const CRAFT_LABELS := {
 const CRAFT_FILES := {
 	"setups": "setup", "punchlines": "punchline", "tags": "tag",
 }
+## The panel's chrome: a neon circuit frame with a deliberately empty middle,
+## so the rows sit ON something without fighting them for attention.
+const CRAFT_PANEL_ART := "res://shared/assets/ui/crafter_panel.png"
+## Padding between the art's glowing frame and the rows inside it. Measured off
+## the texture, not guessed: the frame's clear interior runs about y 31..163 of
+## the 194px panel, so anything above 30 sits on the top trace — which is
+## exactly where the title landed on the first pass.
+const CRAFT_PAD_X := 30
+const CRAFT_PAD_Y := 30
+
+
+## The short neon run between a row's ADD button and its slot — the mockup's
+## pipework, drawn rather than imported so it takes the kind's own colour and
+## stays crisp at any scale. A line, two solder nodes, and a brighter core.
+class CraftLink extends Control:
+	var tint := Color(1, 1, 1)
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var mid := size.y / 2.0
+		var a := Vector2(0.0, mid)
+		var b := Vector2(size.x, mid)
+		# Glow first, hot core over it: two passes are what make a 1px line
+		# read as neon rather than as a hairline.
+		draw_line(a, b, tint * Color(1, 1, 1, 0.35), 4.0)
+		draw_line(a, b, tint, 1.5)
+		for p in [a, b]:
+			draw_circle(p, 3.0, tint * Color(1, 1, 1, 0.35))
+			draw_circle(p, 1.5, tint)
 
 const TAB_ON := Color(1.0, 0.85, 0.4)
 const TAB_OFF := Color(0.6, 0.6, 0.68)
@@ -575,9 +608,30 @@ func _batch() -> int:
 
 
 func _build_crafter() -> Control:
+	# The art is a background sibling, not the column's own stylebox: a
+	# VBoxContainer paints its panel behind the CONTENT box, which would crop
+	# the frame's glow at the first row rather than wrapping the whole pane.
+	var host := Control.new()
+	host.custom_minimum_size = Vector2(CRAFT_W, PANEL_HEADER_H + ROWS_PER_PAGE * GLOBAL_ROW_HEIGHT)
+	if ResourceLoader.exists(CRAFT_PANEL_ART):
+		var art := TextureRect.new()
+		art.texture = load(CRAFT_PANEL_ART)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_SCALE
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		host.add_child(art)
+
 	var col := VBoxContainer.new()
-	col.custom_minimum_size = Vector2(CRAFT_W, 0)
-	col.add_theme_constant_override("separation", 2)
+	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	col.offset_left = CRAFT_PAD_X
+	col.offset_right = -CRAFT_PAD_X
+	col.offset_top = CRAFT_PAD_Y
+	col.offset_bottom = -CRAFT_PAD_Y
+	# 1, not the usual 2: title + three rows + the footer + a status line has
+	# about 4px of slack inside the frame, and separation is what spends it.
+	col.add_theme_constant_override("separation", 1)
+	host.add_child(col)
 
 	var title := Label.new()
 	title.text = "JOKE CRAFTER"
@@ -599,7 +653,7 @@ func _build_crafter() -> Control:
 	foot.add_theme_constant_override("separation", 6)
 	_craft_btn = Button.new()
 	_craft_btn.text = "GENERATE JOKE!"
-	_craft_btn.custom_minimum_size = Vector2(CRAFT_NAME_W + CRAFT_ICON + CRAFT_OWNED_W, 28)
+	_craft_btn.custom_minimum_size = Vector2(CRAFT_NAME_W + CRAFT_ICON + CRAFT_OWNED_W, 24)
 	_craft_btn.add_theme_font_size_override("font_size", 8)
 	_craft_btn.pressed.connect(guard_tap(_on_craft_pressed))
 	foot.add_child(_craft_btn)
@@ -616,15 +670,15 @@ func _build_crafter() -> Control:
 	# call failed. Always present so the column height never changes.
 	_craft_status = Label.new()
 	_craft_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_craft_status.add_theme_font_size_override("font_size", 7)
+	_craft_status.add_theme_font_size_override("font_size", 6)
 	_craft_status.add_theme_color_override("font_color", DIM)
 	col.add_child(_craft_status)
 
 	_paint_crafter()
-	return col
+	return host
 
 
-## | icon | NAME | owned | ADD | slot |
+## | icon | NAME | owned | ADD |-link-| slot |
 func _craft_row(kind: String) -> Control:
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(CRAFT_W, CRAFT_ROW_H)
@@ -646,7 +700,9 @@ func _craft_row(kind: String) -> Control:
 	name_label.text = String(CRAFT_LABELS.get(kind, kind.to_upper()))
 	name_label.custom_minimum_size = Vector2(CRAFT_NAME_W, 0)
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 8)
+	# 7, not 8: "PUNCHLINES" is 10 glyphs and Press Start 2P is ~1em wide per
+	# glyph, so at 8 it exactly fills CRAFT_NAME_W with nothing to spare.
+	name_label.add_theme_font_size_override("font_size", 7)
 	name_label.add_theme_color_override("font_color", tint)
 	row.add_child(name_label)
 
@@ -661,17 +717,23 @@ func _craft_row(kind: String) -> Control:
 
 	var add := Button.new()
 	add.text = "ADD >"
-	add.custom_minimum_size = Vector2(CRAFT_ADD_W, 26)
+	add.custom_minimum_size = Vector2(CRAFT_ADD_W, 22)
 	add.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	add.add_theme_font_size_override("font_size", 8)
 	add.pressed.connect(guard_tap(func(): _on_add_pressed(kind)))
 	row.add_child(add)
 	_add_buttons[kind] = add
 
+	var link := CraftLink.new()
+	link.tint = tint
+	link.custom_minimum_size = Vector2(CRAFT_LINK_W, CRAFT_ROW_H)
+	link.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(link)
+
 	# The slot: a bordered box, so what is loaded reads as being IN something
 	# rather than as a fourth number in the row.
 	var slot_frame := Panel.new()
-	slot_frame.custom_minimum_size = Vector2(CRAFT_SLOT_W, CRAFT_ROW_H - 6)
+	slot_frame.custom_minimum_size = Vector2(CRAFT_SLOT_W, CRAFT_ROW_H - 5)
 	slot_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = JOKE_FRAME_BG
