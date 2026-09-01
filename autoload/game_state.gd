@@ -300,6 +300,12 @@ var run_venues: Dictionary = {}
 ## bill real eyeballs. Lost if the tab closes mid-run — same accepted
 ## trade-off as the other run tallies.
 var run_billboards: Dictionary = {}
+## JOKE CRAFTER components walked over this run, kind -> count. Unlike beer,
+## these do nothing during the run: they are a pure tally that ships at game
+## over (Leaderboard.record_components) and comes back as inventory in the
+## JOKE BOOK pane. Lost if the tab closes mid-run — the same accepted
+## trade-off as every other run tally here.
+var run_components: Dictionary = {"setups": 0, "punchlines": 0, "tags": 0}
 ## KOs dealt INSIDE each venue this run, venue name -> count ("fights" on the
 ## TOP VENUES board). Street KOs are deliberately unattributed — only KOs
 ## landed while current_venue_name is set count. Ships alongside run_kos.
@@ -696,6 +702,7 @@ func start_new_game(character_index: int, remember := true) -> void:
 	run_venues = {}
 	run_billboards = {}
 	run_venue_kos = {}
+	run_components = {"setups": 0, "punchlines": 0, "tags": 0}
 	_shuffle_venues()  # every run sees the venues in a fresh order
 	reset_streak()  # a new run never inherits a streak
 	start_clock()  # the tight 5 starts here and runs until 0:00
@@ -719,6 +726,63 @@ func is_boss_venue() -> bool:
 ## once per instance; the counted flag survives street restores).
 func count_billboard_impression(sponsor_id: String) -> void:
 	run_billboards[sponsor_id] = int(run_billboards.get(sponsor_id, 0)) + 1
+
+
+# ------------------------------------------------------------ joke crafter
+## Emitted when a component is picked up, so the pickup can float its "+SETUP"
+## and any HUD counter can follow along.
+signal component_collected(kind: String, total: int)
+
+## Component kinds, in the order the crafter panel lists them. The strings ARE
+## the server's field names (see POST /collect) and the sprite basenames in
+## shared/assets/components/ — one spelling end to end, so a new kind is a
+## data change rather than three parallel switch statements.
+const COMPONENT_KINDS := ["setups", "punchlines", "tags"]
+
+## Relative spawn frequency. Tags are deliberately the scarcest: they are what
+## gates a craft (every joke needs one of each), so the rarest kind is what
+## paces the whole economy. Weights, not percentages — they need not total 100.
+const COMPONENT_WEIGHTS := {"setups": 40, "punchlines": 35, "tags": 25}
+
+## Ceiling per kind, matching maxInventory in server/config.js and the crafter
+## panel's 4-digit counters. The server clamps too; this only stops a run
+## tally from running past what can be banked.
+const MAX_COMPONENTS := 9999
+
+
+## One component walked over. Always succeeds — there is no carry cap, because
+## these are not a combat resource the way beer is.
+func add_component(kind: String) -> void:
+	if not COMPONENT_KINDS.has(kind):
+		return
+	var total: int = mini(int(run_components.get(kind, 0)) + 1, MAX_COMPONENTS)
+	run_components[kind] = total
+	component_collected.emit(kind, total)
+
+
+## A weighted pick for the spawners. Returns "" if the table is empty, which
+## the callers treat as "spawn nothing this tick".
+func random_component_kind() -> String:
+	var total := 0
+	for k in COMPONENT_KINDS:
+		total += int(COMPONENT_WEIGHTS.get(k, 0))
+	if total <= 0:
+		return ""
+	var roll := randi() % total
+	for k in COMPONENT_KINDS:
+		roll -= int(COMPONENT_WEIGHTS.get(k, 0))
+		if roll < 0:
+			return k
+	return COMPONENT_KINDS[-1]
+
+
+## True if this run picked anything up at all — what finish_run checks before
+## spending a request.
+func has_run_components() -> bool:
+	for k in COMPONENT_KINDS:
+		if int(run_components.get(k, 0)) > 0:
+			return true
+	return false
 
 
 # ---------------------------------------------------------------- beer bottles
@@ -1007,6 +1071,16 @@ func finish_run() -> void:
 	# awaited: it outlives the scene change (Leaderboard is an autoload) and
 	# a failure must never stall or block game over.
 	Leaderboard.record_play()
+	# This run's JOKE CRAFTER components, banked the same way and for the same
+	# reason: not awaited, and a failure costs the components rather than
+	# stalling game over. The nonce is minted here (not in Leaderboard) so a
+	# retry of THIS run reuses it and the server can spot the duplicate.
+	if Leaderboard.JOKE_BOOK_ENABLED and has_run_components():
+		Leaderboard.record_components(
+				int(run_components.get("setups", 0)),
+				int(run_components.get("punchlines", 0)),
+				int(run_components.get("tags", 0)),
+				"%d-%d" % [Time.get_unix_time_from_system(), randi() % 1000000])
 	change_scene(SCENE_GAME_OVER)
 
 

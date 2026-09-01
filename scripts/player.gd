@@ -355,7 +355,10 @@ func _try_swing(charged: bool, held: SwingSwoosh = null) -> bool:
 	GameState.swing_ready_changed.emit(false)
 	velocity.x = 0
 	_victims.clear()
-	_attack_damage = SWING_DAMAGE * damage_scale
+	# The weapon's JOKE CRAFTER upgrade level rides here and nowhere else: it
+	# lifts the SWING only, never the punch or kick (Fighter._attack_damage),
+	# so points bought stars on this weapon rather than on the comedian.
+	_attack_damage = SWING_DAMAGE * damage_scale * Weapons.upgrade_mult(GameState.weapon)
 	# The skid decelerates at a constant rate, so distance goes with the SQUARE
 	# of launch speed: doubling how far they fly is √2 on the velocity, not 2
 	# (which would send them four times as far).

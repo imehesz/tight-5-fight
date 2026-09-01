@@ -23,6 +23,13 @@ signal venues_failed(reason: String)
 signal jokebook_loaded(data: Dictionary)
 signal jokebook_failed(reason: String)
 
+## The JOKE CRAFTER's state — inventory, joke points and weapon upgrade levels.
+## Every crafter call resolves into one of these, and `crafter_loaded` always
+## carries the FULL state rather than a delta, so a dropped reply costs a stale
+## pane and nothing more.
+signal crafter_loaded(data: Dictionary)
+signal crafter_failed(reason: String)
+
 ## fetch_beef() resolves into exactly one of these. Its own pair for the same
 ## reason as the venue signals: the BEEF tab must never render a late reply
 ## meant for a board the player has already navigated away from.
@@ -71,6 +78,15 @@ var _jokebook := {}
 ## Guards against a second ping while the first is still in flight (the boot
 ## ping and a JOKE BOOK pane opened immediately would otherwise race).
 var _pinging := false
+
+## Last known JOKE CRAFTER state: {setups, punchlines, tags, points, upgrades,
+## upgradeCost, maxUpgrades}. Empty until a call lands. Unlike the streak bonus
+## this IS cached across scenes, because the weapon rack has to draw stars and
+## grey out the "+" long after the panel that fetched them is gone.
+var _crafter := {}
+## One crafter call at a time. Every one returns the whole state, so a second
+## in flight could land out of order and show a stale inventory.
+var _crafting := false
 
 
 func _ready() -> void:
@@ -294,6 +310,104 @@ func streak_bonus() -> int:
 ## Consecutive days ending today, 0 when unknown.
 func streak_days() -> int:
 	return int(_jokebook.get("streak", 0))
+
+
+# ------------------------------------------------------------ joke crafter
+## The cached crafter state, or {} if nothing has landed yet.
+func crafter() -> Dictionary:
+	return _crafter
+
+
+## How many of one kind the player is holding. "setups" | "punchlines" | "tags".
+func components(kind: String) -> int:
+	return int(_crafter.get(kind, 0))
+
+
+## Spendable JOKE POINTS. 0 when unknown — never a guess, same rule as
+## streak_bonus(): a number the player might spend has to come from the server.
+func joke_points() -> int:
+	return int(_crafter.get("points", 0))
+
+
+## This player's upgrade level for a weapon id, 0..maxUpgrades().
+func upgrade_level(weapon_id: String) -> int:
+	var ups = _crafter.get("upgrades", {})
+	return int(ups.get(weapon_id, 0)) if ups is Dictionary else 0
+
+
+## Cost of one upgrade, and the ceiling on levels. Both come from the server so
+## the shop can be repriced without shipping a client — the fallbacks only
+## matter before the first reply lands, and the "+" is grey until then anyway.
+func upgrade_cost() -> int:
+	return int(_crafter.get("upgradeCost", 500))
+
+
+func max_upgrades() -> int:
+	return int(_crafter.get("maxUpgrades", 3))
+
+
+## Fetch the crafter state without changing anything. A zero-component collect
+## is a read: the server answers with the full state and writes no row, which
+## saves a second endpoint that would do nothing else.
+func fetch_crafter() -> void:
+	await _crafter_call("/collect", {
+		"gameId": GameState.active_game,
+		"runNonce": _run_nonce(),
+		"setups": 0, "punchlines": 0, "tags": 0,
+	})
+
+
+## Bank one finished run's components. Called from GameState.finish_run(), and
+## like record_play() it is deliberately not awaited: a failure must never
+## stall game over. The nonce makes a retry safe, so a lost reply costs this
+## run's components only until the client tries again.
+func record_components(setups: int, punchlines: int, tags: int, nonce: String) -> void:
+	if setups <= 0 and punchlines <= 0 and tags <= 0:
+		return
+	await _crafter_call("/collect", {
+		"gameId": GameState.active_game,
+		"runNonce": nonce,
+		"setups": setups, "punchlines": punchlines, "tags": tags,
+	})
+
+
+## Turn n of each component into n jokes. The SERVER decides the payout and
+## whether the player can afford it — this only asks.
+func craft_jokes(n: int) -> void:
+	await _crafter_call("/craft", {"n": n})
+
+
+## Buy the next upgrade level for a weapon. The level is never sent: the server
+## derives it, so this can't skip or re-buy one.
+func buy_upgrade(weapon_id: String) -> void:
+	await _crafter_call("/upgrade", {"weaponId": weapon_id})
+
+
+## Shared tail of every crafter call: mint an id if needed, post, and either
+## replace the whole cached state or report why not.
+func _crafter_call(path: String, body: Dictionary) -> void:
+	if not JOKE_BOOK_ENABLED or _crafting:
+		return
+	_crafting = true
+	if not await _ensure_uuid():
+		_crafting = false
+		crafter_failed.emit("offline")
+		return
+	body["uuid"] = _player_uuid
+	var res := await _request(HTTPClient.METHOD_POST, path, body)
+	_crafting = false
+	if not bool(res.get("ok", false)):
+		crafter_failed.emit(String(res.get("error", "unavailable")))
+		return
+	_crafter = res.get("data", {})
+	crafter_loaded.emit(_crafter)
+
+
+## A per-call id for /collect's idempotency. Random rather than a run counter:
+## a counter would restart at 1 on every launch and collide with the previous
+## session's runs, which the server would then silently discard as duplicates.
+func _run_nonce() -> String:
+	return "%d-%d" % [Time.get_unix_time_from_system(), randi() % 1000000]
 
 
 # ---------------------------------------------------------------- player id

@@ -564,3 +564,94 @@ func guard_tap(cb: Callable) -> Callable:
 		if _swipe_took_over:
 			return
 		cb.call()
+
+
+# ---------------------------------------------------------------- modals
+## A blocking yes/no (or just-OK) popup. There was no dialog anywhere in this
+## project before the JOKE CRAFTER needed one, so this is deliberately the
+## smallest thing that does the job: a dimmed full-screen catcher with a panel
+## on top, built and freed per use rather than kept around.
+##
+## Its own CanvasLayer, above everything the menu drew, so it does not have to
+## care what screen opened it or how that screen is laid out.
+const MODAL_W := 300.0
+const MODAL_PAD := 14.0
+
+## `confirm` null makes it a one-button acknowledgement; otherwise it is a
+## YES/NO and `confirm` runs on YES. Either way the modal frees itself.
+func show_modal(text: String, confirm: Callable = Callable()) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 128
+	add_child(layer)
+
+	# Eats every click that misses the panel, which is what makes it modal —
+	# without this the weapon rack underneath would still be tappable.
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.72)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(shade)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.13, 0.12, 0.18)
+	sb.set_corner_radius_all(4)
+	sb.set_border_width_all(2)
+	sb.border_color = Color(1.0, 0.85, 0.4)
+	sb.set_content_margin_all(MODAL_PAD)
+	panel.add_theme_stylebox_override("panel", sb)
+	shade.add_child(panel)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 12)
+	panel.add_child(col)
+
+	var label := Label.new()
+	label.text = text
+	label.custom_minimum_size = Vector2(MODAL_W, 0)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.96))
+	col.add_child(label)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 10)
+	col.add_child(buttons)
+
+	var close := func():
+		GameState.play_sfx("click")
+		layer.queue_free()
+
+	if confirm.is_valid():
+		var yes := Button.new()
+		yes.text = "YES"
+		yes.custom_minimum_size = Vector2(96, 32)
+		yes.add_theme_font_size_override("font_size", 9)
+		style_purple_button(yes)
+		yes.pressed.connect(func():
+			close.call()
+			confirm.call())
+		buttons.add_child(yes)
+		var no := Button.new()
+		no.text = "NO"
+		no.custom_minimum_size = Vector2(96, 32)
+		no.add_theme_font_size_override("font_size", 9)
+		no.pressed.connect(close)
+		buttons.add_child(no)
+	else:
+		var ok := Button.new()
+		ok.text = "OK"
+		ok.custom_minimum_size = Vector2(120, 32)
+		ok.add_theme_font_size_override("font_size", 9)
+		style_purple_button(ok)
+		ok.pressed.connect(close)
+		buttons.add_child(ok)
+
+	# Centre the panel on its own size once the container has measured it —
+	# PRESET_CENTER anchors the top-left, not the middle.
+	panel.reset_size()
+	await get_tree().process_frame
+	panel.position = (shade.size - panel.size) / 2.0

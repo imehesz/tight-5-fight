@@ -178,3 +178,33 @@ static func index_by_id(id: String) -> int:
 
 static func id_of(idx: int) -> String:
 	return String(entry(idx).get("id", ""))
+
+
+# ---------------------------------------------------------------- upgrades
+## Swing damage added per JOKE CRAFTER upgrade level: +3%, +6%, +9% at three
+## stars. Small on purpose. scripts/weapons.gd's opening note promises that a
+## run is "never won by picking the chainsaw", and upgrades bend that — keeping
+## the top end inside normal run-to-run variance is what stops it breaking.
+const UPGRADE_STEP := 0.03
+
+## Filled and hollow star, both verified present in Press Start 2P's cmap.
+## (The JOKE BOOK's check and cross are NOT, which is why those are stroked in
+## _draw() while these can be plain text.)
+const STAR_ON := "★"
+const STAR_OFF := "☆"
+
+
+## Swing damage multiplier for the weapon at `idx`, from the levels the SERVER
+## says this player owns. 1.0 whenever the crafter state has not loaded — an
+## unknown level is never guessed upward, so a cold boot or a dead server means
+## an unupgraded swing rather than a free one.
+static func upgrade_mult(idx: int) -> float:
+	return 1.0 + UPGRADE_STEP * Leaderboard.upgrade_level(id_of(idx))
+
+
+## "★★☆" for the weapon card. Always max_upgrades() glyphs wide, so the row of
+## stars is the same length on every card and reads as a gauge.
+static func stars(idx: int) -> String:
+	var owned := Leaderboard.upgrade_level(id_of(idx))
+	var cap := Leaderboard.max_upgrades()
+	return STAR_ON.repeat(owned) + STAR_OFF.repeat(maxi(cap - owned, 0))

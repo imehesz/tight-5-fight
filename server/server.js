@@ -388,6 +388,151 @@ async function postLogin(req, res) {
   });
 }
 
+// ------------------------------------------------------------ joke crafter
+// What a batch of `n` jokes pays. Linear at pointsPerJoke, plus bonusPerJoke
+// for every joke from bonusFrom on — so bigger batches always pay strictly
+// better and there is no size at which saving up stops being worth it.
+//   n=4 -> 400,  n=5 -> 600,  n=10 -> 1600
+function craftPayout(n) {
+  const { pointsPerJoke, bonusFrom, bonusPerJoke } = config.jokeCrafter;
+  return n * pointsPerJoke + Math.max(0, n - bonusFrom + 1) * bonusPerJoke;
+}
+
+// Every joke-crafter reply carries the SAME shape — the full derived state —
+// so the client never has to patch its own numbers after an action. It just
+// replaces what it holds with what came back, and a lost reply costs nothing
+// but a stale pane until the next call.
+async function crafterPayload(uuid) {
+  const state = await db.jokeCrafterState(uuid);
+  return {
+    setups: state.setups,
+    punchlines: state.punchlines,
+    tags: state.tags,
+    points: state.points,
+    upgrades: await db.weaponUpgrades(uuid),
+    upgradeCost: config.jokeCrafter.upgradeCost,
+    maxUpgrades: config.jokeCrafter.maxUpgrades,
+  };
+}
+
+// Shared front half of the three crafter endpoints: parse, validate the uuid,
+// confirm the player was actually minted. Returns the body on success, or
+// null once it has already answered.
+async function crafterRequest(req, res) {
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (e) {
+    json(res, 400, { error: e.message });
+    return null;
+  }
+  const { uuid } = body;
+  if (typeof uuid !== "string" || !/^[0-9a-f-]{36}$/i.test(uuid)) {
+    json(res, 400, { error: "bad uuid" });
+    return null;
+  }
+  if (!(await db.playerExists(uuid))) {
+    json(res, 403, { error: "unknown player" });
+    return null;
+  }
+  return body;
+}
+
+// POST /collect { gameId, uuid, runNonce, setups, punchlines, tags } -> state
+// Banks one finished run's components. Called once from GameState.finish_run,
+// never per pickup: a request per bottle would blow the rate limits and make
+// the run itself depend on the network.
+//
+// The server CANNOT verify a run happened — it takes the client's word for
+// what was picked up. What it does guarantee is that the same run can't be
+// banked twice (runNonce) and that the numbers stay inside the caps the panel
+// can display. Crafting and spending are the parts that are actually
+// tamper-proof, because the server owns that arithmetic.
+async function postCollect(req, res) {
+  const ip = clientIp(req);
+  const body = await crafterRequest(req, res);
+  if (!body) return;
+  const { gameId, runNonce } = body;
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown game" });
+  if (typeof runNonce !== "string" || !/^[0-9a-zA-Z-]{8,36}$/.test(runNonce)) {
+    return json(res, 400, { error: "bad run nonce" });
+  }
+  if (overLimit("collect", ip, config.limits.collectsPerHourPerIp)) {
+    return json(res, 429, { error: "too many collects from this address" });
+  }
+  // A single run cannot plausibly yield a full inventory's worth, so the cap
+  // doubles as a sanity bound on one request.
+  const cap = config.jokeCrafter.maxInventory;
+  const n = (v) => Math.max(0, Math.min(cap, Math.floor(Number(v) || 0)));
+  const setups = n(body.setups);
+  const punchlines = n(body.punchlines);
+  const tags = n(body.tags);
+  if (setups + punchlines + tags > 0) {
+    await db.recordComponentDrop({
+      gameId, playerUuid: body.uuid, runNonce, setups, punchlines, tags,
+    });
+    chargeHit("collect", ip);
+  }
+  json(res, 200, await crafterPayload(body.uuid));
+}
+
+// POST /craft { uuid, n } -> state
+// Turn n setups + n punchlines + n tags into n jokes. The server re-derives
+// inventory before spending it, so a client that thinks it has more than it
+// does is simply refused — this is the half of the feature that genuinely
+// cannot be cheated.
+async function postCraft(req, res) {
+  const ip = clientIp(req);
+  const body = await crafterRequest(req, res);
+  if (!body) return;
+  if (overLimit("craft", ip, config.limits.craftsPerHourPerIp)) {
+    return json(res, 429, { error: "too many crafts from this address" });
+  }
+  const n = Math.floor(Number(body.n) || 0);
+  if (n < 1 || n > config.jokeCrafter.maxCraft) {
+    return json(res, 400, { error: "bad batch size" });
+  }
+  const state = await db.jokeCrafterState(body.uuid);
+  if (state.setups < n || state.punchlines < n || state.tags < n) {
+    return json(res, 409, { error: "not enough components" });
+  }
+  await db.recordCraft({ playerUuid: body.uuid, n, points: craftPayout(n) });
+  chargeHit("craft", ip);
+  json(res, 200, await crafterPayload(body.uuid));
+}
+
+// POST /upgrade { uuid, weaponId } -> state
+// Buy the next level for one weapon. Level is derived, never sent: the client
+// asking for "the next one" cannot skip levels or re-buy an owned one, and the
+// UNIQUE on (player, weapon, level) settles two racing taps in the database
+// rather than here.
+async function postUpgrade(req, res) {
+  const ip = clientIp(req);
+  const body = await crafterRequest(req, res);
+  if (!body) return;
+  if (overLimit("upgrade", ip, config.limits.upgradesPerHourPerIp)) {
+    return json(res, 429, { error: "too many upgrades from this address" });
+  }
+  const weaponId = String(body.weaponId || "");
+  // Shape only, like character names on a game with no roster file: weapons
+  // ship in the client, and a benched one just means an upgrade nobody sees.
+  if (!/^[a-z0-9-]{1,24}$/.test(weaponId)) {
+    return json(res, 400, { error: "bad weapon" });
+  }
+  const { upgradeCost, maxUpgrades } = config.jokeCrafter;
+  const owned = await db.weaponUpgrades(body.uuid);
+  const level = (owned[weaponId] || 0) + 1;
+  if (level > maxUpgrades) return json(res, 409, { error: "already fully upgraded" });
+  const state = await db.jokeCrafterState(body.uuid);
+  if (state.points < upgradeCost) return json(res, 409, { error: "not enough joke points" });
+  const wrote = await db.recordUpgrade({
+    playerUuid: body.uuid, weaponId, level, cost: upgradeCost,
+  });
+  if (!wrote) return json(res, 409, { error: "already fully upgraded" });
+  chargeHit("upgrade", ip);
+  json(res, 200, await crafterPayload(body.uuid));
+}
+
 // POST /play { gameId, character, uuid, score?, seconds?, weapon? } -> { ok: true }
 // Records one play (with the run's final score, feeding the per-character
 // TOP SCORE board, and how many seconds the run lasted, feeding the run-length
@@ -907,6 +1052,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "/play") return await postPlay(req, res);
     if (req.method === "POST" && route === "/login") return await postLogin(req, res);
     if (req.method === "POST" && route === "/crash") return await postCrash(req, res);
+    if (req.method === "POST" && route === "/collect") return await postCollect(req, res);
+    if (req.method === "POST" && route === "/craft") return await postCraft(req, res);
+    if (req.method === "POST" && route === "/upgrade") return await postUpgrade(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
     if (req.method === "GET" && route === "/beef") return await getBeef(req, res, url);

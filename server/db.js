@@ -127,6 +127,53 @@ const SCHEMA = {
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (player_uuid, day)
     )`,
+    // JOKE CRAFTER — three tables, all EVENT rows, never a balance column.
+    // Inventory and joke points are both derived (see jokeCrafterState), for
+    // the reason at the top of this file: a stored balance that only goes up
+    // would make an inflated one permanent and unattributable, and this one
+    // buys weapon upgrades.
+    //
+    // One row per BANKED RUN, not per pickup: the client tallies what it
+    // walked over and posts once when the run ends (GameState.finish_run).
+    // The UNIQUE is the whole idempotency story — a retry after a lost
+    // response is an INSERT OR IGNORE that changes nothing, so a flaky
+    // network can never double-credit a currency.
+    `CREATE TABLE IF NOT EXISTS component_drops (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id     TEXT NOT NULL,
+      player_uuid TEXT NOT NULL,
+      run_nonce   TEXT NOT NULL,
+      setups      INTEGER NOT NULL DEFAULT 0,
+      punchlines  INTEGER NOT NULL DEFAULT 0,
+      tags        INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (player_uuid, run_nonce)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_drops_uuid ON component_drops (player_uuid, id)`,
+    // One row per craft. `n` is the batch size (equal setups/punchlines/tags
+    // consumed); `points` is what the server decided it was worth, stored so
+    // a later change to the payout formula never silently restates history.
+    `CREATE TABLE IF NOT EXISTS joke_crafts (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_uuid TEXT NOT NULL,
+      n           INTEGER NOT NULL,
+      points      INTEGER NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_crafts_uuid ON joke_crafts (player_uuid, id)`,
+    // One row per upgrade PURCHASED, so a weapon at 3 stars has three rows.
+    // The UNIQUE on (player, weapon, level) means the same level can never be
+    // bought twice even if two taps race — the second insert just fails.
+    `CREATE TABLE IF NOT EXISTS weapon_upgrades (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_uuid TEXT NOT NULL,
+      weapon_id   TEXT NOT NULL,
+      level       INTEGER NOT NULL,
+      cost        INTEGER NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (player_uuid, weapon_id, level)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_upg_uuid ON weapon_upgrades (player_uuid, id)`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -240,6 +287,43 @@ const SCHEMA = {
       day         DATE     NOT NULL,
       created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (player_uuid, day)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    // JOKE CRAFTER. See the sqlite block above for why these are event rows
+    // and not balance columns. weapon_id is VARCHAR(24) to match plays.weapon,
+    // and every indexed column here stays far under the 191-char ceiling 5.5
+    // imposes on utf8mb4 index keys.
+    `CREATE TABLE IF NOT EXISTS component_drops (
+      id          INT         NOT NULL AUTO_INCREMENT,
+      game_id     VARCHAR(32) NOT NULL,
+      player_uuid CHAR(36)    NOT NULL,
+      run_nonce   VARCHAR(36) NOT NULL,
+      setups      INT         NOT NULL DEFAULT 0,
+      punchlines  INT         NOT NULL DEFAULT 0,
+      tags        INT         NOT NULL DEFAULT 0,
+      created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_drop (player_uuid, run_nonce),
+      KEY idx_drops_uuid (player_uuid, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS joke_crafts (
+      id          INT       NOT NULL AUTO_INCREMENT,
+      player_uuid CHAR(36)  NOT NULL,
+      n           INT       NOT NULL,
+      points      INT       NOT NULL,
+      created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_crafts_uuid (player_uuid, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS weapon_upgrades (
+      id          INT         NOT NULL AUTO_INCREMENT,
+      player_uuid CHAR(36)    NOT NULL,
+      weapon_id   VARCHAR(24) NOT NULL,
+      level       INT         NOT NULL,
+      cost        INT         NOT NULL,
+      created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_upg (player_uuid, weapon_id, level),
+      KEY idx_upg_uuid (player_uuid, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
@@ -394,6 +478,97 @@ async function loginDays(uuid, fromDay, toDay) {
     r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day)
   );
 }
+
+// ------------------------------------------------------------ joke crafter
+// Everything the JOKE CRAFTER pane needs, derived from the event rows in one
+// pass each. No balance is ever stored: inventory is what was collected minus
+// what was crafted, and points are what crafts paid minus what upgrades cost.
+//
+// Three small aggregates rather than one join: a player has a handful of rows
+// per table, the queries stay readable, and MySQL 5.5 has no CTEs to make a
+// single query any tidier.
+async function jokeCrafterState(uuid) {
+  const drops = await get(
+    `SELECT COALESCE(SUM(setups), 0)     AS setups,
+            COALESCE(SUM(punchlines), 0) AS punchlines,
+            COALESCE(SUM(tags), 0)       AS tags
+       FROM component_drops WHERE player_uuid = ?`,
+    [uuid]
+  );
+  const crafted = await get(
+    `SELECT COALESCE(SUM(n), 0)      AS used,
+            COALESCE(SUM(points), 0) AS earned
+       FROM joke_crafts WHERE player_uuid = ?`,
+    [uuid]
+  );
+  const spent = await get(
+    "SELECT COALESCE(SUM(cost), 0) AS spent FROM weapon_upgrades WHERE player_uuid = ?",
+    [uuid]
+  );
+  // A craft consumes n of EACH kind, which is what makes one `used` figure
+  // enough to net all three off.
+  const used = Number(crafted.used);
+  return {
+    setups: Number(drops.setups) - used,
+    punchlines: Number(drops.punchlines) - used,
+    tags: Number(drops.tags) - used,
+    points: Number(crafted.earned) - Number(spent.spent),
+  };
+}
+
+// This player's upgrade level per weapon, as { weaponId: level }. Weapons with
+// no rows are simply absent — the client treats a missing key as 0 rather than
+// the server sending a row per weapon it may not even ship any more.
+async function weaponUpgrades(uuid) {
+  const rows = await all(
+    `SELECT weapon_id, MAX(level) AS level
+       FROM weapon_upgrades WHERE player_uuid = ? GROUP BY weapon_id`,
+    [uuid]
+  );
+  const out = {};
+  for (const r of rows) out[String(r.weapon_id)] = Number(r.level);
+  return out;
+}
+
+// Bank one run's collected components. Idempotent on (player, run_nonce): a
+// client retrying after a lost response inserts nothing the second time, which
+// is what stops a dropped reply from minting free currency.
+// Returns true if this call actually wrote a row.
+async function recordComponentDrop({ gameId, playerUuid, runNonce, setups, punchlines, tags }) {
+  const verb = DRIVER === "sqlite" ? "INSERT OR IGNORE" : "INSERT IGNORE";
+  const res = await run(
+    `${verb} INTO component_drops
+       (game_id, player_uuid, run_nonce, setups, punchlines, tags)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    [gameId, playerUuid, runNonce, setups, punchlines, tags]
+  );
+  // sqlite's run() hands back {changes}; the mysql helper returns undefined,
+  // so fall back to re-reading. Only used for logging, never for the payout.
+  if (res && typeof res.changes === "number") return res.changes > 0;
+  return true;
+}
+
+async function recordCraft({ playerUuid, n, points }) {
+  await run(
+    "INSERT INTO joke_crafts (player_uuid, n, points) VALUES (?, ?, ?)",
+    [playerUuid, n, points]
+  );
+}
+
+// Buy one level. Returns false if the row already existed — the UNIQUE on
+// (player, weapon, level) is what makes two racing taps cost 500 points once
+// rather than twice.
+async function recordUpgrade({ playerUuid, weaponId, level, cost }) {
+  const verb = DRIVER === "sqlite" ? "INSERT OR IGNORE" : "INSERT IGNORE";
+  const res = await run(
+    `${verb} INTO weapon_upgrades (player_uuid, weapon_id, level, cost)
+       VALUES (?, ?, ?, ?)`,
+    [playerUuid, weaponId, level, cost]
+  );
+  if (res && typeof res.changes === "number") return res.changes > 0;
+  return true;
+}
+
 
 // ---------------------------------------------------------------- plays
 // Seconds since this player's last recorded play, or null if they have none.
@@ -926,6 +1101,11 @@ module.exports = {
   playerExists,
   recordLogin,
   loginDays,
+  jokeCrafterState,
+  weaponUpgrades,
+  recordComponentDrop,
+  recordCraft,
+  recordUpgrade,
   secondsSinceLastPlay,
   recordPlay,
   recordBeatdowns,

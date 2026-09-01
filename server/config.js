@@ -38,6 +38,31 @@ const base = {
     timeZone: "America/New_York",
   },
 
+  // JOKE CRAFTER — the payout formula and the upgrade shop. Server-side for
+  // the same reason as jokeBook above: these numbers decide a currency that
+  // buys weapon damage, so the client is never asked what anything is worth.
+  jokeCrafter: {
+    // Points for one joke (one setup + one punchline + one tag).
+    pointsPerJoke: 100,
+    // Batches of this size and up also earn bonusPerJoke for every joke from
+    // the threshold on, so:  points = 100n + 100 * max(0, n - 4).
+    // 5-5-5 pays 600, 10-10-10 pays 1600. Deliberately NOT a flat bonus: a
+    // flat one would make exactly 5 the permanent optimum and kill any reason
+    // to save up further.
+    bonusFrom: 5,
+    bonusPerJoke: 100,
+    // Ceilings matching the panel's digit widths in scenes/scoreboard.gd —
+    // 4 digits of inventory, 3 of loaded slots. Enforced here too, so a
+    // hand-rolled request can't overflow what the display can render.
+    maxInventory: 9999,
+    maxCraft: 999,
+    // Weapon upgrades. Three levels, +3%/+6%/+9% swing damage — the multiplier
+    // itself lives in scripts/weapons.gd, since the client has to apply it
+    // mid-run with no server round trip available.
+    upgradeCost: 500,
+    maxUpgrades: 3,
+  },
+
   // Shared secret for the read-only /stats endpoint behind admin.html. The
   // page forwards its pwd= query param. This file is public, so the real
   // value lives ONLY in the gitignored config.dev.js / config.prod.js;
@@ -60,6 +85,12 @@ const base = {
     // JOKE BOOK pings. The client sends one per boot, and the write is
     // idempotent, so this only exists to bound a scripted flood.
     loginsPerHourPerIp: 60,
+    // JOKE CRAFTER. Collects are bounded by how fast a run can actually end,
+    // so this only stops a scripted flood; crafts and upgrades are bounded by
+    // inventory and balance anyway, and the caps are just belt and braces.
+    collectsPerHourPerIp: 30,
+    craftsPerHourPerIp: 60,
+    upgradesPerHourPerIp: 40,
   },
 
   // Disk ceiling for the crash table. A row is ~300 bytes, so the cap below
@@ -96,5 +127,6 @@ module.exports = {
   ...overrides,
   limits: { ...base.limits, ...(overrides.limits || {}) },
   jokeBook: { ...base.jokeBook, ...(overrides.jokeBook || {}) },
+  jokeCrafter: { ...base.jokeCrafter, ...(overrides.jokeCrafter || {}) },
   db: { ...base.db, ...(overrides.db || {}) },
 };

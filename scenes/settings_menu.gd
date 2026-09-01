@@ -41,6 +41,14 @@ const CARD_SIZE := Vector2(74, 97)
 ## Scaled with the card, so the art grows by the same 12% the frame does rather
 ## than eating the padding.
 const CARD_INSET := 6
+## Upgrade furniture on a weapon card: stars top-left, a "+" bottom-right.
+## Both are overlays on the card button rather than a row beneath it — a 74x97
+## card has no spare vertical room, and the art is what the card is for.
+const STAR_FONT := 7
+const PLUS_SIZE := Vector2(20, 20)
+const PLUS_MARGIN := 3.0
+const PLUS_ON := Color(1.0, 0.85, 0.4)
+const PLUS_OFF := Color(0.45, 0.45, 0.52)
 const GOLD := Color(1.0, 0.85, 0.4)
 ## Weapon cards sit on near-black rather than the faint white wash the outfit
 ## swatches use: these are dark, thin, detailed sprites, and over the lit street
@@ -57,10 +65,22 @@ var _tab := Tab.SOUNDS
 var _tab_buttons := {}
 var _panels := {}
 var _weapon_cards: Array[Button] = []
+## Per-card upgrade overlays, keyed by weapon index, so a crafter reply can
+## repaint stars and "+" states without rebuilding the rack (which would lose
+## the scroll position).
+var _weapon_stars := {}
+var _weapon_plus := {}
+## JOKE POINTS readout above the rack. Without it a rack of grey "+" signs
+## gives no hint that the reason is affordability.
+var _jp_label: Label
 var _rack_scroll: ScrollContainer
 
 
 func _ready() -> void:
+	if Leaderboard.JOKE_BOOK_ENABLED:
+		# Repaints the rack whenever the server answers — a purchase, or the
+		# fetch the weapons panel fires when it is built.
+		Leaderboard.crafter_loaded.connect(_on_crafter_loaded)
 	var box := build_backdrop()
 	add_title(box, "SETTINGS", 18)
 	add_spacer(box, 6)
@@ -336,6 +356,15 @@ func _paint_swatches(buttons: Array[Button]) -> void:
 ## weapons.json never needs a layout change.
 func _weapons_panel() -> Control:
 	var col := _panel_column()
+	if Leaderboard.JOKE_BOOK_ENABLED:
+		_jp_label = Label.new()
+		_jp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_jp_label.add_theme_font_size_override("font_size", 7)
+		_jp_label.add_theme_color_override("font_color", GOLD)
+		col.add_child(_jp_label)
+		# The rack is built once and lives as long as the screen, so this is
+		# the only place that needs to ask; the reply repaints in place.
+		Leaderboard.fetch_crafter()
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = PANEL_SIZE
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -360,6 +389,7 @@ func _weapons_panel() -> Control:
 	for _i in range(slots.size(), filled):
 		grid.add_child(_empty_card())
 	_paint_weapon_cards()
+	_paint_upgrades()
 	return col
 
 
@@ -413,6 +443,8 @@ func _weapon_card(index: int) -> VBoxContainer:
 			# Swap the weapon only — no need to rebuild the comedian, and the
 			# dance keeps its rhythm through the pick.
 			_dancer.refresh_weapon())
+	if Leaderboard.JOKE_BOOK_ENABLED:
+		_add_upgrade_overlay(btn, index)
 	card.add_child(btn)
 	_weapon_cards.append(btn)
 
@@ -424,6 +456,81 @@ func _weapon_card(index: int) -> VBoxContainer:
 	name_label.add_theme_font_size_override("font_size", 6)
 	card.add_child(name_label)
 	return card
+
+
+## Stars top-left, "+" bottom-right, both sitting on the card button itself.
+##
+## The "+" is a Button INSIDE a Button: Godot gives the child the click first,
+## so buying an upgrade never also re-equips the weapon. A miss goes to the
+## card underneath and merely equips it, which is the harmless way round.
+func _add_upgrade_overlay(btn: Button, index: int) -> void:
+	var stars := Label.new()
+	stars.add_theme_font_size_override("font_size", STAR_FONT)
+	stars.add_theme_color_override("font_color", PLUS_ON)
+	stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stars.position = Vector2(PLUS_MARGIN, PLUS_MARGIN)
+	btn.add_child(stars)
+	_weapon_stars[index] = stars
+
+	var plus := Button.new()
+	plus.text = "+"
+	plus.custom_minimum_size = PLUS_SIZE
+	plus.size = PLUS_SIZE
+	plus.add_theme_font_size_override("font_size", 11)
+	# Anchored to the card's bottom-right so it stays put whatever the card
+	# does; offsets as well as anchors, or the preset leaves the old ones.
+	plus.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	plus.offset_left = -PLUS_SIZE.x - PLUS_MARGIN
+	plus.offset_top = -PLUS_SIZE.y - PLUS_MARGIN
+	plus.offset_right = -PLUS_MARGIN
+	plus.offset_bottom = -PLUS_MARGIN
+	# Never `disabled`: a grey "+" still has to be tappable, because tapping it
+	# is how the player finds out WHY it is grey.
+	plus.pressed.connect(guard_tap(func(): _on_plus_pressed(index)))
+	btn.add_child(plus)
+	_weapon_plus[index] = plus
+
+
+## The one place that decides what a "+" tap means. Three outcomes, and the
+## grey ones explain themselves rather than doing nothing.
+func _on_plus_pressed(index: int) -> void:
+	var weapon_id := Weapons.id_of(index)
+	var level := Leaderboard.upgrade_level(weapon_id)
+	var cost := Leaderboard.upgrade_cost()
+	if level >= Leaderboard.max_upgrades():
+		show_modal("WEAPON FULLY UPGRADED")
+		return
+	if Leaderboard.joke_points() < cost:
+		show_modal("CRAFT JOKES FOR UPGRADES")
+		return
+	show_modal("ARE YOU SURE YOU WANT TO SPEND JP%d ON THIS UPGRADE?" % cost,
+			func(): Leaderboard.buy_upgrade(weapon_id))
+
+
+## Repaint stars and "+" colour from the cached crafter state. Split out from
+## _paint_weapon_cards so a crafter reply can refresh the rack without
+## touching the equipped-card styling.
+func _paint_upgrades() -> void:
+	if not Leaderboard.JOKE_BOOK_ENABLED:
+		return
+	if _jp_label != null:
+		_jp_label.text = "JOKE POINTS  JP%s" % String.num_int64(Leaderboard.joke_points()).pad_zeros(6)
+	var cost := Leaderboard.upgrade_cost()
+	var cap := Leaderboard.max_upgrades()
+	for index in _weapon_stars:
+		var weapon_id := Weapons.id_of(index)
+		var level := Leaderboard.upgrade_level(weapon_id)
+		_weapon_stars[index].text = Weapons.stars(index)
+		# Gold only when a purchase is actually available right now: maxed out
+		# and can't-afford both read as grey, and the popup says which.
+		var buyable: bool = level < cap and Leaderboard.joke_points() >= cost
+		var plus: Button = _weapon_plus[index]
+		for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			plus.add_theme_color_override(state, PLUS_ON if buyable else PLUS_OFF)
+
+
+func _on_crafter_loaded(_data: Dictionary) -> void:
+	_paint_upgrades()
 
 
 ## A blank placeholder frame (not clickable) keeping a short rack on the same

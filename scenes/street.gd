@@ -37,6 +37,12 @@ const FIGHTER_SCALE := 1.25
 ## on the visible street at once so they read as a treat, not litter.
 const BEER_GROUND_Y := 300.0
 const BEER_MAX_ON_SCREEN := 2
+## JOKE CRAFTER components. Slower than beer and capped lower on screen: they
+## are collected over many runs, not spent within one, so a street littered
+## with them would cheapen the hunt (and TAG, the scarce one, most of all).
+const COMPONENT_GROUND_Y := 300.0
+const COMPONENT_MAX_ON_SCREEN := 2
+const COMPONENT_EVERY := Vector2(7.0, 13.0)
 ## Banner-plane flybys (games with planeBanners in their manifest only): the
 ## first shows up early so it's easy to spot, then they stay an occasional treat.
 const PLANE_FIRST_WAIT_MAX := 12.0
@@ -116,6 +122,7 @@ var _spawn_timer := 2.0
 ## demonstrated immediately; cleared once spent (or on a restored street).
 var _first_heckler := true
 var _beer_timer := 3.0
+var _component_timer := 5.0
 var _plane_timer := randf_range(4.0, PLANE_FIRST_WAIT_MAX)
 var _critter_timer := randf_range(3.0, CRITTER_WAIT_MAX)
 var _plane: PlaneFlyby
@@ -214,6 +221,7 @@ func _process(delta: float) -> void:
 	_maybe_spawn_venue()
 	_maybe_spawn_heckler(delta)
 	_maybe_spawn_beer(delta)
+	_maybe_spawn_component(delta)
 	_maybe_spawn_plane(delta)
 	_maybe_spawn_critter(delta)
 	_cull_stragglers()
@@ -695,6 +703,32 @@ func _maybe_spawn_beer(delta: float) -> void:
 	pickup.position = Vector2(
 			camera.position.x + get_viewport_rect().size.x / 2.0 + randf_range(20.0, 140.0),
 			BEER_GROUND_Y)
+	add_child(pickup)
+
+
+## Components drop from the first second of a run — unlike beer there is no
+## beer_unlocked() gate, because they are not a combat resource and a new
+## player should be accumulating something before they are any good.
+func _maybe_spawn_component(delta: float) -> void:
+	if not Leaderboard.JOKE_BOOK_ENABLED:
+		return
+	_component_timer -= delta
+	if _component_timer > 0.0:
+		return
+	_component_timer = randf_range(COMPONENT_EVERY.x, COMPONENT_EVERY.y)
+	if not is_instance_valid(player) \
+			or get_tree().get_nodes_in_group("component_pickups").size() >= COMPONENT_MAX_ON_SCREEN:
+		return
+	var kind := GameState.random_component_kind()
+	if kind == "":
+		return
+	var pickup := ComponentPickup.new()
+	pickup.kind = kind
+	# Same live-edge rule as the beer and heckler spawns: past whatever the
+	# phone's real right edge is, so nothing pops into view.
+	pickup.position = Vector2(
+			camera.position.x + get_viewport_rect().size.x / 2.0 + randf_range(20.0, 140.0),
+			COMPONENT_GROUND_Y)
 	add_child(pickup)
 
 
