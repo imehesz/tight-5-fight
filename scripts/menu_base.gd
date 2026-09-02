@@ -650,8 +650,27 @@ func show_modal(text: String, confirm: Callable = Callable()) -> void:
 		ok.pressed.connect(close)
 		buttons.add_child(ok)
 
+	# The app's one and only "get me out of here" button, hung off the panel's
+	# top-right the way the in-game hint popup hangs one off its own: every
+	# other popup in the game closes with this red square, so this one closes
+	# with it too rather than teaching a second close control.
+	#
+	# Parented to the SHADE and not the panel on purpose — a PanelContainer
+	# lays its children out to FILL it, so a button added to the panel would be
+	# stretched across the whole modal instead of sitting on its corner.
+	# make_back_button plays the click SFX itself, so the callback here only
+	# frees; going through `close` would double the sound.
+	var back := make_back_button(func(): layer.queue_free())
+	shade.add_child(back)
+
 	# Centre the panel on its own size once the container has measured it —
 	# PRESET_CENTER anchors the top-left, not the middle.
 	panel.reset_size()
 	await get_tree().process_frame
 	panel.position = (shade.size - panel.size) / 2.0
+	# Sits ON the corner, overlapping the panel inward by a little over half
+	# itself and hanging outward with the rest — the same proportions the hint
+	# popup uses, so the two read as the same control in the same place.
+	back.size = BACK_SIZE
+	back.position = panel.position + Vector2(
+			panel.size.x - BACK_SIZE.x * 0.55, -BACK_SIZE.y * 0.45)

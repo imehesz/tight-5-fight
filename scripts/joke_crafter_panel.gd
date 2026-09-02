@@ -72,8 +72,13 @@ var _count_labels := {}
 var _slot_labels := {}
 var _add_buttons := {}
 var _generate: Button
+var _x_mark: Control
 var _points: Label
 var _status: Label
+## True only between pressing GENERATE and the server's reply — the one
+## window in which the button really is dead to the touch.
+var _writing := false
+var _help: HintPopup
 
 
 func _ready() -> void:
@@ -279,12 +284,34 @@ func _generate_button() -> Button:
 	_generate.text = "GENERATE JOKE"
 	_generate.custom_minimum_size = Vector2(130, 24)
 	_generate.add_theme_font_size_override("font_size", 7)
+	for state in ["font_color", "font_hover_color", "font_pressed_color",
+			"font_focus_color", "font_disabled_color"]:
+		_generate.add_theme_color_override(state, INK)
+	_style_generate(false)
+	_generate.pressed.connect(_on_generate)
+
+	# The cross-out rides ON the button rather than beside it, so it tracks
+	# whatever the layout does, and it ignores the mouse, so the press still
+	# reaches the button underneath — which is the whole point: a crossed-out
+	# GENERATE is still pressable, and says what is missing when it is pressed.
+	_x_mark = HandX.new()
+	_x_mark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_x_mark.visible = false
+	_generate.add_child(_x_mark)
+	return _generate
+
+
+## "Not ready" is a LOOK, not a disabled state: a dead button cannot tell the
+## player why it is dead, so the amber just goes grey (and the X goes over it)
+## while the button keeps taking presses. See _on_generate.
+func _style_generate(ready: bool) -> void:
+	var base := AMBER if ready else AMBER_OFF
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = AMBER if state != "disabled" else AMBER_OFF
-		if state == "hover":
+		sb.bg_color = base
+		if ready and state == "hover":
 			sb.bg_color = AMBER.lightened(0.12)
-		if state == "pressed":
+		if ready and state == "pressed":
 			sb.bg_color = AMBER.darkened(0.15)
 		sb.set_corner_radius_all(2)
 		# The heavy marker outline from the design — the one thing on the page
@@ -292,11 +319,6 @@ func _generate_button() -> Button:
 		sb.set_border_width_all(3)
 		sb.border_color = INK
 		_generate.add_theme_stylebox_override(state, sb)
-	for state in ["font_color", "font_hover_color", "font_pressed_color",
-			"font_focus_color", "font_disabled_color"]:
-		_generate.add_theme_color_override(state, INK)
-	_generate.pressed.connect(_on_generate)
-	return _generate
 
 
 func _points_line() -> Control:
@@ -365,7 +387,11 @@ func _paint() -> void:
 		_slot_labels[kind].text = _pad(int(_slots.get(kind, 0)), SLOT_DIGITS)
 		_add_buttons[kind].disabled = not _can_add(kind)
 	var n := _batch()
-	_generate.disabled = n <= 0
+	# Disabled ONLY while a craft is in flight; short of that the button stays
+	# live so a hopeful press gets an answer instead of nothing at all.
+	_generate.disabled = _writing
+	_style_generate(n > 0)
+	_x_mark.visible = n <= 0 and not _writing
 	_generate.text = "GENERATE JOKE" if n <= 0 else "GENERATE %d JOKE%s" % [n, "" if n == 1 else "S"]
 	_points.text = str(Leaderboard.joke_points())
 
@@ -381,24 +407,108 @@ func _on_add(kind: String) -> void:
 func _on_generate() -> void:
 	var n := _batch()
 	if n <= 0:
+		_explain()
 		return
 	GameState.play_sfx("click")
 	_status.text = "WRITING ..."
+	_writing = true
 	_generate.disabled = true
+	_x_mark.visible = false
 	# Cleared optimistically: the reply carries the post-craft inventory, so
 	# leaving them loaded would double-count against it for a frame.
 	_slots = {"setups": 0, "punchlines": 0, "tags": 0}
 	Leaderboard.craft_jokes(n)
 
 
+## Pressing a crossed-out GENERATE is a question, not a misfire, so it gets an
+## answer: the game's own teaching popup, the same one the street doorway uses,
+## rather than a line of 6px status text under a button the player is already
+## looking away from. Guarded so a mashed button cannot stack popups.
+func _explain() -> void:
+	if is_instance_valid(_help):
+		return
+	GameState.play_sfx("click")
+	_help = HintPopup.new()
+	_help.title_text = "NO JOKE YET"
+	_help.body_text = "ADD SETUPS, PUNCHLINES AND TAGS TO GENERATE A JOKE."
+	add_child(_help)
+
+
 func _on_loaded(_d: Dictionary) -> void:
+	_writing = false
 	if is_instance_valid(_status):
 		_status.text = ""
 	_paint()
 
 
 func _on_failed(reason: String) -> void:
+	_writing = false
 	if not is_instance_valid(_status):
 		return
 	_status.text = reason.to_upper()
 	_paint()
+
+
+## The felt-tip X over an unavailable GENERATE. Drawn, not an image: it has to
+## stretch to the button whatever size the button ends up, and a scaled PNG of
+## a marker stroke goes soft the moment it is not at 1:1.
+##
+## Hand-drawn is two things — a bowed stroke and a rough edge. The bow is what
+## the eye reads as a human arm; the jitter only keeps the line from looking
+## laser-cut. Both come off a FIXED seed, so the same scrawl is redrawn every
+## time and the X never shimmers on a resize.
+class HandX extends Control:
+	const RED := Color(0.82, 0.10, 0.12)
+	const SEED := 20260901
+	const SEGMENTS := 9
+	## The X is drawn as a proper X, not corner to corner. On a button five
+	## times wider than it is tall, corner to corner is a shallow bowtie that
+	## covers the label and reads as a scribble; a squarer X centred on the
+	## button — 30% of its width to either side, and a little PAST its top and
+	## bottom edges, like a real cross-out drawn AT a thing rather than inside
+	## it — is unmistakably an X and still lets GENERATE JOKE be read.
+	const SPAN := 0.30
+	const BLEED_H := 4.0
+	const OVERSHOOT := 2.0
+	const BOW := 2.0
+	const JITTER := 0.7
+	## Two passes per stroke: a soft wide one for the ink a felt tip bleeds
+	## sideways, a tight one for the nib itself.
+	const CORE_W := 3.0
+	const BLEED_W := 6.0
+	const BLEED_A := 0.28
+
+	func _init() -> void:
+		# Ignore, not stop: the button under this has to keep hearing taps.
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# The stroke is built from the CURRENT size every draw, so a redraw on
+		# resize is what keeps the X the size of the button it is crossing out.
+		resized.connect(queue_redraw)
+
+	func _draw() -> void:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = SEED
+		var c := size * 0.5
+		var arm := Vector2(size.x * SPAN, size.y * 0.5 + BLEED_H)
+		var strokes := [
+			_stroke(rng, c - arm, c + arm),
+			_stroke(rng, c + Vector2(arm.x, -arm.y), c + Vector2(-arm.x, arm.y)),
+		]
+		for pts in strokes:
+			draw_polyline(pts, Color(RED, BLEED_A), BLEED_W, true)
+			draw_polyline(pts, RED, CORE_W, true)
+
+	func _stroke(rng: RandomNumberGenerator, a: Vector2, b: Vector2) -> PackedVector2Array:
+		var dir := (b - a).normalized()
+		var nrm := Vector2(-dir.y, dir.x)
+		a -= dir * OVERSHOOT
+		b += dir * OVERSHOOT
+		var bow := rng.randf_range(-BOW, BOW)
+		var pts := PackedVector2Array()
+		for i in SEGMENTS + 1:
+			var t := float(i) / float(SEGMENTS)
+			# sin() puts the whole bow in the middle of the stroke and none of
+			# it at the ends, so the line arcs instead of starting crooked.
+			var off := sin(t * PI) * bow + rng.randf_range(-JITTER, JITTER)
+			pts.append(a.lerp(b, t) + nrm * off)
+		return pts
