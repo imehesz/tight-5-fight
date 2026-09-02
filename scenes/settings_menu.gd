@@ -502,7 +502,7 @@ func _on_plus_pressed(index: int) -> void:
 		show_modal("WEAPON FULLY UPGRADED")
 		return
 	if Leaderboard.joke_points() < cost:
-		show_modal("CRAFT JOKES FOR UPGRADES")
+		show_modal("CRAFT JOKES IN THE JOKE BOOK FOR UPGRADES.")
 		return
 	show_modal("ARE YOU SURE YOU WANT TO SPEND JP%d ON THIS UPGRADE?" % cost,
 			func(): Leaderboard.buy_upgrade(weapon_id))

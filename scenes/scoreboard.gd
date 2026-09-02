@@ -144,12 +144,28 @@ const JOKE_HEAD_GAP := 8
 ## cmap — U+2713/U+2717 are absent), so drawing them as text would render two
 ## tofu boxes. They are stroked in _draw() instead, which also lets them be
 ## as big as the square allows without a second font.
-const JOKE_YES := Color(0.45, 0.9, 0.5)
-const JOKE_NO := Color(0.95, 0.38, 0.38)
-## Frame styling lifted from character_select.gd's blank card, so a JOKE BOOK
-## square and a CHARACTERS filler square are visibly the same object.
-const JOKE_FRAME_BG := Color(1, 1, 1, 0.04)
-const JOKE_FRAME_EDGE := Color(0.45, 0.45, 0.52, 0.35)
+##
+## Both went dark with the sticky notes: the old mint and salmon were picked
+## to glow on a near-black square and turn to mush on yellow paper.
+const JOKE_YES := Color(0.13, 0.55, 0.25)
+const JOKE_NO := Color(0.75, 0.12, 0.12)
+## The day is a sticky note: paper, one folded-up corner, a soft shadow, and a
+## couple of degrees of lean. The lean comes off the DATE's own hash, so a
+## given day always sits at the same angle — a note that re-randomised its
+## tilt every time the tab was opened would twitch.
+const NOTE_PAPER := Color(0.98, 0.90, 0.50)
+## Today is the odd note out of the pad. Amber rather than a fourth colour
+## because gold is already this screen's word for "you / now" (see YOU).
+const NOTE_TODAY := Color(1.00, 0.78, 0.35)
+## Pen on paper, the same ink the JOKE CRAFTER's notepad page uses.
+const NOTE_INK := Color(0.16, 0.15, 0.30)
+const NOTE_TILT := 2.4
+## The bonus line under the tick. Font 5 and not the date's 6: "+4450" is the
+## widest this can ever print (a full 90-day streak), which is 25px at font 5
+## inside the note's 52 — small enough to read as a margin note rather than a
+## second headline, which is what it is.
+const NOTE_PAID_FONT := 5
+const NOTE_PAID_H := 7
 const MONTHS := ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
 		"Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."]
 
@@ -369,6 +385,42 @@ func _show_tab(tab: Tab) -> void:
 
 
 # ---------------------------------------------------------------- joke book
+## The note itself: paper, a folded-up corner and a soft shadow, and nothing
+## else — the date and the mark are real children drawn on top of it.
+##
+## The paper is FIVE points, not four. The bottom-right corner is missing from
+## the sheet and the triangle that fills it back in is the underside of the
+## fold, which means the note never has to know what colour the screen behind
+## it is — no faking a cut corner by painting the background over it.
+class StickyNote:
+	extends Control
+	var paper: Color
+	## Inset inside the cell: room for the shadow and for the corners the lean
+	## swings out, so two notes in adjacent rows cannot collide.
+	const PAD := 2.0
+	const CURL := 11.0
+	const SHADOW := Color(0, 0, 0, 0.42)
+	const SHADOW_OFF := Vector2(2.0, 2.0)
+	## How much darker the fold's underside is than the face of the note.
+	const FOLD_DARK := 0.18
+
+	func _draw() -> void:
+		var r := size.x - PAD
+		var b := size.y - PAD
+		var body := PackedVector2Array([
+			Vector2(PAD, PAD), Vector2(r, PAD), Vector2(r, b - CURL),
+			Vector2(r - CURL, b), Vector2(PAD, b),
+		])
+		var shadow := PackedVector2Array()
+		for p in body:
+			shadow.append(p + SHADOW_OFF)
+		draw_colored_polygon(shadow, SHADOW)
+		draw_colored_polygon(body, paper)
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(r, b - CURL), Vector2(r - CURL, b), Vector2(r, b),
+		]), paper.darkened(FOLD_DARK))
+
+
 ## One day's tick or cross, stroked rather than typed — see JOKE_MARK_H.
 class DayMark:
 	extends Control
@@ -479,6 +531,7 @@ func _render_jokebook() -> void:
 	left.add_child(head)
 	body.add_child(JokeCrafterPanel.new())
 
+	var ladder := _bonus_ladder(days, int(book.get("pointsPerDay", 0)))
 	var start := _joke_page * JOKE_PER_PAGE
 	for i in JOKE_PER_PAGE:
 		var idx := start + i
@@ -491,7 +544,7 @@ func _render_jokebook() -> void:
 			continue
 		var entry: Dictionary = days[idx]
 		grid.add_child(_joke_cell(String(entry.get("day", "")),
-				bool(entry.get("played", false)), idx == 0))
+				bool(entry.get("played", false)), idx == 0, ladder[idx]))
 
 
 # ---------------------------------------------------------------- crafter
@@ -500,19 +553,56 @@ func _render_jokebook() -> void:
 ## talks to Leaderboard itself, so this screen only has to place it.
 
 
-## One day, as the same bordered square the CHARACTERS grid uses for its
-## blank filler cards — date across the top, mark filling the rest. `is_today`
-## golds the frame and the date so the grid always says plainly where now is.
-func _joke_cell(day: String, played: bool, is_today: bool) -> Panel:
-	var frame := Panel.new()
-	frame.custom_minimum_size = Vector2(JOKE_CELL, JOKE_CELL)
-	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = JOKE_FRAME_BG
-	sb.set_corner_radius_all(3)
-	sb.set_border_width_all(2)
-	sb.border_color = YOU if is_today else JOKE_FRAME_EDGE
-	frame.add_theme_stylebox_override("panel", sb)
+## What each day's login was worth, in the same order the server sent the days
+## (NEWEST first). The server pays (streak - 1) * pointsPerDay for a streak
+## ending today, so the same rule read one day at a time is: the day you came
+## back after a gap pays nothing, and every consecutive day after it pays 50
+## more than the day before.
+##
+## Walked from the OLDEST end forward, because that is the only direction in
+## which "how long have I been showing up" is answerable — a day's worth
+## depends entirely on the unbroken run behind it.
+##
+## `points_per_day` comes off the login payload rather than a constant here:
+## it decides a score, so the server owns it (see server/config.js jokeBook),
+## and a 0 from a payload that never carried it prints no numbers at all
+## rather than invented ones.
+func _bonus_ladder(days: Array, points_per_day: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	out.resize(days.size())
+	var run := 0
+	for i in range(days.size() - 1, -1, -1):
+		var entry: Dictionary = days[i]
+		run = run + 1 if bool(entry.get("played", false)) else 0
+		out[i] = maxi(run - 1, 0) * points_per_day
+	return out
+
+
+## One day, as a sticky note off the pad — date across the top, mark filling
+## the rest, exactly as the square held them. `is_today` swaps the paper for
+## the amber note instead of golding a frame, so the grid still says plainly
+## where now is without a border to say it with.
+func _joke_cell(day: String, played: bool, is_today: bool, bonus: int) -> Control:
+	# A plain Control holds the cell in the grid and the NOTE leans inside it,
+	# one level down. The lean cannot live on the grid's own child: Godot's
+	# Container.fit_child_in_rect() resets a child's rotation and scale every
+	# time it lays out, so a tilt set here would be silently zeroed — which is
+	# exactly what it did until the notes were measured instead of eyeballed.
+	var cell := Control.new()
+	cell.custom_minimum_size = Vector2(JOKE_CELL, JOKE_CELL)
+	cell.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var note := StickyNote.new()
+	note.paper = NOTE_TODAY if is_today else NOTE_PAPER
+	note.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Off the date's hash, so a day keeps its angle between visits, and the
+	# pivot is the middle of the cell — rotating around the default top-left
+	# corner would swing the note out of its own square.
+	note.pivot_offset = Vector2(JOKE_CELL, JOKE_CELL) / 2.0
+	note.rotation = deg_to_rad(NOTE_TILT * _note_lean(day))
+	cell.add_child(note)
 
 	# anchors AND offsets: anchors alone leave the box at its own size in the
 	# corner, which is the classic way a full-rect child silently doesn't fill.
@@ -520,11 +610,17 @@ func _joke_cell(day: String, played: bool, is_today: bool) -> Panel:
 	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	col.add_theme_constant_override("separation", 0)
 	col.offset_left = JOKE_CELL_INSET
-	col.offset_top = JOKE_CELL_INSET - 1
+	# Two pixels lower than the square held it: the paper starts a pixel in
+	# from the cell, and a date printed hard against the top edge of a note
+	# reads as clipped even when it isn't.
+	col.offset_top = JOKE_CELL_INSET + 2
 	col.offset_right = -JOKE_CELL_INSET
-	col.offset_bottom = -JOKE_CELL_INSET
+	# Three pixels of paper under the bonus line. Ending flush with the sheet's
+	# bottom edge, which is what the square's inset gave, read as a number
+	# falling off the note.
+	col.offset_bottom = -(JOKE_CELL_INSET + 3)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.add_child(col)
+	note.add_child(col)
 
 	# Font 6, not the 8 used elsewhere: "Sep. 30." is 8 glyphs and Press Start
 	# 2P is a wide monospace at ~1em each, so 8 would run the full 52px of
@@ -533,7 +629,10 @@ func _joke_cell(day: String, played: bool, is_today: bool) -> Panel:
 	date.text = _pretty_day(day)
 	date.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	date.add_theme_font_size_override("font_size", 6)
-	date.add_theme_color_override("font_color", YOU if is_today else TEXT)
+	# Ink, not the screen's pale TEXT: this is the one thing on the tab that
+	# is written on something light, and today's note is told apart by its
+	# paper now rather than by the colour of its date.
+	date.add_theme_color_override("font_color", NOTE_INK)
 	col.add_child(date)
 
 	var mark := DayMark.new()
@@ -542,7 +641,43 @@ func _joke_cell(day: String, played: bool, is_today: bool) -> Panel:
 	mark.no = JOKE_NO
 	mark.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(mark)
-	return frame
+
+	# What that morning's login paid, pencilled under the tick. The row is
+	# ALWAYS here, empty string and all: reserving it only on the days that
+	# earned something would leave the ticks on those notes smaller than the
+	# ticks beside them, which reads as a rendering bug rather than a bonus.
+	# The first day back pays nothing and prints nothing — see _bonus_ladder.
+	var paid := Label.new()
+	paid.text = "+%d" % bonus if bonus > 0 else ""
+	paid.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	paid.custom_minimum_size = Vector2(0, NOTE_PAID_H)
+	paid.add_theme_font_size_override("font_size", NOTE_PAID_FONT)
+	paid.add_theme_color_override("font_color", JOKE_YES)
+	col.add_child(paid)
+	return cell
+
+
+## -1.0..1.0, stable for a given day: the lean is part of the day, not of this
+## particular visit to the tab.
+##
+## The hash is SCRAMBLED before it is used, and that is the whole function.
+## String.hash() is a rolling multiply, so two dates one day apart hash to two
+## values one apart, and a page of notes all leaned within a twentieth of a
+## degree of each other — a straight grid with extra steps. Seeding an RNG
+## with it was no better: PCG's output for adjacent states is adjacent too.
+## This is the standard 32-bit avalanche mix (xor-shift, multiply, repeat),
+## which is what actually turns "one apart" into "unrelated". Masked to 32
+## bits at every step so the multiply cannot overflow a 64-bit int.
+const NOTE_MIX := 0x45D9F3B
+const U32 := 0xFFFFFFFF
+
+
+func _note_lean(day: String) -> float:
+	var h := day.hash()
+	h = ((h ^ (h >> 16)) * NOTE_MIX) & U32
+	h = ((h ^ (h >> 16)) * NOTE_MIX) & U32
+	h = h ^ (h >> 16)
+	return float(h % 2001) / 1000.0 - 1.0
 
 
 func _clear_rows() -> void:
