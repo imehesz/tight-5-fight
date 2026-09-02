@@ -199,11 +199,11 @@
       "SkinColor": "#e9c098"
     },
     {
-      "CharacterId": "sareth-nay",
-      "CharacterName": "Sareth Nay",
+      "CharacterId": "sareth-ney",
+      "CharacterName": "Sareth Ney",
       "HeadScale": 1,
       "HeadOffsetY": 0,
-      "HeadSpritePath": "assets/heads/sareth-nay.png",
+      "HeadSpritePath": "assets/heads/sareth-ney.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
     },
