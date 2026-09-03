@@ -48,6 +48,12 @@
       "ExteriorSpritePath": "assets/venues/wobbly-whale_ext.png",
       "InteriorSpritePath": "assets/venues/wobbly-whale_int.png" 
     },
+    { 
+      "VenueId": "paper-root",
+      "VenueName": "Paper Root",
+      "ExteriorSpritePath": "assets/venues/paper-root_ext.png",
+      "InteriorSpritePath": "assets/venues/paper-root_int.png" 
+    },
     {
       "VenueId": "fbhq",
       "VenueName": "FBHQ",
