@@ -260,6 +260,14 @@
     border-radius: 8px;
     text-shadow: 0 1px 0 #ffffff55;
   }
+  /* a COMING SOON tile whose art isn't drawn yet: same box, dim placeholder */
+  .tile.soon .tile-art:not(img) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    color: var(--dim);
+  }
   .tile.wanted { border-style: dashed; }
   .tile.wanted .tile-art {
     display: flex;
@@ -440,6 +448,16 @@
                    <a class="btn-sub" href="stats/miami/">STATS</a> -->
               <a class="btn-sub" href="info/miami/">MORE INFO</a>
             </div>
+          </div>
+        </article>
+
+        <!-- ==================== COMING SOON: NORTH CENTRAL FL ==================== -->
+        <article class="tile soon">
+          <div class="tile-art">?</div>
+          <h2 class="tile-name">NORTH CENTRAL FL</h2>
+          <p class="tile-desc">Gainesville, Ocala and the horse country. The 352 lines&nbsp;up.</p>
+          <div class="tile-actions">
+            <span class="soon-badge">COMING SOON</span>
           </div>
         </article>
 
