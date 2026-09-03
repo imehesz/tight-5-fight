@@ -1,0 +1,52 @@
+{
+  "venues": [
+    { 
+      "VenueId": "waffle-house",
+      "VenueName": "Waffle House",
+      "ExteriorSpritePath": "assets/venues/waffle-house_ext.png",
+      "InteriorSpritePath": "assets/venues/waffle-house_int.png" 
+    },
+    { 
+      "VenueId": "comedy-school",
+      "VenueName": "Comedy School",
+      "ExteriorSpritePath": "assets/venues/comedy-school_ext.png",
+      "InteriorSpritePath": "assets/venues/comedy-school_int.png" 
+    },
+    { 
+      "VenueId": "fbhq",
+      "VenueName": "FBHQ",
+      "ExteriorSpritePath": "assets/venues/fbhq_ext.png",
+      "InteriorSpritePath": "assets/venues/fbhq_int.png" 
+    },
+    { 
+      "VenueId": "birdcage",
+      "VenueName": "Birdcage",
+      "ExteriorSpritePath": "assets/venues/birdcage_ext.png",
+      "InteriorSpritePath": "assets/venues/birdcage_int.png" 
+    },
+    { 
+      "VenueId": "the-peach",
+      "VenueName": "The Peach",
+      "ExteriorSpritePath": "assets/venues/the-peach_ext.png",
+      "InteriorSpritePath": "assets/venues/the-peach_int.png" 
+    },
+    { 
+      "VenueId": "the-taurus",
+      "VenueName": "The Taurus",
+      "ExteriorSpritePath": "assets/venues/the-taurus_ext.png",
+      "InteriorSpritePath": "assets/venues/the-taurus_int.png" 
+    },
+    { 
+      "VenueId": "the-bend",
+      "VenueName": "The Bend Liquor Lounge",
+      "ExteriorSpritePath": "assets/venues/the-bend_ext.png",
+      "InteriorSpritePath": "assets/venues/the-bend_int.png" 
+    },
+    { 
+      "VenueId": "cruise-ship",
+      "VenueName": "Funny Cruiser",
+      "ExteriorSpritePath": "assets/venues/cruise-ship_ext.png",
+      "InteriorSpritePath": "assets/venues/cruise-ship_int.png" 
+    }
+  ]
+}

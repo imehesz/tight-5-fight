@@ -136,6 +136,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "marcus-crespo",
+      "CharacterName": "Marcus Crespo",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/marcus-sexy_clean.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "matt-nagin",
       "CharacterName": "Matt Nagin",
       "HeadScale": 1,
