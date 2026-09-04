@@ -101,6 +101,11 @@ var _health_fill: ColorRect
 var _lives_label: Label
 var _bosses_label: Label
 var _score_label: Label
+## THIS RUN's JOKE CRAFTER haul, one counter per kind. Deliberately the run
+## tally (GameState.run_components) and not the banked inventory: it starts at
+## 0 every run and shows what is about to be added, which is the number that
+## makes picking one up feel like it did something.
+var _component_labels := {}
 var _streak_label: Label
 var _venue_label: Label
 var _clock_panel: Panel
@@ -202,6 +207,7 @@ func _ready() -> void:
 	_venue_label.offset_left = -150.0
 	_venue_label.offset_right = 150.0
 	_venue_label.offset_top = 8.0
+	_build_component_counters()
 	_build_pause_button()
 	_build_clock()
 	_center_label = _label(Vector2(0, 110), 14, 400, HORIZONTAL_ALIGNMENT_CENTER)
@@ -210,6 +216,8 @@ func _ready() -> void:
 	_center_label.offset_right = 200.0
 	_center_label.offset_top = 110.0
 
+	if Leaderboard.JOKE_BOOK_ENABLED:
+		GameState.component_collected.connect(_on_component_collected)
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.lives_changed.connect(_on_lives_changed)
 	GameState.bosses_changed.connect(_on_bosses_changed)
@@ -221,6 +229,54 @@ func _ready() -> void:
 	_on_bosses_changed(GameState.bosses_defeated)
 	_on_streak_changed(GameState.streak, GameState.streak_mult())
 	_cameo_armed = GameState.run_time_left > CAMEO_AT
+
+
+## The run's component haul, tucked under the lives/bosses row in the top-left
+## cluster. Icon plus count per kind, tinted to match the pickups on the
+## street, so what you walked over and what the counter says are the same
+## colour. Hidden entirely when the feature is off.
+const COMPONENT_ICON := 11.0
+const COMPONENT_GAP := 34.0
+const COMPONENT_ROW_Y := 40.0
+
+
+func _build_component_counters() -> void:
+	if not Leaderboard.JOKE_BOOK_ENABLED:
+		return
+	var x := 44.0
+	for kind in GameState.COMPONENT_KINDS:
+		var tint: Color = ComponentPickup.TINTS.get(kind, Color.WHITE)
+		var icon := TextureRect.new()
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var path: String = ComponentPickup.SPRITE_PATH % String(ComponentPickup.FILES.get(kind, "setup"))
+		if ResourceLoader.exists(path):
+			icon.texture = load(path)
+		icon.position = Vector2(x, COMPONENT_ROW_Y)
+		icon.size = Vector2(COMPONENT_ICON, COMPONENT_ICON)
+		icon.modulate = tint
+		add_child(icon)
+		var l := _label(Vector2(x + COMPONENT_ICON + 2.0, COMPONENT_ROW_Y - 1.0), 8)
+		l.modulate = tint
+		# Seeded from the live tally, NOT hardcoded to 0: this HUD is rebuilt
+		# on every scene change, so a fresh one built on entering a venue would
+		# otherwise show 0 for everything the player had already picked up on
+		# the street. The tally itself survives — only the display was wrong.
+		l.text = str(int(GameState.run_components.get(kind, 0)))
+		_component_labels[kind] = l
+		x += COMPONENT_GAP
+
+
+func _on_component_collected(kind: String, total: int) -> void:
+	if not _component_labels.has(kind):
+		return
+	var l: Label = _component_labels[kind]
+	l.text = str(total)
+	# A quick pop, so a pickup registers in the corner of the eye without
+	# needing to be read.
+	l.scale = Vector2(1.6, 1.6)
+	create_tween().tween_property(l, "scale", Vector2.ONE, 0.25) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## The streak window can lapse with no KO to signal it, so visibility is

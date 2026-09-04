@@ -92,6 +92,17 @@ func _ready() -> void:
 			pickup.position = Vector2(
 					get_viewport().get_visible_rect().size.x * 0.4, 300.0)
 			add_child(pickup)
+		# One JOKE CRAFTER component per boss, on the other side of the floor
+		# from the bottle. Unlike the beer this is NOT gated on beer_unlocked:
+		# boss #1 pays a component even though it pays no bottle.
+		if Leaderboard.JOKE_BOOK_ENABLED:
+			var kind := GameState.random_component_kind()
+			if kind != "":
+				var comp := ComponentPickup.new()
+				comp.kind = kind
+				comp.position = Vector2(
+						get_viewport().get_visible_rect().size.x * 0.62, 300.0)
+				add_child(comp)
 	else:
 		_to_spawn = GameState.enemy_characters(_level)
 		for i in mini(MAX_CONCURRENT, _to_spawn.size()):

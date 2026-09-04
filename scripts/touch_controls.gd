@@ -65,6 +65,34 @@ var _swing_tex := {}
 ## available. Punch and kick keep theirs lit for the whole run.
 var _throw_glow: Sprite2D
 var _swing_glow: Sprite2D
+## Upgrade stars INSIDE the swing button, stacked down its left edge, so the
+## weapon's level is visible where the weapon is actually used without adding
+## anything to the action cluster's footprint. Only ever shows OWNED stars — an
+## unupgraded weapon gets no badge at all.
+##
+## The button is BUTTON_PX * ACTION_SCALE = ~70px on screen and the mic glyph
+## sits in the middle of it, so a narrow column down the left stays clear of
+## the art at every level.
+const SWING_STAR_FONT := 9
+## Font size plus the line_spacing override below — what one stacked star
+## costs vertically, and what the column is centred by.
+const SWING_STAR_LINE := 11.0
+const SWING_STAR_SPACING := 2
+const SWING_STAR_INSET := 8.0
+## Gold while the swing is off cooldown, grey-and-faded while it is not. The
+## stars are a SIBLING of the button, not a child, so they do not inherit its
+## dim — without this they stay bright gold over a greyed-out button and read
+## as the most active thing in the cluster.
+const SWING_STAR_ON := Color(1.0, 0.85, 0.4)
+const SWING_STAR_OFF := Color(0.62, 0.62, 0.70)
+## Matches the button's own dim in _refresh_swing, so the two fade together.
+const SWING_STAR_DIM := 0.35
+var _swing_stars: Label
+var _swing_pos := Vector2.ZERO
+## Mirrors the button's cooldown state, so a purchase made while the swing is
+## recharging repaints the stars in the CURRENT state rather than snapping
+## them back to gold.
+var _swing_ready := true
 ## Buttons that blink on their own action firing (PUNCH, KICK):
 ## [{action, node, lit, stock, glow, gen}]. See _register_flash().
 var _flash: Array = []
@@ -99,9 +127,11 @@ func _ready() -> void:
 				_throw_glow = _add_glow(btn, base)
 			"swing":
 				_swing_btn = btn
+				_swing_pos = b.pos
 				_swing_tex = _border_variants(base)
 				_swing_glow = _add_glow(btn, base)
 	_build_throw_badge()
+	_build_swing_stars()
 	_layout()
 	GameState.bottles_changed.connect(_refresh_throw)
 	_refresh_throw(GameState.beer_bottles)
@@ -137,14 +167,75 @@ func _refresh_throw(count: int) -> void:
 	_throw_badge.text = str(count)
 
 
+## Owned upgrade stars above the swing button. Built like the throw badge — a
+## Label added after the buttons so it draws on top — and refreshed from the
+## cached crafter state, which the boot-time fetch has usually already filled.
+func _build_swing_stars() -> void:
+	if not Leaderboard.JOKE_BOOK_ENABLED:
+		return
+	_swing_stars = Label.new()
+	_swing_stars.add_theme_font_size_override("font_size", SWING_STAR_FONT)
+	_swing_stars.add_theme_color_override("font_outline_color", Color.BLACK)
+	# Outlined so gold stars stay readable over the button's own bright art.
+	_swing_stars.add_theme_constant_override("outline_size", 4)
+	_swing_stars.add_theme_constant_override("line_spacing", SWING_STAR_SPACING)
+	add_child(_swing_stars)
+	_refresh_swing_stars()
+	# A purchase made mid-session (pause -> settings -> back) repaints here.
+	Leaderboard.crafter_loaded.connect(func(_d): _refresh_swing_stars())
+
+
+func _refresh_swing_stars() -> void:
+	if not is_instance_valid(_swing_stars):
+		return
+	var level := Leaderboard.upgrade_level(Weapons.id_of(GameState.weapon))
+	# One star per LINE, so they read as a vertical gauge up the button's edge
+	# rather than as a word across it.
+	var glyphs: Array[String] = []
+	for _i in level:
+		glyphs.append(Weapons.STAR_ON)
+	_swing_stars.text = "\n".join(glyphs)
+	_swing_stars.visible = level > 0
+	_paint_swing_stars()
+	_place_swing_stars()
+
+
+## Centred vertically on the button and inset from its left edge. Driven off
+## the level rather than the label's measured size: the position is set in the
+## same frame the text changes, before the Label has laid itself out.
+func _place_swing_stars() -> void:
+	if not is_instance_valid(_swing_stars) or _swing_btn == null:
+		return
+	var level := Leaderboard.upgrade_level(Weapons.id_of(GameState.weapon))
+	if level <= 0:
+		return
+	var view := get_viewport().get_visible_rect().size
+	var sp := _screen_pos(_swing_pos, ACTION_SCALE, view)
+	var btn_h := BUTTON_PX * ACTION_SCALE
+	var stack_h := level * SWING_STAR_LINE
+	_swing_stars.position = sp + Vector2(SWING_STAR_INSET, (btn_h - stack_h) / 2.0)
+
+
 ## Dim the mic-swing button while its cooldown runs (the player script is
 ## the real gate — this is only the visual).
 func _refresh_swing(ready: bool) -> void:
+	_swing_ready = ready
 	if _swing_btn:
 		_swing_btn.texture_normal = _swing_tex.get(ready, _swing_btn.texture_normal)
-		_swing_btn.modulate.a = 1.0 if ready else 0.35
+		_swing_btn.modulate.a = 1.0 if ready else SWING_STAR_DIM
 	if _swing_glow:
 		_swing_glow.visible = ready
+	_paint_swing_stars()
+
+
+## Colour and fade the stars to match the button's cooldown state. Split from
+## the text/position pass so either can run on its own.
+func _paint_swing_stars() -> void:
+	if not is_instance_valid(_swing_stars):
+		return
+	_swing_stars.add_theme_color_override("font_color",
+			SWING_STAR_ON if _swing_ready else SWING_STAR_OFF)
+	_swing_stars.modulate.a = 1.0 if _swing_ready else SWING_STAR_DIM
 
 
 func _layout() -> void:
@@ -155,6 +246,7 @@ func _layout() -> void:
 		var tp := _screen_pos(_throw_pos, ACTION_SCALE, view)
 		# Hug the button's top-right corner.
 		_throw_badge.position = tp + Vector2(BUTTON_PX * ACTION_SCALE - 12.0, -8.0)
+	_place_swing_stars()
 
 
 ## Scale a DESIGN-space button offset from its corner, then hang it off the

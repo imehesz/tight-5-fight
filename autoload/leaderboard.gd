@@ -17,6 +17,19 @@ signal board_failed(reason: String)
 signal venues_loaded(data: Dictionary)
 signal venues_failed(reason: String)
 
+## ping_login() resolves into exactly one of these. The JOKE BOOK pane may open
+## before or after the boot-time ping lands, so it checks jokebook() first and
+## only waits on these if nothing is cached yet.
+signal jokebook_loaded(data: Dictionary)
+signal jokebook_failed(reason: String)
+
+## The JOKE CRAFTER's state — inventory, joke points and weapon upgrade levels.
+## Every crafter call resolves into one of these, and `crafter_loaded` always
+## carries the FULL state rather than a delta, so a dropped reply costs a stale
+## pane and nothing more.
+signal crafter_loaded(data: Dictionary)
+signal crafter_failed(reason: String)
+
 ## fetch_beef() resolves into exactly one of these. Its own pair for the same
 ## reason as the venue signals: the BEEF tab must never render a late reply
 ## meant for a board the player has already navigated away from.
@@ -31,6 +44,15 @@ signal beef_failed(reason: String)
 const PROD_HOST := "games.imstandup.com"
 const PROD_API_PATH := "/tight5fight/api"
 const DEV_PORT := 8770
+
+## JOKE BOOK MASTER SWITCH — the whole feature hangs off this one flag: the
+## boot-time login ping, the run-start streak bonus, and the pane in the
+## LEADERBOARD. Nothing about it runs when this is false, so the branch can
+## merge without releasing.
+##
+## TRUE on the joke-book branch so it is testable as built. Set it to FALSE
+## before merging to main if the feature is not shipping with that merge.
+const JOKE_BOOK_ENABLED := true
 
 ## Rows per page. Must match `pageSize` in server/config.js — the server
 ## paginates, this constant only sizes the local board to match.
@@ -48,12 +70,49 @@ var _player_uuid := ""
 var _player_file := ""
 ## True while a record_play() is mid-flight. See record_play().
 var _recording := false
+## Last successful POST /login body: {today, streak, bonus, pointsPerDay,
+## windowDays, days:[{day, played}]}. Empty until the boot ping lands, and it
+## STAYS empty when the server can't be reached — which is the whole offline
+## story: no cached streak means no bonus, never a guessed one.
+var _jokebook := {}
+## Guards against a second ping while the first is still in flight (the boot
+## ping and a JOKE BOOK pane opened immediately would otherwise race).
+var _pinging := false
+
+## Last known JOKE CRAFTER state: {setups, punchlines, tags, points, upgrades,
+## upgradeCost, maxUpgrades}. Empty until a call lands. Unlike the streak bonus
+## this IS cached across scenes, because the weapon rack has to draw stars and
+## grey out the "+" long after the panel that fetched them is gone.
+var _crafter := {}
+## One crafter call at a time. Every one returns the whole state, so a second
+## in flight could land out of order and show a stale inventory.
+var _crafting := false
 
 
 func _ready() -> void:
 	# GameState is registered first in project.godot, so active_game is set.
 	_player_file = PLAYER_PATH % GameState.active_game
 	_load_uuid()
+	# Deliberately not awaited: boot must not wait on the network.
+	_boot_fetch()
+
+
+## The two things that have to be cached BEFORE the player reaches a run:
+## today's login (for the streak bonus) and the crafter state (for weapon
+## upgrade levels). Run in SEQUENCE, never in parallel.
+##
+## Both start with _ensure_uuid(), and on a fresh install that is a POST
+## /player. Fired concurrently they would both find _player_uuid empty and mint
+## a SECOND id, orphaning the first — so the await here is load-bearing, not
+## tidiness.
+##
+## Chaining it also fixes the bug this replaced: with only the login ping at
+## boot, upgrade_level() answered 0 until something opened the weapons panel,
+## which meant no stars on the swing button AND no upgrade damage for the whole
+## run — the levels were bought and paid for but silently inert.
+func _boot_fetch() -> void:
+	await ping_login()
+	await fetch_crafter()
 
 
 # ---------------------------------------------------------------- endpoint
@@ -225,6 +284,159 @@ func _request(method: int, path: String, body: Dictionary = {}) -> Dictionary:
 	if code < 200 or code >= 300:
 		return {"ok": false, "error": String(data.get("error", "server error"))}
 	return {"ok": true, "data": data}
+
+
+# ---------------------------------------------------------------- joke book
+## Today's login, banked server-side, plus the 90-day grid and streak bonus it
+## returns. Safe to call repeatedly: the server write is keyed on
+## (player_uuid, day), so a second ping the same day changes nothing.
+##
+## Best-effort like everything else here. A player who is offline, or whose
+## VPS is down, simply gets no bonus for that session and an unavailable JOKE
+## BOOK — the run itself is untouched.
+func ping_login() -> void:
+	if not JOKE_BOOK_ENABLED or _pinging:
+		return
+	_pinging = true
+	if not await _ensure_uuid():
+		_pinging = false
+		jokebook_failed.emit("offline")
+		return
+	var res := await _request(HTTPClient.METHOD_POST, "/login",
+			{"uuid": _player_uuid})
+	_pinging = false
+	if not bool(res.get("ok", false)):
+		jokebook_failed.emit(String(res.get("error", "unavailable")))
+		return
+	_jokebook = res.get("data", {})
+	jokebook_loaded.emit(_jokebook)
+
+
+## The cached JOKE BOOK payload, or {} if the ping has not landed (or failed).
+func jokebook() -> Dictionary:
+	return _jokebook
+
+
+## Points this run starts with, from the current login streak. 0 whenever the
+## streak is unknown — a missing answer is never worth more than a first-ever
+## login, and the SERVER is the only thing that decides this number.
+func streak_bonus() -> int:
+	return int(_jokebook.get("bonus", 0)) if JOKE_BOOK_ENABLED else 0
+
+
+## Consecutive days ending today, 0 when unknown.
+func streak_days() -> int:
+	return int(_jokebook.get("streak", 0))
+
+
+# ------------------------------------------------------------ joke crafter
+## The cached crafter state, or {} if nothing has landed yet.
+func crafter() -> Dictionary:
+	return _crafter
+
+
+## How many of one kind the player is holding. "setups" | "punchlines" | "tags".
+func components(kind: String) -> int:
+	return int(_crafter.get(kind, 0))
+
+
+## Spendable JOKE POINTS. 0 when unknown — never a guess, same rule as
+## streak_bonus(): a number the player might spend has to come from the server.
+func joke_points() -> int:
+	return int(_crafter.get("points", 0))
+
+
+## This player's upgrade level for a weapon id, 0..maxUpgrades().
+func upgrade_level(weapon_id: String) -> int:
+	var ups = _crafter.get("upgrades", {})
+	return int(ups.get(weapon_id, 0)) if ups is Dictionary else 0
+
+
+## What each star costs, in order. From the server so the shop can be repriced
+## without shipping a client; the fallback only matters before the first reply
+## lands, and every "+" is grey until then anyway.
+func upgrade_costs() -> Array:
+	var c = _crafter.get("upgradeCosts", [])
+	return c if c is Array and not c.is_empty() else [500, 1000, 2000]
+
+
+## What the NEXT star costs for this weapon — 500, then 1000, then 2000. 0 once
+## the weapon is maxed, which callers must treat as "not for sale" rather than
+## as "free".
+func next_upgrade_cost(weapon_id: String) -> int:
+	var lvl := upgrade_level(weapon_id)
+	var costs := upgrade_costs()
+	return int(costs[lvl]) if lvl < costs.size() else 0
+
+
+## The level cap. The server derives this from the length of its cost list, so
+## the two can never disagree about how many stars a weapon has.
+func max_upgrades() -> int:
+	return int(_crafter.get("maxUpgrades", upgrade_costs().size()))
+
+
+## Fetch the crafter state without changing anything. A zero-component collect
+## is a read: the server answers with the full state and writes no row, which
+## saves a second endpoint that would do nothing else.
+func fetch_crafter() -> void:
+	await _crafter_call("/collect", {
+		"gameId": GameState.active_game,
+		"runNonce": _run_nonce(),
+		"setups": 0, "punchlines": 0, "tags": 0,
+	})
+
+
+## Bank one finished run's components. Called from GameState.finish_run(), and
+## like record_play() it is deliberately not awaited: a failure must never
+## stall game over. The nonce makes a retry safe, so a lost reply costs this
+## run's components only until the client tries again.
+func record_components(setups: int, punchlines: int, tags: int, nonce: String) -> void:
+	if setups <= 0 and punchlines <= 0 and tags <= 0:
+		return
+	await _crafter_call("/collect", {
+		"gameId": GameState.active_game,
+		"runNonce": nonce,
+		"setups": setups, "punchlines": punchlines, "tags": tags,
+	})
+
+
+## Turn n of each component into n jokes. The SERVER decides the payout and
+## whether the player can afford it — this only asks.
+func craft_jokes(n: int) -> void:
+	await _crafter_call("/craft", {"n": n})
+
+
+## Buy the next upgrade level for a weapon. The level is never sent: the server
+## derives it, so this can't skip or re-buy one.
+func buy_upgrade(weapon_id: String) -> void:
+	await _crafter_call("/upgrade", {"weaponId": weapon_id})
+
+
+## Shared tail of every crafter call: mint an id if needed, post, and either
+## replace the whole cached state or report why not.
+func _crafter_call(path: String, body: Dictionary) -> void:
+	if not JOKE_BOOK_ENABLED or _crafting:
+		return
+	_crafting = true
+	if not await _ensure_uuid():
+		_crafting = false
+		crafter_failed.emit("offline")
+		return
+	body["uuid"] = _player_uuid
+	var res := await _request(HTTPClient.METHOD_POST, path, body)
+	_crafting = false
+	if not bool(res.get("ok", false)):
+		crafter_failed.emit(String(res.get("error", "unavailable")))
+		return
+	_crafter = res.get("data", {})
+	crafter_loaded.emit(_crafter)
+
+
+## A per-call id for /collect's idempotency. Random rather than a run counter:
+## a counter would restart at 1 on every launch and collide with the previous
+## session's runs, which the server would then silently discard as duplicates.
+func _run_nonce() -> String:
+	return "%d-%d" % [Time.get_unix_time_from_system(), randi() % 1000000]
 
 
 # ---------------------------------------------------------------- player id
