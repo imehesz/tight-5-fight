@@ -42,6 +42,11 @@ const SCENE_SETTINGS := "res://scenes/settings_menu.tscn"
 const SCENE_SCOREBOARD := "res://scenes/scoreboard.tscn"
 const SCENE_ABOUT := "res://scenes/about.tscn"
 const SCENE_SPONSORS := "res://scenes/sponsors_menu.tscn"
+## The MINI GAMES shelf, reached from CHARACTER SELECT, and the games on it.
+## They are menu screens, not runs: the clock never starts and nothing here
+## touches score or lives (see change_scene).
+const SCENE_MINI_GAMES := "res://scenes/mini_games.tscn"
+const SCENE_SLOT_MACHINE := "res://scenes/slot_machine.tscn"
 const SCENE_STREET := "res://scenes/street.tscn"
 const SCENE_VENUE := "res://scenes/venue.tscn"
 const SCENE_GAME_OVER := "res://scenes/game_over.tscn"

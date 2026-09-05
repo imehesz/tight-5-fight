@@ -1,23 +1,61 @@
 extends MenuBase
-## Character Select: grid of comedian heads parsed from characters.json
-## (paged 9 at a time with LEFT/RIGHT arrows) on the left, a dancing
-## preview of the highlighted comedian on the right. Tapping a head only
-## selects it; the FIGHT! button starts the run.
+## Character Select, in three columns: the dancing preview of the highlighted
+## comedian (with SHARE under it) on the LEFT, the grid of comedian heads
+## parsed from characters.json (paged 9 at a time with LEFT/RIGHT arrows) in
+## the MIDDLE, and the two ways to play on the RIGHT — CLASSIC starts the run,
+## MINI GAMES opens the shelf. Tapping a head only selects it.
 ##
-## Slot 1 of the grid is a "?" card: pick it and FIGHT! rolls a random
+## Slot 1 of the grid is a "?" card: pick it and CLASSIC rolls a random
 ## comedian, revealed only once the run starts. Short last pages are
 ## padded with blank frames so the 3x3 grid never changes shape.
+##
+## The three columns plus their gaps are sized to clear the edge pagers on
+## both sides — see COLUMN_GAP before widening any of them.
 
 const GRID_COLUMNS := 3
 const PAGE_SIZE := 9
 ## _selected value meaning "the ? card" — resolved to a real roster index
-## the moment FIGHT! is pressed.
+## the moment CLASSIC is pressed.
 const RANDOM := -1
-const PREVIEW_SIZE := Vector2(150, 170)
-## FIGHT! and SHARE share one row. 44 rather than the old 40 so the square
-## SHARE target stays comfortably thumb-sized on a phone.
+const PREVIEW_SIZE := Vector2(120, 170)
+## Buttons are 44 tall so the square SHARE target stays comfortably
+## thumb-sized on a phone; ACTION_W fits "MINI GAMES" at ACTION_FONT with
+## room to spare (Press Start 2P advances one em per glyph, so ten glyphs at
+## 10 is exactly 100px).
 const ACTION_H := 44
-const ACTION_GAP := 6
+const ACTION_W := 120
+const ACTION_FONT := 10
+const ACTION_GAP := 8
+## THE WIDTH BUDGET. The edge pagers sit at x 10..55 and 585..630, so the row
+## has to live inside those: 120 + 10 + (3*76 + 2*12) + 10 + 120 = 512,
+## centred, which leaves 9px of clearance at either side — the same margin
+## this screen ran with before the buttons moved over here. Widen anything
+## below and the pagers start eating taps meant for the outer columns.
+##
+## What actually sets the grid's width is NAME_W, not the 64px heads: a cell
+## is as wide as its caption, so before these captions were capped a single
+## long comedian ("Dr. Anna Lepeley" is 128px at NAME_FONT) stretched a whole
+## column and the grid measured 328. Capping it makes the grid 252 wide for
+## every roster instead of however long the longest name happens to be.
+const COLUMN_GAP := 10
+const GRID_H_SEP := 12
+## THE HEIGHT BUDGET. Three rows of (64 head + CARD_SEP + 22 caption) plus two
+## of these is the tallest column, and the whole screen has 360 less the
+## SAFE_BOTTOM lift to sit in. At these numbers the content is 312 tall and
+## clears the top edge by 8px; loosen either and the title runs off the top.
+const GRID_V_SEP := 6
+## The head button, and the caption under it. NAME_H is fixed at two lines so
+## every row is the same height whether its names wrap or not; names too long
+## for two lines are ellipsised, and the full name is always readable in full
+## size under the dancer anyway.
+const CELL := 64
+const NAME_W := 76
+const NAME_H := 22
+const NAME_FONT := 8
+## Head-to-caption gap inside a cell. Tighter than the theme default because
+## three rows of it is the tallest thing on the screen — see the height note
+## on GRID_V_SEP.
+const CARD_SEP := 2
 ## 1.5x the in-game fighter size.
 const PREVIEW_SCALE := Fighter.BODY_SCALE * 1.5
 ## Pop-in zoom on selection: born this fraction of full size, grown back
@@ -32,7 +70,8 @@ var _pager: Label
 var _dancer: Dancer
 var _preview_question: Label
 var _preview_name: Label
-var _fight_btn: Button
+var _classic_btn: Button
+var _mini_btn: Button
 var _share_btn: Button
 var _orbit: SelectionOrbit
 var _zoom: Tween
@@ -88,13 +127,13 @@ func _ready() -> void:
 
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 14)
+	row.add_theme_constant_override("separation", COLUMN_GAP)
 	box.add_child(row)
 
 	_grid = GridContainer.new()
 	_grid.columns = GRID_COLUMNS
-	_grid.add_theme_constant_override("h_separation", 24)
-	_grid.add_theme_constant_override("v_separation", 10)
+	_grid.add_theme_constant_override("h_separation", GRID_H_SEP)
+	_grid.add_theme_constant_override("v_separation", GRID_V_SEP)
 
 	# Open on the remembered comedian, on whichever page they live. The "?"
 	# card shifts every roster index one entry to the right.
@@ -108,8 +147,10 @@ func _ready() -> void:
 		add_edge_arrow(">", true, func(): _turn_page(1))
 	var center := CenterContainer.new()
 	center.add_child(_grid)
-	row.add_child(center)
+	# Preview LEFT, roster MIDDLE, the two play buttons RIGHT.
 	row.add_child(_build_preview())
+	row.add_child(center)
+	row.add_child(_build_actions())
 
 	# Pinned to the screen bottom rather than the column: it is a caption, not
 	# a control, so it can use the strip the buttons moved out of. Built
@@ -124,7 +165,7 @@ func _ready() -> void:
 	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
 
 	if GameState.playable.is_empty():
-		_fight_btn.disabled = true
+		_classic_btn.disabled = true
 		set_share_enabled(_share_btn, false)
 	else:
 		_select(RANDOM if GameState.random_select else GameState.selected_character)
@@ -140,7 +181,7 @@ func _start_fight() -> void:
 	GameState.start_new_game(GameState.fight_character_index())
 
 
-## FIGHT! is this screen's one primary action, so it wears the shared
+## CLASSIC is this screen's one primary action, so it wears the shared
 ## neon-purple fill. It is the only filled button in the content column (BACK
 ## lives in the top-left corner in red), which is what makes it pop.
 func _style_fight_button(b: Button) -> void:
@@ -190,20 +231,38 @@ func _build_preview() -> Control:
 	_preview_name.add_theme_font_size_override("font_size", 16)
 	_preview_name.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	panel.add_child(_preview_name)
-	# FIGHT! sits directly under the comedian it will send out — the pick and
-	# the commit in one place, instead of a button row across the bottom.
-	# Sized to the preview column so the panel width never jumps.
+	# SHARE stays with the comedian it shares — under the preview, not over
+	# with the play buttons, which are about how to play rather than who.
+	# Shrink-centred so the square target keeps its shape in the column.
 	add_spacer(panel, 6)
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", ACTION_GAP)
-	panel.add_child(actions)
-	_fight_btn = add_button(actions, "FIGHT!", _start_fight)
-	_fight_btn.custom_minimum_size = Vector2(PREVIEW_SIZE.x - SHARE_SIZE.x - ACTION_GAP, ACTION_H)
-	_fight_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_fight_button(_fight_btn)
-	_share_btn = add_share_button(actions, _on_share)
+	_share_btn = add_share_button(panel, _on_share)
+	_share_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	add_share_toast(panel, PREVIEW_SIZE.x)
 	return panel
+
+
+## The right-hand column: the two ways to play, stacked. CLASSIC is the run
+## this screen has always started; MINI GAMES leaves the roster behind
+## entirely, so it wears the plain gray skin and never disables with an empty
+## roster — there is nothing on that shelf that needs a comedian.
+##
+## Vertically centred against the grid: an HBoxContainer stretches its
+## children to the row height, so the column's own CENTER alignment is what
+## parks the pair beside the middle row of heads.
+func _build_actions() -> Control:
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", ACTION_GAP)
+	_classic_btn = add_button(col, "CLASSIC", _start_fight)
+	_classic_btn.custom_minimum_size = Vector2(ACTION_W, ACTION_H)
+	_classic_btn.add_theme_font_size_override("font_size", ACTION_FONT)
+	_style_fight_button(_classic_btn)
+	_mini_btn = add_button(col, "MINI GAMES",
+			func(): GameState.change_scene(GameState.SCENE_MINI_GAMES))
+	_mini_btn.custom_minimum_size = Vector2(ACTION_W, ACTION_H)
+	_mini_btn.add_theme_font_size_override("font_size", ACTION_FONT)
+	MenuBase.style_gray_button(_mini_btn)
+	return col
 
 
 func _select(index: int) -> void:
@@ -222,7 +281,7 @@ func _select(index: int) -> void:
 		_dancer.set_character(cfg)
 		_pop_preview(_dancer, Vector2.ONE * PREVIEW_SCALE)
 		_preview_name.text = String(cfg.get("CharacterName", "?"))
-	_fight_btn.disabled = false
+	_classic_btn.disabled = false
 	# Nothing to share on the "?" card: the comedian is not decided until the
 	# run starts, so there is no link to hand out yet.
 	set_share_enabled(_share_btn, index != RANDOM)
@@ -304,16 +363,31 @@ func _fill_page() -> void:
 	_update_highlights()
 
 
+## The caption under a head. Capped to NAME_W and two lines (see that
+## constant): the cell's width is the grid's width, so an uncapped name is
+## what used to stretch a column and shove the outer columns into the pagers.
+func _style_name(l: Label) -> void:
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.max_lines_visible = 2
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	l.custom_minimum_size = Vector2(NAME_W, NAME_H)
+	l.add_theme_font_size_override("font_size", NAME_FONT)
+
+
 ## The "?" card heading the roster: a big pixel-font question mark where
 ## a head would be. Selecting it defers the pick to _start_fight().
 func _random_card() -> VBoxContainer:
 	var card := VBoxContainer.new()
 	card.alignment = BoxContainer.ALIGNMENT_CENTER
+	card.add_theme_constant_override("separation", CARD_SEP)
 	card.set_meta("index", RANDOM)
 	var btn := Button.new()
 	btn.flat = true
 	btn.text = "?"
-	btn.custom_minimum_size = Vector2(64, 64)
+	btn.custom_minimum_size = Vector2(CELL, CELL)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.add_theme_font_size_override("font_size", 40)
 	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		btn.add_theme_color_override(state, Color(1.0, 0.85, 0.4))
@@ -323,8 +397,7 @@ func _random_card() -> VBoxContainer:
 	card.add_child(btn)
 	var name_label := Label.new()
 	name_label.text = "RANDOM"
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 8)
+	_style_name(name_label)
 	card.add_child(name_label)
 	return card
 
@@ -334,8 +407,9 @@ func _random_card() -> VBoxContainer:
 func _empty_card() -> VBoxContainer:
 	var card := VBoxContainer.new()
 	card.alignment = BoxContainer.ALIGNMENT_CENTER
+	card.add_theme_constant_override("separation", CARD_SEP)
 	var frame := Panel.new()
-	frame.custom_minimum_size = Vector2(64, 64)
+	frame.custom_minimum_size = Vector2(CELL, CELL)
 	# Wide columns (long neighbor names) must not stretch the frame into a
 	# rectangle — hold it at 64x64, centered in the cell.
 	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -348,7 +422,7 @@ func _empty_card() -> VBoxContainer:
 	card.add_child(frame)
 	var pad := Label.new()
 	pad.text = " "  # same metrics as a name label, so rows stay aligned
-	pad.add_theme_font_size_override("font_size", 8)
+	_style_name(pad)
 	card.add_child(pad)
 	return card
 
@@ -356,19 +430,20 @@ func _empty_card() -> VBoxContainer:
 func _character_card(index: int, cfg: Dictionary) -> VBoxContainer:
 	var card := VBoxContainer.new()
 	card.alignment = BoxContainer.ALIGNMENT_CENTER
+	card.add_theme_constant_override("separation", CARD_SEP)
 	card.set_meta("index", index)
 	var btn := TextureButton.new()
 	btn.texture_normal = CharacterFactory.head_texture(String(cfg.get("HeadSpritePath", "")))
 	btn.ignore_texture_size = true
 	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	btn.custom_minimum_size = Vector2(64, 64)
+	btn.custom_minimum_size = Vector2(CELL, CELL)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.pressed.connect(guard_tap(func():
 		GameState.play_sfx("click")
 		_select(index)))
 	card.add_child(btn)
 	var name_label := Label.new()
 	name_label.text = String(cfg.get("CharacterName", "?"))
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 8)
+	_style_name(name_label)
 	card.add_child(name_label)
 	return card
