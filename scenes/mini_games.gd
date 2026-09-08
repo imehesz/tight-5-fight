@@ -19,6 +19,11 @@ const GAMES := [
 		"scene": GameState.SCENE_SLOT_MACHINE,
 	},
 	{
+		"title": "FLAPPY MIC",
+		"art": "res://shared/assets/minigames/tile_flappy.png",
+		"scene": GameState.SCENE_FLAPPY,
+	},
+	{
 		"title": "BLACK JACK",
 		"art": "res://shared/assets/minigames/tile_blackjack.png",
 		"scene": "",

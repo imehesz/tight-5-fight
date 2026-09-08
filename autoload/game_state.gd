@@ -47,6 +47,7 @@ const SCENE_SPONSORS := "res://scenes/sponsors_menu.tscn"
 ## touches score or lives (see change_scene).
 const SCENE_MINI_GAMES := "res://scenes/mini_games.tscn"
 const SCENE_SLOT_MACHINE := "res://scenes/slot_machine.tscn"
+const SCENE_FLAPPY := "res://scenes/flappy.tscn"
 const SCENE_STREET := "res://scenes/street.tscn"
 const SCENE_VENUE := "res://scenes/venue.tscn"
 const SCENE_GAME_OVER := "res://scenes/game_over.tscn"

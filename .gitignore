@@ -26,3 +26,6 @@ helper-tools/__pycache__/
 
 requirements/
 build/
+
+# release manager settings (machine-local paths; seeded on first run)
+helper-tools/tight5-release-manager.conf
