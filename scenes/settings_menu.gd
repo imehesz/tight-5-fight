@@ -41,10 +41,15 @@ const CARD_SIZE := Vector2(74, 97)
 ## Scaled with the card, so the art grows by the same 12% the frame does rather
 ## than eating the padding.
 const CARD_INSET := 6
-## Upgrade furniture on a weapon card: stars top-left, a "+" bottom-right.
-## Both are overlays on the card button rather than a row beneath it — a 74x97
-## card has no spare vertical room, and the art is what the card is for.
+## Upgrade furniture on a weapon card: stars top-left, a "+" bottom-right, and
+## the next star's price stacked directly above that "+".
+## All three are overlays on the card button rather than a row beneath it — a
+## 74x97 card has no spare vertical room, and the art is what the card is for.
 const STAR_FONT := 7
+## Smaller than the stars: the price is a running cost the player checks, not
+## something to read at a glance. 4 is the floor here — below it the digits
+## stop holding their shape and "JP1000" and "JP1800" blur together.
+const PRICE_FONT := 4
 const PLUS_SIZE := Vector2(20, 20)
 const PLUS_MARGIN := 3.0
 const PLUS_ON := Color(1.0, 0.85, 0.4)
@@ -70,6 +75,7 @@ var _weapon_cards: Array[Button] = []
 ## the scroll position).
 var _weapon_stars := {}
 var _weapon_plus := {}
+var _weapon_prices := {}
 ## JOKE POINTS readout above the rack. Without it a rack of grey "+" signs
 ## gives no hint that the reason is affordability.
 var _jp_label: Label
@@ -458,7 +464,8 @@ func _weapon_card(index: int) -> VBoxContainer:
 	return card
 
 
-## Stars top-left, "+" bottom-right, both sitting on the card button itself.
+## Stars top-left, "+" bottom-right, the next star's price stacked above it, all
+## sitting on the card button itself.
 ##
 ## The "+" is a Button INSIDE a Button: Godot gives the child the click first,
 ## so buying an upgrade never also re-equips the weapon. A miss goes to the
@@ -489,6 +496,27 @@ func _add_upgrade_overlay(btn: Button, index: int) -> void:
 	plus.pressed.connect(guard_tap(func(): _on_plus_pressed(index)))
 	btn.add_child(plus)
 	_weapon_plus[index] = plus
+
+	# The price of the NEXT star, in its own band directly above the "+" and
+	# sharing that button's right edge, so the two read as one control.
+	# RIGHT-aligned rather than centred for exactly that reason: a wider price
+	# ("JP2000") then grows leftward into the card's empty middle instead of
+	# drifting off the "+" it belongs to.
+	var price := Label.new()
+	price.add_theme_font_size_override("font_size", PRICE_FONT)
+	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Bottom-aligned so it hugs the "+" whatever the band rounds to.
+	price.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	# Same reason as `stars`: this must never swallow a tap meant for the card
+	# or the "+" sitting under it.
+	price.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	price.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	price.offset_left = -CARD_SIZE.x + PLUS_MARGIN
+	price.offset_top = -PLUS_SIZE.y - PLUS_MARGIN * 2.0 - PRICE_FONT - 3.0
+	price.offset_right = -PLUS_MARGIN
+	price.offset_bottom = -PLUS_SIZE.y - PLUS_MARGIN * 2.0
+	btn.add_child(price)
+	_weapon_prices[index] = price
 
 
 ## The one place that decides what a "+" tap means. Three outcomes, and the
@@ -531,6 +559,12 @@ func _paint_upgrades() -> void:
 		var plus: Button = _weapon_plus[index]
 		for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 			plus.add_theme_color_override(state, PLUS_ON if buyable else PLUS_OFF)
+		# A maxed weapon prints nothing rather than "JP0": next_upgrade_cost()
+		# returns 0 for "not for sale", and a 0 price reads as free. The three
+		# lit stars beside it are what say why the "+" went quiet.
+		var price: Label = _weapon_prices[index]
+		price.text = "" if level >= cap else "JP%d" % cost
+		price.add_theme_color_override("font_color", PLUS_ON if buyable else PLUS_OFF)
 
 
 func _on_crafter_loaded(_data: Dictionary) -> void:
