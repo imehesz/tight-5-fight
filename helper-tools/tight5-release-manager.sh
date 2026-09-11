@@ -115,6 +115,13 @@ BE_SCRIPT=$(conf_path "$(conf_get backend_deploy_script deployScriptPRODBE.sh)")
 BE_ARGS_DRY=$(conf_get backend_deploy_args_dry "live")
 BE_ARGS_LIVE=$(conf_get backend_deploy_args_live "live go")
 
+# Where the deployed editions are served from. Each game's public URL is this
+# plus its deploy.json destination segment (tight5 -> .../jax/). Only ever
+# read from — nothing here can deploy, so a wrong value shows dashes, not harm.
+PUBLIC_BASE=$(conf_get public_base_url "https://games.imstandup.com/tight5fight")
+PUBLIC_BASE=${PUBLIC_BASE%/}
+VER_TIMEOUT=$(conf_get version_timeout_sec "8")
+
 godot_ok() { [[ -n "$GODOT_BIN" && -x "$GODOT_BIN" ]] || command -v "$GODOT_BIN" >/dev/null 2>&1; }
 
 godot_status() {
@@ -143,6 +150,54 @@ load_games() {
         GAMES+=("$id")
         DESTS+=("${dest##*/}")     # the public URL segment (tight5 -> jax)
     done
+}
+
+# ---------------------------------------------------------- live versions
+# The build stamp each edition is ACTUALLY serving right now, read straight
+# off prod. Deploy-time, deployScriptPROD.sh rewrites the {{version}} token in
+# the built index.html into a "?v=<stamp>" cache-bust — and that is the ONLY
+# copy of the stamp readable from outside. data/version.txt is baked INSIDE
+# the .pck (it has to be, or Settings reads "dev"), so it 404s over HTTP, and
+# the local one is just whichever edition was built last. So: parse the page.
+#
+# Read-only HTTP against the public site — no ssh, nothing that can write.
+VERS=()
+fetch_versions() {
+    local tmp i pid
+    local -a pids=()
+    tmp=$(mktemp -d) || { VERS=(); return; }
+    # All editions at once: seven sequential round trips would be a visible
+    # stall, seven parallel ones cost the slowest single request (~0.3s).
+    for ((i = 0; i < ${#GAMES[@]}; i++)); do
+        # Each child writes its OWN file rather than sharing a pipe: with a
+        # shared one the `head -1` closes early and SIGPIPEs its siblings,
+        # which silently loses whole rows.
+        ( curl -fsS -m "$VER_TIMEOUT" "$PUBLIC_BASE/${DESTS[i]}/" 2>/dev/null \
+            | sed -n 's/.*?v=\([0-9]\{8,14\}\).*/\1/p' | head -1 > "$tmp/$i" ) &
+        pids+=($!)
+    done
+    for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
+    VERS=()
+    for ((i = 0; i < ${#GAMES[@]}; i++)); do
+        VERS+=("$(cat "$tmp/$i" 2>/dev/null)")
+    done
+    rm -rf "$tmp"
+}
+
+# "202609111007" -> "today", "yesterday", "8d ago". An edition that has never
+# been deployed answers 404 and lands here empty — that is NOT an error, it is
+# a COMING SOON tile, so it says so rather than showing a scary dash.
+ver_age() {
+    local stamp="$1" built now days
+    [[ ${#stamp} -ge 12 ]] || { printf 'not deployed'; return; }
+    built=$(date -d "${stamp:0:4}-${stamp:4:2}-${stamp:6:2} ${stamp:8:2}:${stamp:10:2}" +%s 2>/dev/null) \
+        || { printf '?'; return; }
+    now=$(date +%s)
+    days=$(( (now - built) / 86400 ))
+    if   (( days <= 0 )); then printf 'today'
+    elif (( days == 1 )); then printf 'yesterday'
+    else printf '%dd ago' "$days"
+    fi
 }
 
 # --------------------------------------------------------------- key input
@@ -248,6 +303,9 @@ games_screen() {
     if (( ${#GAMES[@]} == 0 )); then
         banner; printf '  %sNo deployable games found under games/.%s\n' "$RED" "$RESET"; pause; return
     fi
+    banner
+    printf '  %sReading live versions from %s …%s\n' "$DIM" "$PUBLIC_BASE" "$RESET"
+    fetch_versions
 
     local n=${#GAMES[@]}
     local -a checked
@@ -260,8 +318,10 @@ games_screen() {
     while true; do
         banner
         printf '  %sGodot:%s %s\n\n' "$DIM" "$RESET" "$(godot_status)"
-        printf '  %sSPACE%s toggles · %s↑/↓%s moves · %sENTER%s runs · %sa%s/%sn%s all/none · %sq%s back\n\n' \
-               "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET"
+        printf '  %sSPACE%s toggles · %s↑/↓%s moves · %sENTER%s runs · %sa%s/%sn%s all/none · %sr%s refresh · %sq%s back\n\n' \
+               "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET" "$BOLD" "$RESET"
+        printf '%s        %-12s %-12s %-14s %s%s\n' \
+               "$DIM" "GAME" "URL" "LIVE VERSION" "AGE" "$RESET"
 
         local mark pointer label
         for ((i = 0; i < n; i++)); do
@@ -269,7 +329,18 @@ games_screen() {
             [[ $cur -eq $i ]] && pointer="${GOLD}>${RESET}" || pointer=" "
             label=$(printf '%-12s' "${GAMES[i]}")
             [[ $cur -eq $i ]] && label="${BOLD}${label}${RESET}"
-            printf '  %s [%s] %s %s→ %s%s\n' "$pointer" "$mark" "$label" "$DIM" "${DESTS[i]}" "$RESET"
+            # A missing stamp is a live edition that could not be read OR one
+            # never deployed; ver_age tells those apart, so the number column
+            # just goes quiet rather than inventing a value.
+            local ver="${VERS[i]:-}" vertext vercolor
+            if [[ -n "$ver" ]]; then vertext="v$ver"; vercolor="$GOLD"
+            # ASCII "-", not an em dash: bash printf pads by BYTES, and a
+            # 3-byte dash in a %-14s field lands the age column 2 short.
+            else                     vertext="-";     vercolor="$DIM"
+            fi
+            printf '  %s [%s] %s %s%-12s%s %s%-14s%s %s(%s)%s\n' \
+                   "$pointer" "$mark" "$label" "$DIM" "${DESTS[i]}" "$RESET" \
+                   "$vercolor" "$vertext" "$RESET" "$DIM" "$(ver_age "$ver")" "$RESET"
         done
 
         printf '      %s──────────────────────────────────────────%s\n' "$DIM" "$RESET"
@@ -288,11 +359,20 @@ games_screen() {
             space)   (( cur < n )) && checked[cur]=$(( 1 - checked[cur] )) ;;
             enter)
                 if   (( cur < n ));  then checked[cur]=$(( 1 - checked[cur] ))
-                elif (( cur == n )); then cursor_show; run_games checked[@]; cursor_hide
+                elif (( cur == n )); then
+                    cursor_show; run_games checked[@]
+                    # The deploy just changed what prod serves; leaving the old
+                    # stamps up would make this screen lie exactly when it is
+                    # being used to confirm the deploy landed.
+                    printf '\n  %sRe-reading live versions …%s' "$DIM" "$RESET"
+                    fetch_versions
+                    cursor_hide
                 else cursor_show; return
                 fi ;;
             a)  for ((i = 0; i < n; i++)); do checked[i]=1; done ;;
             n)  for ((i = 0; i < n; i++)); do checked[i]=0; done ;;
+            # Re-read after a deploy without leaving the screen.
+            r)  printf '\n  %sRefreshing …%s' "$DIM" "$RESET"; fetch_versions ;;
             q|esc|eof) cursor_show; return ;;
         esac
     done
