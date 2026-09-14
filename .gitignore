@@ -26,3 +26,5 @@ helper-tools/__pycache__/
 
 requirements/
 build/
+
+tight5-release-manager.conf
