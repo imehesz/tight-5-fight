@@ -36,6 +36,7 @@ GAMES=(
   "orlando=orlando"
   "panhandle=panhandle"
   "miami=miami"
+  "ncfl=ncfl"
 )
 
 copy_pngs() { # src_dir dst_dir

@@ -179,3 +179,52 @@ Chappelle), but misspellings and obscure names can't. The tool prints those as
 
 - `query` — force the Wikipedia search string, but still auto-detect gender/skin.
 - `name` / `gender` / `skin` — hard-code a field, skipping lookup for it.
+
+## promo-generator.py
+
+Drops a potential advertiser's artwork onto the green billboard in the promo
+clip, producing the animation and the still that get emailed out.
+
+```bash
+python3 helper-tools/promo-generator.py requirements/promo-generator/test1.png
+```
+
+Writes `promo_test1.gif` and `promo_test1.png` next to the image you passed
+(`--out` to send them elsewhere). No AI: it is a chroma key. Sources default to
+`requirements/promo-generator/green-promo2.gif` and `green-promo2_static.png`
+(`--gif` / `--still` to point it at others).
+
+Every frame is measured on its own, so re-recording the capture at a different
+size, length or framing needs no change here — it has already survived
+1920x1080/90 frames, then 720x480/108, then 720x480/122 with a title card and a
+zoom transition added.
+
+Four things it handles that a plain "paste a rectangle over the green" does
+not, all documented at the top of the script:
+
+- **The HUD is drawn over the billboard** — the timer box clips the top-left
+  corner, a bar crosses the bottom, the beer mug sits on the bottom-right. The
+  rectangle is filled and then those are put back, so the HUD never appears to
+  vanish behind a building.
+- **The HUD is green in places too** — the health bar is a 115x10 slab of the
+  same neon. So the billboard is the largest green *blob*, not the bounding box
+  of everything green; taking the box stretched it across most of the screen.
+- **Not every frame has a billboard.** The clip opens on a title card, which is
+  passed through untouched. Beware: ffmpeg decodes GIF frames to RGBA and
+  Pillow writes RGB, and a sequence that changes pixel format part way through
+  **loses the odd frames at encode with no warning** — leaving the title frames
+  as ffmpeg wrote them silently dropped all 15. Every frame is rewritten.
+- **The green is dithered** two greens deep by the source's 256-colour palette,
+  so the key tests whether green leads the other channels rather than matching
+  any one value.
+
+`--fit contain` is the default so an advertiser's logo is never cropped;
+`cover` fills edge to edge and crops, `stretch` distorts.
+
+### On output size
+
+Swapping flat green for a photograph costs about half again in file size —
+2.8MB of source came back as 4.1MB. That is the format, not the tool: a
+64-colour palette saves 17% and wrecks the artwork, and `scale=0.75` comes out
+*bigger* than full size, because lanczos invents colours in between the pixel
+art's flat ones. `--scale 0.5` is the only lever that genuinely halves it.
