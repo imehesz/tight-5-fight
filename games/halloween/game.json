@@ -1,0 +1,42 @@
+{
+  "id": "halloween",
+  "title": "Tight 5 FIGHT! — Halloween Edition",
+  "menuTitle": "TIGHT 5 FIGHT!",
+
+  "characters": "characters.json",
+  "venues": "venues.json",
+
+  "backgrounds": {
+    "splash":     "assets/backgrounds/splash.png",
+    "menu":       "assets/backgrounds/menu_bg.png",
+    "streetTile": "assets/backgrounds/street_tile.png"
+  },
+
+  "advancedParallax": true,
+  "parallax": {
+    "stars":    { "sprite": "assets/backgrounds/parallax_stars.png",     "factor": 0.1 },
+    "twinkleA": { "sprite": "assets/backgrounds/parallax_twinkle_a.png", "factor": 0.1, "twinkle": 2.7 },
+    "twinkleB": { "sprite": "assets/backgrounds/parallax_twinkle_b.png", "factor": 0.1, "twinkle": 4.1 },
+    "skyline":  { "sprite": "assets/backgrounds/parallax_skyline.png",   "factor": 0.5 },
+    "street":   { "sprite": "assets/backgrounds/parallax_street.png",    "factor": 1.0 }
+  },
+
+  "audio": {
+    "musicMain":  "assets/audio/song",
+    "musicVenue": "assets/audio/song_venue"
+  },
+
+  "projectileSprite": "assets/misc/bone.png",
+
+  "planeBanners": [
+    "DYING IS EASY, COMEDY IS HARD",
+    "TIP YOUR GRAVEDIGGER",
+    "TWO DRINK MINIMUM... FOREVER",
+    "WE ALL BOMB EVENTUALLY",
+    "BOO!"
+  ],
+
+  "boss": {
+    "headSprite": "assets/misc/boss_head.png"
+  }
+}

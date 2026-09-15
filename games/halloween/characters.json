@@ -1,0 +1,211 @@
+{
+  "characters": [
+    {
+      "CharacterId": "andy-kaufman",
+      "CharacterName": "Andy",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/andy-kaufman.png",
+      "BodyType": "M",
+      "SkinColor": "#b9bfd0"
+    },
+    {
+      "CharacterId": "bernie-mac",
+      "CharacterName": "Bernie",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/bernie-mac.png",
+      "BodyType": "M",
+      "SkinColor": "#666a73"
+    },
+    {
+      "CharacterId": "betty-white",
+      "CharacterName": "Betty",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/betty-white.png",
+      "BodyType": "F",
+      "SkinColor": "#bec4d5"
+    },
+    {
+      "CharacterId": "bill-hicks",
+      "CharacterName": "Bill",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/bill-hicks.png",
+      "BodyType": "M",
+      "SkinColor": "#c8cfe1"
+    },
+    {
+      "CharacterId": "chris-farley",
+      "CharacterName": "Chris",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/chris-farley.png",
+      "BodyType": "M",
+      "SkinColor": "#a4aab9"
+    },
+    {
+      "CharacterId": "george-carlin",
+      "CharacterName": "George",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/george-carlin.png",
+      "BodyType": "M",
+      "SkinColor": "#aeb4c4"
+    },
+    {
+      "CharacterId": "greg-giraldo",
+      "CharacterName": "Greg",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/greg-giraldo.png",
+      "BodyType": "M",
+      "SkinColor": "#9095a2"
+    },
+    {
+      "CharacterId": "joan-rivers",
+      "CharacterName": "Joan",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/joan-rivers.png",
+      "BodyType": "F",
+      "SkinColor": "#c4cbdd"
+    },
+    {
+      "CharacterId": "john-belushi",
+      "CharacterName": "John",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/john-belushi.png",
+      "BodyType": "M",
+      "SkinColor": "#a2a8b7"
+    },
+    {
+      "CharacterId": "lenny-bruce",
+      "CharacterName": "Lenny",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/lenny-bruce.png",
+      "BodyType": "M",
+      "SkinColor": "#ccd3e5"
+    },
+    {
+      "CharacterId": "lucille-ball",
+      "CharacterName": "Lucille",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/lucille-ball.png",
+      "BodyType": "F",
+      "SkinColor": "#acb2c2"
+    },
+    {
+      "CharacterId": "mitch-hedberg",
+      "CharacterName": "Mitch",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/mitch-hedberg.png",
+      "BodyType": "M",
+      "SkinColor": "#acb2c2"
+    },
+    {
+      "CharacterId": "norm-macdonald",
+      "CharacterName": "Norm",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/norm-macdonald.png",
+      "BodyType": "M",
+      "SkinColor": "#dae1f5"
+    },
+    {
+      "CharacterId": "patrice-oneal",
+      "CharacterName": "Patrice",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/patrice-oneal.png",
+      "BodyType": "M",
+      "SkinColor": "#5d6068"
+    },
+    {
+      "CharacterId": "phillis-diller",
+      "CharacterName": "Phillis",
+      "HeadScale": 1.1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/phillis-diller.png",
+      "BodyType": "F",
+      "SkinColor": "#dae1f5"
+    },
+    {
+      "CharacterId": "richard-pryor",
+      "CharacterName": "Richard",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/richard-pryor.png",
+      "BodyType": "M",
+      "SkinColor": "#737781"
+    },
+    {
+      "CharacterId": "rodney-dangerfield",
+      "CharacterName": "Rodney",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/rodney-dangerfield.png",
+      "BodyType": "M",
+      "SkinColor": "#a0a5b3"
+    },
+    {
+      "CharacterId": "sam-kinison",
+      "CharacterName": "Sam",
+      "HeadScale": 1,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/sam-kinison.png",
+      "BodyType": "M",
+      "SkinColor": "#c3cadc"
+    },
+    {
+      "CharacterId": "pumpkin-head",
+      "CharacterName": "Pumpkin",
+      "HeadScale": 1,
+      "HeadOffsetY": 0.65,
+      "HeadSpritePath": "assets/heads/pumpkin-head.png",
+      "BodyType": "M",
+      "SkinColor": "#9a8f6e"
+    },
+    {
+      "CharacterId": "death",
+      "CharacterName": "Death",
+      "HeadScale": 0.75,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/death.png",
+      "BodyType": "M",
+      "SkinColor": "#ded9c6"
+    },
+    {
+      "CharacterId": "angel",
+      "CharacterName": "Angel",
+      "HeadScale": 1,
+      "HeadOffsetY": 5,
+      "HeadSpritePath": "assets/heads/angel.png",
+      "BodyType": "F",
+      "SkinColor": "#f2ecdd"
+    },
+    {
+      "CharacterId": "casper",
+      "CharacterName": "Casper",
+      "HeadScale": 0.75,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/casper.png",
+      "BodyType": "M",
+      "SkinColor": "#e9eff8"
+    },
+    {
+      "CharacterId": "zombie",
+      "CharacterName": "Zombie",
+      "HeadScale": 0.8,
+      "HeadOffsetY": 2,
+      "HeadSpritePath": "assets/heads/zombie.png",
+      "BodyType": "M",
+      "SkinColor": "#8fa07e"
+    }
+  ]
+}

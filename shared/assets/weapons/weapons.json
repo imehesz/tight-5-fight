@@ -12,6 +12,7 @@
     { "WeaponId": "metal",    "WeaponName": "METAL",     "GripY": 710, "GripUp": true,  "SpritePath": "weapon_metal.png" },
     { "WeaponId": "the-dentist",      "WeaponName": "THE DENTIST", "GripY": 780, "GripUp": true, "SpritePath": "weapon_the-dentist_small.png" },
     { "WeaponId": "keyboard", "WeaponName": "KEYBOARD",  "GripY": 790, "GripUp": false, "SpritePath": "weapon_keyboard.png" },
-    { "WeaponId": "white-cane", "WeaponName": "WHITE CANE", "GripY": 785, "GripUp": true,  "SpritePath": "weapon_white-cane.png" }
+    { "WeaponId": "white-cane", "WeaponName": "WHITE CANE", "GripY": 785, "GripUp": true,  "SpritePath": "weapon_white-cane.png" },
+    { "WeaponId": "scythe",   "WeaponName": "SCYTHE",    "GripY": 790, "GripUp": true,  "SpritePath": "weapon_scythe.png" }
   ]
 }

@@ -1,0 +1,52 @@
+{
+  "venues": [
+    {
+      "VenueId": "waffle-house",
+      "VenueName": "Waffle House",
+      "ExteriorSpritePath": "assets/venues/waffle-house_ext.png",
+      "InteriorSpritePath": "assets/venues/waffle-house_int.png"
+    },
+    {
+      "VenueId": "heaven",
+      "VenueName": "Heaven",
+      "ExteriorSpritePath": "assets/venues/heaven_ext.png",
+      "InteriorSpritePath": "assets/venues/heaven_int.png"
+    },
+    {
+      "VenueId": "hell",
+      "VenueName": "Hell",
+      "ExteriorSpritePath": "assets/venues/hell_ext.png",
+      "InteriorSpritePath": "assets/venues/hell_int.png"
+    },
+    {
+      "VenueId": "purgatory",
+      "VenueName": "Purgatory",
+      "ExteriorSpritePath": "assets/venues/purgatory_ext.png",
+      "InteriorSpritePath": "assets/venues/purgatory_int.png"
+    },
+    {
+      "VenueId": "the-crypt",
+      "VenueName": "The Crypt",
+      "ExteriorSpritePath": "assets/venues/the-crypt_ext.png",
+      "InteriorSpritePath": "assets/venues/the-crypt_int.png"
+    },
+    {
+      "VenueId": "six-feet-under",
+      "VenueName": "Six Feet Under",
+      "ExteriorSpritePath": "assets/venues/six-feet-under_ext.png",
+      "InteriorSpritePath": "assets/venues/six-feet-under_int.png"
+    },
+    {
+      "VenueId": "the-last-laugh",
+      "VenueName": "The Last Laugh",
+      "ExteriorSpritePath": "assets/venues/the-last-laugh_ext.png",
+      "InteriorSpritePath": "assets/venues/the-last-laugh_int.png"
+    },
+    {
+      "VenueId": "the-graveyard",
+      "VenueName": "The Graveyard",
+      "ExteriorSpritePath": "assets/venues/the-graveyard_ext.png",
+      "InteriorSpritePath": "assets/venues/the-graveyard_int.png"
+    }
+  ]
+}
