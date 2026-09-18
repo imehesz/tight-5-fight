@@ -163,7 +163,9 @@ func flash_toast(msg: String, color: Color) -> void:
 ## toast wording is the same wherever sharing lives. `msg` is the screen's own
 ## pitch; false back means there was nothing shareable to send.
 func share_character(cfg: Dictionary, msg: String) -> bool:
-	var id := String(cfg.get("CharacterId", ""))
+	# A renamed comedian shares under their current playerLink; everyone else
+	# under their CharacterId. Either way the link resolves back to this entry.
+	var id := GameState.share_id_for(cfg)
 	if id == "":
 		flash_toast("NO SHARE ID", Color(1.0, 0.6, 0.5))
 		return false

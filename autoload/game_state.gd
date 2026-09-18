@@ -1287,13 +1287,45 @@ func character_index_by_name(char_name: String) -> int:
 ## Roster position of a CharacterId, or -1 when nothing matches. Unlike
 ## character_index_by_name, callers here MUST be able to tell "no such
 ## comedian" apart from "the first comedian", so this does not fall back.
+##
+## A retired share-link slug also resolves here, so a link handed out before a
+## rename still opens the right comedian. CharacterId is checked against the
+## WHOLE roster first: the permanent id always outranks somebody's alias, so a
+## stale slug can never hijack a comedian who legitimately owns that id today.
 func character_index_by_id(id: String) -> int:
 	if id == "":
 		return -1
 	for i in characters.size():
 		if String(characters[i].get("CharacterId", "")) == id:
 			return i
+	for i in characters.size():
+		if player_links(characters[i]).has(id):
+			return i
 	return -1
+
+
+## Every slug this comedian's share link may arrive under, newest first, or an
+## empty list for the overwhelming majority who have never been renamed.
+##
+## `playerLink` is optional and lives only in characters.json. It exists so a
+## rename can move the link the SHARE button hands out WITHOUT moving
+## CharacterId, which is the permanent identity the leaderboards key on: put
+## the new slug first, keep every older one behind it, and both the fresh link
+## and every link already out in the wild resolve to the same comedian.
+##
+## A bare string is accepted as well as a list — these files are hand-edited,
+## and one rename only ever needs one slug.
+func player_links(cfg: Dictionary) -> Array:
+	var raw: Variant = cfg.get("playerLink", null)
+	if raw is String:
+		return [] if String(raw) == "" else [String(raw)]
+	if raw is Array:
+		var out: Array = []
+		for v in raw:
+			if String(v) != "":
+				out.append(String(v))
+		return out
+	return []
 
 
 # ---------------------------------------------------------------- share links
@@ -1311,6 +1343,15 @@ const SHARE_BASE := "https://games.imstandup.com/tight5fight/"
 ## OWN url, so a LAN playtest shares a LAN link, prod shares prod, and the
 ## jax/tight5 folder mismatch cannot produce a 404. Everywhere else it is
 ## composed from SHARE_BASE + public_folder().
+## The slug a share link should carry for this comedian: their current
+## playerLink when they have one, otherwise their CharacterId. Every comedian
+## the SHARE button can reach goes through here, so a renamed one starts
+## sharing under the new slug the moment their roster entry says so.
+func share_id_for(cfg: Dictionary) -> String:
+	var links := player_links(cfg)
+	return String(links[0]) if not links.is_empty() else String(cfg.get("CharacterId", ""))
+
+
 func share_url(character_id: String) -> String:
 	var base := SHARE_BASE + public_folder() + "/"
 	if OS.has_feature("web"):

@@ -25,6 +25,14 @@ const outDir = path.join(__dirname, "rosters");
 // — an odd-looking id still works, as long as it is present and unique.
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+// Optional, characters.json only: the slug(s) a comedian's SHARE link may use,
+// newest first. It lets a rename move the visible link without moving the
+// permanent CharacterId, and keeps every previously shared slug resolving.
+// Not part of the extract that ships to the server — share links never reach
+// the backend — but linted here because this is where roster mistakes are
+// caught before they go out.
+const LINK_KEY = "playerLink";
+
 const errors = [];
 const warnings = [];
 
@@ -48,6 +56,7 @@ function extract(gameId, file, listKey, nameKey, idKey) {
   const names = [];
   const idAt = new Map(); // id -> first entry that used it
   const nameAt = new Map();
+  const linkAt = new Map(); // share-link slug -> the entry that claimed it
 
   entries.forEach((entry, i) => {
     const name = entry[nameKey];
@@ -84,7 +93,45 @@ function extract(gameId, file, listKey, nameKey, idKey) {
     if (!SLUG_RE.test(id)) {
       warnings.push(`${who}: ${idKey} "${id}" is not lowercase-hyphenated`);
     }
+
+    // playerLink is optional — absent for anyone who has never been renamed.
+    // A bare string is allowed, matching what game_state.player_links() reads.
+    if (LINK_KEY in entry) {
+      const list = typeof entry[LINK_KEY] === "string" ? [entry[LINK_KEY]] : entry[LINK_KEY];
+      if (!Array.isArray(list) || list.length === 0) {
+        errors.push(`${who}: ${LINK_KEY} must be a slug, or a non-empty list of slugs newest-first`);
+        return;
+      }
+      for (const slug of list) {
+        if (typeof slug !== "string" || slug.trim() === "") {
+          errors.push(`${who}: ${LINK_KEY} has an empty entry`);
+          continue;
+        }
+        // Two comedians claiming one slug means one of them silently never
+        // gets their link back.
+        if (linkAt.has(slug) && linkAt.get(slug) !== i) {
+          errors.push(`${who}: ${LINK_KEY} "${slug}" already claimed by [${linkAt.get(slug)}]`);
+          continue;
+        }
+        linkAt.set(slug, i);
+        if (!SLUG_RE.test(slug)) {
+          warnings.push(`${who}: ${LINK_KEY} "${slug}" is not lowercase-hyphenated`);
+        }
+      }
+    }
   });
+
+  // Cross-namespace check, once every id in the file is known: the deeplink
+  // resolver matches CharacterId across the whole roster BEFORE it looks at
+  // any alias, so a slug that collides with somebody else's id would never
+  // win and its owner's link would quietly open the wrong comedian.
+  for (const [slug, i] of linkAt) {
+    if (idAt.has(slug) && idAt.get(slug) !== i) {
+      errors.push(
+        `${label} [${i}]: ${LINK_KEY} "${slug}" collides with the ${idKey} of [${idAt.get(slug)}]`
+      );
+    }
+  }
 
   return names.sort();
 }
