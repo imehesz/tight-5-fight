@@ -174,6 +174,23 @@ const SCHEMA = {
       UNIQUE (player_uuid, weapon_id, level)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_upg_uuid ON weapon_upgrades (player_uuid, id)`,
+    // One row per chest decoration BOUGHT (see games/<id>/decorators.json).
+    // Free decorations never land here — the client wears those without asking
+    // anyone, which is what keeps them working with the server down.
+    //
+    // Not scoped by game on purpose: ids come from ONE game's decorators.json
+    // and the id is what a save stores, so scoping would only add a column
+    // that every query then has to carry. The UNIQUE means two racing taps
+    // cost the price once rather than twice, exactly like an upgrade level.
+    `CREATE TABLE IF NOT EXISTS decor_purchases (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_uuid TEXT NOT NULL,
+      decor_id    TEXT NOT NULL,
+      cost        INTEGER NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (player_uuid, decor_id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_decor_uuid ON decor_purchases (player_uuid, id)`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -324,6 +341,16 @@ const SCHEMA = {
       PRIMARY KEY (id),
       UNIQUE KEY uniq_upg (player_uuid, weapon_id, level),
       KEY idx_upg_uuid (player_uuid, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS decor_purchases (
+      id          INT         NOT NULL AUTO_INCREMENT,
+      player_uuid CHAR(36)    NOT NULL,
+      decor_id    VARCHAR(32) NOT NULL,
+      cost        INT         NOT NULL,
+      created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_decor (player_uuid, decor_id),
+      KEY idx_decor_uuid (player_uuid, id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
@@ -505,6 +532,13 @@ async function jokeCrafterState(uuid) {
     "SELECT COALESCE(SUM(cost), 0) AS spent FROM weapon_upgrades WHERE player_uuid = ?",
     [uuid]
   );
+  // Decorations come out of the same balance as upgrades — one currency, two
+  // shops. Its own aggregate rather than a UNION for the reason above: a
+  // player has a handful of rows and MySQL 5.5 has no CTEs to tidy it with.
+  const decorSpent = await get(
+    "SELECT COALESCE(SUM(cost), 0) AS spent FROM decor_purchases WHERE player_uuid = ?",
+    [uuid]
+  );
   // A craft consumes n of EACH kind, which is what makes one `used` figure
   // enough to net all three off.
   const used = Number(crafted.used);
@@ -512,7 +546,7 @@ async function jokeCrafterState(uuid) {
     setups: Number(drops.setups) - used,
     punchlines: Number(drops.punchlines) - used,
     tags: Number(drops.tags) - used,
-    points: Number(crafted.earned) - Number(spent.spent),
+    points: Number(crafted.earned) - Number(spent.spent) - Number(decorSpent.spent),
   };
 }
 
@@ -528,6 +562,30 @@ async function weaponUpgrades(uuid) {
   const out = {};
   for (const r of rows) out[String(r.weapon_id)] = Number(r.level);
   return out;
+}
+
+// The chest decorations this player has BOUGHT, as a plain id list. Free ones
+// are never in here, so the client checks the price first and only asks about
+// the priced ones (see Decorators.price / _decor_unlocked).
+async function decorOwned(uuid) {
+  const rows = await all(
+    "SELECT decor_id FROM decor_purchases WHERE player_uuid = ?",
+    [uuid]
+  );
+  return rows.map((r) => String(r.decor_id));
+}
+
+// Buy one decoration. Returns false if the row already existed — the UNIQUE on
+// (player, decor) is what makes two racing taps cost the price once, the same
+// guarantee recordUpgrade() gets from its own UNIQUE.
+async function recordDecorPurchase({ playerUuid, decorId, cost }) {
+  const verb = DRIVER === "sqlite" ? "INSERT OR IGNORE" : "INSERT IGNORE";
+  const res = await run(
+    `${verb} INTO decor_purchases (player_uuid, decor_id, cost) VALUES (?, ?, ?)`,
+    [playerUuid, decorId, cost]
+  );
+  if (res && typeof res.changes === "number") return res.changes > 0;
+  return true;
 }
 
 // Bank one run's collected components. Idempotent on (player, run_nonce): a
@@ -1103,6 +1161,8 @@ module.exports = {
   loginDays,
   jokeCrafterState,
   weaponUpgrades,
+  decorOwned,
+  recordDecorPurchase,
   recordComponentDrop,
   recordCraft,
   recordUpgrade,

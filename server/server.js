@@ -49,10 +49,13 @@ function json(res, status, body) {
 // shape-only validation, so adding a comedian mid-season degrades to
 // "slightly laxer", never to "broken".
 //
-// File format is { characters: [...], venues: [...] }; a bare array (the
-// pre-venues format) still loads as characters-only, so a stale roster on
-// the VPS costs the venue board its validation, not the server its boot.
-const rosters = new Map(); // gameId -> { characters: Set|null, venues: Set|null }
+// File format is { characters: [...], venues: [...], decorators: {id: price} };
+// a bare array (the pre-venues format) still loads as characters-only, so a
+// stale roster on the VPS costs the venue board its validation, not the server
+// its boot. `decorators` is absent for every edition that ships none, and a
+// game whose extract predates the decor shop simply sells nothing — /decor
+// answers "unknown decor" rather than inventing a price.
+const rosters = new Map(); // gameId -> { characters: Set|null, venues: Set|null, decorators: Map|null }
 
 function loadRosters() {
   const dir = path.join(__dirname, "rosters");
@@ -62,9 +65,11 @@ function loadRosters() {
       const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
       const characters = Array.isArray(parsed) ? parsed : parsed.characters || [];
       const venues = Array.isArray(parsed) ? null : parsed.venues || null;
+      const decorators = Array.isArray(parsed) ? null : parsed.decorators || null;
       rosters.set(gameId, {
         characters: new Set(characters),
         venues: venues ? new Set(venues) : null,
+        decorators: decorators ? new Map(Object.entries(decorators)) : null,
       });
       console.log(`roster ${gameId}: ${characters.length} characters, ${venues ? venues.length : "?"} venues`);
     } catch (e) {
@@ -410,6 +415,10 @@ async function crafterPayload(uuid) {
     tags: state.tags,
     points: state.points,
     upgrades: await db.weaponUpgrades(uuid),
+    // Chest decorations BOUGHT, as ids. Free ones are deliberately not listed:
+    // the client already knows those are free from its own decorators.json,
+    // and listing them would make the reply grow with the catalog.
+    decor: await db.decorOwned(uuid),
     upgradeCosts: config.jokeCrafter.upgradeCosts,
     // Derived, never configured separately — see upgradeCosts in config.js.
     maxUpgrades: config.jokeCrafter.upgradeCosts.length,
@@ -534,6 +543,54 @@ async function postUpgrade(req, res) {
     playerUuid: body.uuid, weaponId, level, cost,
   });
   if (!wrote) return json(res, 409, { error: "already fully upgraded" });
+  chargeHit("upgrade", ip);
+  json(res, 200, await crafterPayload(body.uuid));
+}
+
+// POST /decor { gameId, uuid, decorId } -> state
+// Buy one chest decoration. The price is NEVER sent: it is looked up in this
+// game's synced extract of decorators.json (server/rosters/<gameId>.json, see
+// sync_rosters.js), for the same reason upgrade costs live in config.js — a
+// price a client can name is a price a client can set to zero.
+//
+// Two refusals worth calling out. A decoration priced 0 is refused rather than
+// recorded: free is free, and a purchase row for it would only be a way to
+// spend nothing and grow the table. And an id the extract has never heard of
+// is refused outright rather than charged some default — a stale roster on the
+// VPS costs the player a purchase they can retry after a sync, which is much
+// the better failure than a charge for something that may not exist.
+async function postDecor(req, res) {
+  const ip = clientIp(req);
+  const body = await crafterRequest(req, res);
+  if (!body) return;
+  const { gameId } = body;
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown game" });
+  // Shares the upgrade limiter: both are purchases out of one balance, and a
+  // player who has legitimately hit 40 of them in an hour is not shopping.
+  if (overLimit("upgrade", ip, config.limits.upgradesPerHourPerIp)) {
+    return json(res, 429, { error: "too many purchases from this address" });
+  }
+  const decorId = String(body.decorId || "");
+  if (!/^[a-z0-9-]{1,32}$/.test(decorId)) {
+    return json(res, 400, { error: "bad decor" });
+  }
+  const prices = (rosters.get(gameId) || {}).decorators;
+  if (!prices || !prices.has(decorId)) {
+    return json(res, 404, { error: "unknown decor" });
+  }
+  const cost = Number(prices.get(decorId));
+  if (!Number.isInteger(cost) || cost <= 0) {
+    return json(res, 409, { error: "decor is free" });
+  }
+  if ((await db.decorOwned(body.uuid)).includes(decorId)) {
+    return json(res, 409, { error: "already owned" });
+  }
+  const state = await db.jokeCrafterState(body.uuid);
+  if (state.points < cost) return json(res, 409, { error: "not enough joke points" });
+  const wrote = await db.recordDecorPurchase({
+    playerUuid: body.uuid, decorId, cost,
+  });
+  if (!wrote) return json(res, 409, { error: "already owned" });
   chargeHit("upgrade", ip);
   json(res, 200, await crafterPayload(body.uuid));
 }
@@ -1060,6 +1117,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "/collect") return await postCollect(req, res);
     if (req.method === "POST" && route === "/craft") return await postCraft(req, res);
     if (req.method === "POST" && route === "/upgrade") return await postUpgrade(req, res);
+    if (req.method === "POST" && route === "/decor") return await postDecor(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
     if (req.method === "GET" && route === "/beef") return await getBeef(req, res, url);

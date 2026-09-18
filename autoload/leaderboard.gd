@@ -383,6 +383,19 @@ func max_upgrades() -> int:
 	return int(_crafter.get("maxUpgrades", upgrade_costs().size()))
 
 
+## True when the server says this player has BOUGHT that chest decoration.
+## False whenever the crafter state has not loaded — an unknown purchase is
+## never guessed upward, the same rule as upgrade levels, so a cold boot or a
+## dead server means the paid decorations stay locked rather than free.
+##
+## Free ones (price 0) never come through here: the picker equips those
+## without asking the server anything, which is what keeps them working
+## offline.
+func owns_decor(decor_id: String) -> bool:
+	var owned = _crafter.get("decor", [])
+	return owned is Array and owned.has(decor_id)
+
+
 ## Fetch the crafter state without changing anything. A zero-component collect
 ## is a read: the server answers with the full state and writes no row, which
 ## saves a second endpoint that would do nothing else.
@@ -418,6 +431,17 @@ func craft_jokes(n: int) -> void:
 ## derives it, so this can't skip or re-buy one.
 func buy_upgrade(weapon_id: String) -> void:
 	await _crafter_call("/upgrade", {"weaponId": weapon_id})
+
+
+## Buy one chest decoration. The price is never sent: the server looks it up in
+## its own synced copy of the game's decorators.json (server/rosters/<game>.json,
+## written by `npm run sync-rosters`), so a client cannot name its own price —
+## the same reason upgrade costs live in config.js rather than in the request.
+func buy_decor(decor_id: String) -> void:
+	await _crafter_call("/decor", {
+		"gameId": GameState.active_game,
+		"decorId": decor_id,
+	})
 
 
 ## Shared tail of every crafter call: mint an id if needed, post, and either

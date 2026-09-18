@@ -1,6 +1,6 @@
 "use strict";
-// Regenerates server/rosters/<gameId>.json from each game's characters.json
-// and venues.json. The server is deployed without the game's asset tree, so
+// Regenerates server/rosters/<gameId>.json from each game's characters.json,
+// venues.json and decorators.json. The server is deployed without the game's asset tree, so
 // it can't read the rosters directly — these extracts are committed
 // alongside it.
 //
@@ -32,6 +32,13 @@ const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // the backend — but linted here because this is where roster mistakes are
 // caught before they go out.
 const LINK_KEY = "playerLink";
+
+// Chest decorations (games/<id>/decorators.json, optional). Only the PRICES
+// ship to the server — it never draws one, it only has to know what to charge,
+// and a price the client could name is a price the client could set to 0.
+// Same slug rules as a CharacterId, and the same linting: a bad row here is
+// caught before a deploy, not after somebody buys it.
+const DECOR_FILE = "decorators.json";
 
 const errors = [];
 const warnings = [];
@@ -136,6 +143,70 @@ function extract(gameId, file, listKey, nameKey, idKey) {
   return names.sort();
 }
 
+// Pull { id: price } out of one game's decorators.json. A game with no such
+// file simply has no decorations — that is the common case, so a missing file
+// is silent, while an unreadable one is an error like any other roster.
+function extractDecor(gameId, file) {
+  if (!fs.existsSync(file)) return null;
+  const label = `${gameId}/${DECOR_FILE}`;
+  let entries;
+  try {
+    entries = JSON.parse(fs.readFileSync(file, "utf8")).decorators;
+  } catch (e) {
+    errors.push(`${label}: unreadable — ${e.message}`);
+    return null;
+  }
+  if (!Array.isArray(entries)) {
+    errors.push(`${label}: no "decorators" array`);
+    return null;
+  }
+
+  const out = {};
+  entries.forEach((entry, i) => {
+    const who = `${label} [${i}]`;
+    const id = entry.id;
+    if (typeof id !== "string" || id.trim() === "") {
+      errors.push(`${who}: missing id`);
+      return;
+    }
+    // A duplicate id means one of the two can never be bought separately:
+    // purchases key on the id alone.
+    if (id in out) {
+      errors.push(`${who}: duplicate id "${id}"`);
+      return;
+    }
+    if (!SLUG_RE.test(id)) {
+      warnings.push(`${who}: id "${id}" is not lowercase-hyphenated`);
+    }
+    // 32 chars is the decor_id column in server/db.js.
+    if (id.length > 32) {
+      errors.push(`${who}: id "${id}" is longer than 32 characters`);
+      return;
+    }
+    const price = entry.price;
+    if (!Number.isInteger(price) || price < 0) {
+      errors.push(`${who}: price must be a whole number of joke points (0 = free)`);
+      return;
+    }
+    // Free rows are listed too, with price 0: the server then knows the id is
+    // real and simply refuses to sell it, rather than 404-ing on something the
+    // client legitimately shipped.
+    out[id] = price;
+    const rel = entry.path;
+    if (typeof rel !== "string" || rel.trim() === "") {
+      errors.push(`${who} "${id}": missing path`);
+      return;
+    }
+    // The art never reaches the server, but a decoration whose PNG is missing
+    // is an empty card in the shelf — and this is the one place that can see
+    // both the JSON and the asset tree.
+    if (!fs.existsSync(path.join(path.dirname(file), rel))) {
+      errors.push(`${who} "${id}": path "${rel}" does not exist`);
+    }
+  });
+  return out;
+}
+
 // ---- pass 1: read + validate every game, writing nothing yet
 const pending = [];
 for (const gameId of config.games) {
@@ -159,6 +230,10 @@ for (const gameId of config.games) {
       path.join(gameDir, manifest.venues || "venues.json"),
       "venues", "VenueName", "VenueId"
     ),
+    decorators: extractDecor(
+      gameId,
+      path.join(gameDir, manifest.decorators || DECOR_FILE)
+    ),
   });
 }
 
@@ -173,8 +248,12 @@ if (errors.length) {
 
 // ---- pass 2: everything checks out, write the extracts
 fs.mkdirSync(outDir, { recursive: true });
-for (const { gameId, characters, venues } of pending) {
+for (const { gameId, characters, venues, decorators } of pending) {
   const out = path.join(outDir, `${gameId}.json`);
-  fs.writeFileSync(out, JSON.stringify({ characters, venues }, null, 2) + "\n");
-  console.log(`${gameId}: ${characters.length} characters, ${venues.length} venues -> ${path.relative(process.cwd(), out)}`);
+  // `decorators` is left out entirely for a game that ships none, so the
+  // extract of an edition without them is byte-for-byte what it always was.
+  const payload = decorators ? { characters, venues, decorators } : { characters, venues };
+  fs.writeFileSync(out, JSON.stringify(payload, null, 2) + "\n");
+  const decorNote = decorators ? `, ${Object.keys(decorators).length} decorations` : "";
+  console.log(`${gameId}: ${characters.length} characters, ${venues.length} venues${decorNote} -> ${path.relative(process.cwd(), out)}`);
 }

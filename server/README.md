@@ -134,6 +134,15 @@ cd server && npm run sync-rosters
 Forgetting is not fatal: an unlisted name is rejected by `/play`, and a game with
 no roster file at all falls back to shape-only validation.
 
+The same extract also carries `decorators` — `{id: price}` from the game's
+`decorators.json`, for the editions that ship chest decorations. That one IS
+load-bearing: `/decor` charges from this list, so a decoration the extract has
+never heard of cannot be bought (404) and a re-priced one keeps selling at the
+old price until the sync, the backend deploy and the `pm2` restart have landed.
+Free decorations (price 0) never touch the server at all — the client wears
+those straight from its own `decorators.json`, which is what keeps them working
+while the API is down.
+
 ## Database
 
 All SQL lives in `db.js`, which implements the same async API on two drivers

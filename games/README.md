@@ -55,6 +55,7 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 | `audio.musicMain` / `.musicVenue` | optional | no music (paths are **extensionless**) |
 | `overrides.bodyMale` / `.bodyFemale` | optional | `shared/assets/bodies/body_{male,female}.png` |
 | `weapons` | optional | `weapons.json` in the game folder if present, else the shared rack (`shared/assets/weapons/weapons.json`) |
+| `decorators` | optional | `decorators.json` in the game folder if present, else the edition ships no chest decorations |
 | `planeBanners` (array of sentences) | optional | no banner-plane flybys on the street |
 
 ### `CharacterId` / `VenueId` — the permanent handle
@@ -163,6 +164,50 @@ A row whose PNG hasn't been imported yet simply doesn't show on the rack —
 safe to commit data ahead of art. A game can also ship its own
 `games/<id>/weapons.json` (or name one via the `weapons` manifest key) to
 replace the shared rack for that edition only.
+
+---
+
+## Chest decorations (`games/<id>/decorators.json`, optional)
+
+The DECOR tab in SETTINGS: a flag, a team logo, a gold star — worn on the
+shirt/dress chest everywhere the player's own comedian is drawn (in the run,
+the roster preview, the settings preview, the game-over screen). Purely
+cosmetic, like weapons. Unlike weapons this is **per edition, not shared**: a
+game with no `decorators.json` simply has no DECOR tab.
+
+```json
+{ "decorators": [
+  { "id": "logo-jags", "category": "Flags", "name": "Jaguars",
+    "path": "assets/decorators/logo_jags.png", "price": 500, "enabled": true }
+] }
+```
+
+- **`id`** — permanent handle, like `CharacterId` and `WeaponId`: saved picks
+  AND purchases are keyed on it, so never recycle one. Lowercase-hyphenated,
+  32 characters max (the `decor_id` column in `server/db.js`).
+- **`category`** — display grouping only. The picker heads a block with it, in
+  first-seen file order; nothing else in the game ever reads it.
+- **`name`** — the card's label. Upper-cased on screen, so write it in prose.
+- **`path`** — relative to the JSON's own folder, with the same two escapes
+  weapons get (`shared/…` from the project root, full `res://` passes through).
+  Any canvas size works; the art is fitted to the card and normalized down to
+  `Decorators.CHEST_BASE_PX` on the body.
+- **`price`** — JOKE POINTS. `0` is free (wear it straight away, works offline).
+  Anything higher is bought once, and the **server** charges it out of the same
+  balance weapon upgrades come from.
+- **`enabled: false`** benches a row (this file's spelling of `isDisabled`):
+  dropped entirely, and anyone wearing it falls back to a bare chest.
+- **`scale`** — optional size multiplier for art whose subject doesn't fill its
+  canvas. Defaults to `1.0`.
+
+A row whose PNG hasn't been imported yet simply doesn't show on the shelf.
+
+**Re-run `cd server && npm run sync-rosters` after every price change** — the
+server is deployed without the game's asset tree, so it charges from its own
+synced extract (`server/rosters/<id>.json`). A price the client could name is a
+price the client could set to zero, so an id the extract has never heard of is
+refused rather than sold. That sync, a backend deploy and a `pm2` restart all
+have to land **before** the frontend build, exactly like a roster change.
 
 ---
 

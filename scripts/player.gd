@@ -78,6 +78,7 @@ var _charge_t := 0.0
 var _charge_swoosh: SwingSwoosh
 var _carried_weapon: Sprite2D
 var _chest_strap: Line2D
+var _chest_decor: Sprite2D
 
 
 func _init() -> void:
@@ -95,6 +96,7 @@ func _ready() -> void:
 	_build_swing_box()
 	_build_carried_weapon()
 	_build_chest_strap()
+	_build_chest_decor()
 
 
 ## The between-swings weapon on the back. Child index 0 keeps it behind the
@@ -132,6 +134,24 @@ func _build_chest_strap() -> void:
 	move_child(_chest_strap, body_sprite.get_index() + 1)
 
 
+## The chest decoration picked in SETTINGS > DECOR — a flag, a logo, a star —
+## pinned on the shirt. Sits between the body and the strap, so the strap runs
+## OVER it the way a real one would, and placed by index for the same reason
+## everything else here is: a negative z_index would sink it behind the scene
+## background. Nothing is built at all for a player wearing none, which is
+## also what a missing PNG degrades to.
+func _build_chest_decor() -> void:
+	var tex := Decorators.texture(GameState.decor)
+	if tex == null:
+		return
+	_chest_decor = Sprite2D.new()
+	_chest_decor.texture = tex
+	# Pixel art on a 2px grid: a filtered decal would smear against the body.
+	_chest_decor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(_chest_decor)
+	move_child(_chest_decor, _chest_strap.get_index())
+
+
 func _process(delta: float) -> void:
 	super(delta)
 	if _carried_weapon:
@@ -162,6 +182,21 @@ func _process(delta: float) -> void:
 				Vector2((neck.x + top.x) * facing, neck.y + top.y),
 				Vector2((neck.x + bottom.x) * facing, neck.y + bottom.y),
 			])
+	if _chest_decor:
+		# Hidden on defeat for the strap's reason: the defeated frame lays the
+		# body down sideways, and a chest-height decal would hang in the air.
+		_chest_decor.visible = state != FState.DEAD
+		if _chest_decor.visible:
+			var anim := body_sprite.animation
+			# Anchored off the neck, so it rides the walk bob, the punch lean
+			# and the hit recoil exactly like the strap does — and shrinks to
+			# the squashed torso when ducking.
+			_chest_decor.position = Decorators.chest_offset(anim, facing)
+			var ds := Decorators.chest_scale(GameState.decor, anim)
+			_chest_decor.scale = Vector2(ds, ds)
+			# Mirrored with the body, so a decoration that isn't symmetrical
+			# turns around with the comedian instead of sliding across them.
+			_chest_decor.flip_h = facing < 0
 
 
 ## Separate hitbox for the melee swing so the shared punch/kick hitbox

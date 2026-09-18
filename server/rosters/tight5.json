@@ -111,5 +111,11 @@
     "Shanty Town",
     "Voo Swar",
     "Waffle House"
-  ]
+  ],
+  "decorators": {
+    "gold-star": 0,
+    "flag-hu": 0,
+    "flag-usa": 0,
+    "logo-jags": 500
+  }
 }

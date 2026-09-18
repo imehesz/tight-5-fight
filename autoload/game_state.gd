@@ -327,6 +327,11 @@ var outfit := 0
 ## back and swung in place of the mic stand. Cosmetic only; enemies never
 ## carry one.
 var weapon := Weapons.DEFAULT
+## Player's chosen chest decoration (index into the game's decorators.json), or
+## Decorators.NONE for a bare shirt — which is what a new player wears and what
+## a benched or unaffordable pick falls back to. Cosmetic only, like the
+## weapon; worn everywhere the player's own body is drawn.
+var decor := Decorators.NONE
 
 var _music_player: AudioStreamPlayer
 var _music_streams := {}
@@ -506,6 +511,10 @@ func _load_roster() -> void:
 	# unless a game ships its own decor.json (a beach edition wanting seagulls
 	# and soda cups instead of city rats needs no code, just the file).
 	StreetDecor.load_roster(game_path(String(manifest.get("decor", "decor.json"))))
+	# Chest decorations are opt-in per edition: a game with no decorators.json
+	# simply has none, and the settings screen drops the tab. NB the manifest
+	# key is "decorators" — "decor" above is the street dressing.
+	Decorators.load_roster(game_path(String(manifest.get("decorators", "decorators.json"))))
 
 
 # ---------------------------------------------------------------- manifest resolvers
@@ -1901,6 +1910,17 @@ func set_weapon(idx: int) -> void:
 	_save_settings()
 
 
+## Decorators.NONE clears the chest. Anything else is only ever set by the
+## picker, which has already checked the price against what the SERVER says
+## this player owns — this setter is not the place that guards a purchase.
+func set_decor(idx: int) -> void:
+	var i := idx if idx >= 0 and idx < Decorators.count() else Decorators.NONE
+	if i == decor:
+		return  # don't rewrite the save file just for re-tapping the pick
+	decor = i
+	_save_settings()
+
+
 ## A random outfit for an NPC — never the player's, so you can always pick
 ## yourself out of the brawl.
 func random_enemy_outfit() -> int:
@@ -1950,6 +1970,13 @@ func _load_settings() -> void:
 	# nothing, so fall back to the stand rather than to an invisible weapon.
 	if Weapons.texture(weapon) == null:
 		weapon = Weapons.DEFAULT
+	# Stored by id for the same reason, and absent from every save written
+	# before decorations existed — which reads as NONE, a bare shirt.
+	decor = Decorators.index_by_id(String(d.get("decor", "")))
+	# A decoration whose art failed to import, or whose row has since been
+	# benched, leaves the player wearing nothing rather than an invisible pin.
+	if decor != Decorators.NONE and Decorators.texture(decor) == null:
+		decor = Decorators.NONE
 	# Stored by name, not position, so the favorite survives characters.json
 	# being reordered — or the roster being shuffled again. Older saves held a
 	# roster index here; those orderings are gone, so anything but a name
@@ -1983,6 +2010,7 @@ func _save_settings() -> void:
 		"outfit": String(CharacterFactory.OUTFITS[
 				clampi(outfit, 0, CharacterFactory.OUTFITS.size() - 1)]["name"]),
 		"weapon": Weapons.id_of(weapon),
+		"decor": Decorators.id_of(decor),
 		"character": "" if characters.is_empty() \
 				else String(characters[clampi(own, 0, characters.size() - 1)].get("CharacterName", "")),
 		"random": _random_before_deeplink if borrowed else random_select,

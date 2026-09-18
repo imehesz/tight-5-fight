@@ -21,6 +21,7 @@ var _head_offset := Vector2.ZERO
 var _timer: Timer
 var _weapon: Sprite2D
 var _strap: Line2D
+var _decor: Sprite2D
 
 
 func _ready() -> void:
@@ -74,6 +75,7 @@ func set_character(cfg: Dictionary) -> void:
 	add_child(_head)
 	if show_weapon:
 		_build_weapon()
+	_build_decor()
 	if _timer:
 		_dance_step()
 
@@ -84,6 +86,35 @@ func refresh_weapon() -> void:
 	if not show_weapon or _body == null:
 		return
 	_build_weapon()
+
+
+## Same again for the chest decoration, so the DECOR picker previews a pick
+## without restarting the dance.
+func refresh_decor() -> void:
+	if _body == null:
+		return
+	_build_decor()
+	_update_decor()
+
+
+## The chest decoration, drawn exactly where Player wears it (the offsets and
+## the size both come from Decorators, so the preview can never drift from the
+## real thing). In FRONT of the body and behind the strap, matching Player's
+## stacking — by index rather than z_index, for the reason in _build_weapon().
+## Unlike the weapon this is always built: every screen that shows the player's
+## comedian shows what they are wearing.
+func _build_decor() -> void:
+	if _decor:
+		_decor.queue_free()
+		_decor = null
+	var tex := Decorators.texture(GameState.decor)
+	if tex == null:
+		return
+	_decor = Sprite2D.new()
+	_decor.texture = tex
+	_decor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(_decor)
+	move_child(_decor, _strap.get_index() if _strap else _body.get_index() + 1)
 
 
 ## Weapon behind everything (child index 0) and strap just in front of the
@@ -136,11 +167,23 @@ func _dance_step() -> void:
 	var anim: String = DANCE_ANIMS.pick_random()
 	_body.play(anim)
 	_update_strap()
+	_update_decor()
 	_head.flip_h = randi() % 2 == 0
 	var neck := CharacterFactory.head_offset(anim)
 	var lift := _head.texture.get_height() * _head.scale.y / 2.0 - 4.0
 	_head.position = Vector2(neck.x + _head_offset.x, neck.y - lift + _head_offset.y)
 	_timer.start(randf_range(0.4, 0.9))
+
+
+## The decoration hangs off the animation's neck anchor like the strap, so it
+## rides the dance bob for free. The dancer never turns around, so nothing
+## mirrors and there is no ducking pose to shrink for.
+func _update_decor() -> void:
+	if _decor == null or _body == null:
+		return
+	_decor.position = Decorators.chest_offset(_body.animation)
+	var s := Decorators.chest_scale(GameState.decor, _body.animation)
+	_decor.scale = Vector2(s, s)
 
 
 func _update_wheel() -> void:
