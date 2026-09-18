@@ -52,6 +52,28 @@ const PLANE_WAIT_MAX := 40.0
 ## sponsor roster has anyone active for this game). WHICH sponsor fills the
 ## slot is Sponsors.pick_weighted().
 const BILLBOARD_CHANCE := 0.75
+## WANTED bills: how far ahead of the camera one gets nailed up when a banner
+## plane finishes its pass, and how much clear street has to sit between two of
+## them. Deliberately separate from everything above — a bill is not sponsor
+## inventory and must never take a paid billboard slot.
+const WANTED_AHEAD_MIN := 520.0
+const WANTED_AHEAD_MAX := 900.0
+const WANTED_NO_REPEAT_X := 1400.0
+## Clear street a WANTED bill must leave around every sponsor billboard.
+##
+## Billboards are the spots we SELL. A bill and a board hang at the same height
+## on the same layer, so one nailed up beside the other covers paid inventory —
+## a board is ~207 wide and a bill 84, which means they physically overlap
+## inside 146px. This is set well past that so the two never even read as a
+## pair, and the sponsor always has clear air around it.
+const WANTED_SPONSOR_CLEAR := 300.0
+## Rolls allowed when looking for a spot. One roll that lands on a sponsor
+## would otherwise cost the bill for that whole plane.
+const WANTED_SPOT_TRIES := 6
+## Where the run's opening bill is nailed up. A few steps past the player's
+## spawn (x=120) and well short of the first venue, so the bounty is on screen
+## within seconds instead of waiting on the first banner plane.
+const WANTED_OPENING_X := 330.0
 ## FOREGROUND DRESSING (StreetDecor): the strip between the fighters' feet
 ## (GROUND_Y) and the bottom of the 640x360 frame. Everything here is in front
 ## of the fighters because it is nearer the camera, and none of it collides
@@ -115,6 +137,10 @@ var _billboards: Array = []
 ## contract as the billboards, and saved with the street, so the trash stays
 ## put across a venue visit instead of being re-scattered on the way out.
 var _litter: Array = []
+## [{x, id, tilt, node}] — WANTED bills. Same records-plus-streaming contract
+## as the billboards, and saved with the street so a bill stays nailed where it
+## was while the player is inside a venue.
+var _wanted: Array = []
 var _next_venue_x := FIRST_VENUE_X
 var _venue_index := 0
 var _spawn_timer := 2.0
@@ -126,6 +152,10 @@ var _component_timer := 5.0
 var _plane_timer := randf_range(4.0, PLANE_FIRST_WAIT_MAX)
 var _critter_timer := randf_range(3.0, CRITTER_WAIT_MAX)
 var _plane: PlaneFlyby
+## True while a banner plane is in the air, so the frame it finishes can be
+## spotted. The WANTED bills ride that rhythm instead of carrying a timer of
+## their own: planes are already occasional, so the posters inherit it.
+var _plane_was_up := false
 var _hint_sign: Node2D
 ## Whichever teaching popup is up — the welcome one on the run's first frame,
 ## or the doorway one later. Non-null means the game is frozen behind it,
@@ -176,6 +206,16 @@ func _ready() -> void:
 			if not sponsor.is_empty():
 				_place_billboard(float(b.x), sponsor, bool(b.counted),
 						String(b.get("variant", "")), float(b.get("tilt", 0.0)))
+		# WANTED bills restore where they were nailed. Only the spot and the
+		# lean are kept — who is on the bill is resolved from the roster when
+		# the node is built, so a venue visit over midnight repapers the street
+		# with the new bounty instead of the old one.
+		# Billboards are restored ABOVE, so this check sees them: a bill that
+		# would come back on top of a sponsor simply does not come back.
+		for w in saved.get("wanted", []):
+			if _wanted_spot_clear(float(w.x)):
+				_place_wanted(float(w.x), {"CharacterId": String(w.get("id", ""))},
+						float(w.get("tilt", 0.0)))
 		# Litter restores by id: a prop dropped from the roster mid-session
 		# simply stops being scattered, it never leaves a hole to crash on.
 		for l in saved.get("litter", []):
@@ -196,7 +236,10 @@ func _ready() -> void:
 		# "fresh street", so walking back out of venue 1 stays hint-free.
 		if GameState.venues_entered == 0:
 			_spawn_hint_sign()
+			if _wanted_spot_clear(WANTED_OPENING_X):
+				_nail_wanted_at(WANTED_OPENING_X)
 			_show_intro_hint()
+			_show_wanted_intro()
 	camera.position = Vector2(maxf(player.position.x, 320.0), 180.0)
 	camera.reset_smoothing()
 	# Before the first frame is drawn, so a restored street opens with its
@@ -395,6 +438,7 @@ func _place_billboard(bx: float, sponsor: Dictionary, counted: bool,
 		"tilt": tilt,
 		"node": null,
 	})
+	_evict_wanted_near(bx)
 
 
 ## Record a venue's existence. Same deal — the door works off this record, so
@@ -425,6 +469,13 @@ func _stream_props() -> void:
 				_build_billboard_node(b)
 		elif dist > STREAM_OUT_X and b.node != null:
 			_free_billboard_node(b)
+	for w in _wanted:
+		var dist := absf(float(w.x) - cam)
+		if dist <= STREAM_IN_X:
+			if w.node == null:
+				_build_wanted_node(w)
+		elif dist > STREAM_OUT_X and w.node != null:
+			_free_wanted_node(w)
 	for l in _litter:
 		var dist := absf(float(l.x) - cam)
 		if dist <= STREAM_IN_X:
@@ -737,7 +788,11 @@ func _maybe_spawn_component(delta: float) -> void:
 ## a venue.
 func _maybe_spawn_plane(delta: float) -> void:
 	if is_instance_valid(_plane):
+		_plane_was_up = true
 		return
+	if _plane_was_up:
+		_plane_was_up = false
+		_maybe_nail_wanted()
 	_plane_timer -= delta
 	if _plane_timer > 0.0:
 		return
@@ -749,6 +804,90 @@ func _maybe_spawn_plane(delta: float) -> void:
 	_plane.banner_text = String(banners.pick_random())
 	_plane.camera = camera
 	add_child(_plane)
+
+
+## One WANTED bill per banner plane, nailed up in the stretch the player is
+## walking into. That is the entire spawn rule — no chance roll and no timer,
+## because the plane already is one.
+##
+## Nothing is placed when there is no bounty (an empty roster), and a second
+## bill is never nailed within NO_REPEAT_X of one already standing, so a long
+## walk cannot end up with two of them in the same eyeful.
+func _maybe_nail_wanted() -> void:
+	for _i in WANTED_SPOT_TRIES:
+		var bx := camera.position.x + randf_range(WANTED_AHEAD_MIN, WANTED_AHEAD_MAX)
+		if _wanted_spot_clear(bx):
+			_nail_wanted_at(bx)
+			return
+
+
+## True when a WANTED bill may stand at `bx`.
+##
+## The sponsor clearance is the whole point: a bill must never be nailed up
+## where it covers or crowds a billboard, because those spots are sold. The
+## second check is only about two bills crowding each other.
+func _wanted_spot_clear(bx: float) -> bool:
+	for b in _billboards:
+		if absf(float(b.x) - bx) < WANTED_SPONSOR_CLEAR:
+			return false
+	for w in _wanted:
+		if absf(float(w.x) - bx) < WANTED_NO_REPEAT_X:
+			return false
+	return true
+
+
+## A billboard has just been recorded: take down any WANTED bill it would
+## cover. This is the same rule from the other side — bills are placed ahead of
+## the camera and so are new venue gaps, so a board CAN land on a bill that is
+## already standing. When they collide the sponsor wins, every time: that spot
+## is paid for and the bill is decoration.
+func _evict_wanted_near(bx: float) -> void:
+	for i in range(_wanted.size() - 1, -1, -1):
+		if absf(float(_wanted[i].x) - bx) < WANTED_SPONSOR_CLEAR:
+			_free_wanted_node(_wanted[i])
+			_wanted.remove_at(i)
+
+
+## Nail one up at a given spot, no spacing check — the caller has already
+## decided. Does nothing when there is no bounty (an empty roster).
+func _nail_wanted_at(bx: float) -> void:
+	var cfg: Dictionary = GameState.wanted_data()
+	if cfg.is_empty():
+		return
+	_place_wanted(bx, cfg)
+
+
+## Record a WANTED bill. Nothing is built until the camera nears it.
+func _place_wanted(bx: float, cfg: Dictionary, tilt := 0.0) -> void:
+	_wanted.append({
+		"x": bx,
+		"id": String(cfg.get("CharacterId", "")),
+		"tilt": tilt,
+		"node": null,
+	})
+
+
+func _build_wanted_node(w: Dictionary) -> void:
+	# Resolved fresh from the roster rather than stored: a bill that streams
+	# back in after midnight should carry whoever is wanted NOW.
+	var cfg: Dictionary = GameState.wanted_data()
+	if cfg.is_empty():
+		return
+	var bill := WantedPoster.new()
+	bill.configure(cfg, float(w.tilt))
+	bill.position = Vector2(float(w.x), GROUND_Y)
+	add_child(bill)
+	# Keep the lean configure() rolled, or a bill that streams out and back in
+	# would lean a different way every time.
+	w.tilt = bill.tilt_deg
+	w.id = bill.char_id
+	w.node = bill
+
+
+func _free_wanted_node(w: Dictionary) -> void:
+	if is_instance_valid(w.node):
+		w.node.queue_free()
+	w.node = null
 
 
 func _cull_stragglers() -> void:
@@ -792,6 +931,32 @@ func _on_shake(px: float) -> void:
 ## Called from _ready() on a FRESH street only, and only with no venue entered
 ## yet, so it can never interrupt a run in progress — walking back out of a
 ## venue, or restarting after game over, both leave it alone.
+## Introduce today's bounty, once per day, at the top of a fresh run — the
+## player cannot hunt someone they have never been shown.
+##
+## Skipped while the WELCOME popup is up rather than stacked behind it: on a
+## brand-new save both are due on the same frame, and two frozen panels in a
+## row is a worse first thirty seconds than meeting the bounty one run later.
+## Nothing is marked seen in that case, so it simply comes back next run.
+func _show_wanted_intro() -> void:
+	if is_instance_valid(_hint_popup) or not GameState.wanted_intro_due():
+		return
+	var cfg: Dictionary = GameState.wanted_data()
+	if cfg.is_empty():
+		return
+	_hint_popup = HintPopup.new()
+	_hint_popup.title_text = "WANTED TODAY"
+	_hint_popup.body_text = "PUT THEM ON THE FLOOR\nFOR AN EXTRA 10% A KO."
+	_hint_popup.art = WantedPoster.make_bill(cfg)
+	# Frozen before the popup enters the tree, same as the welcome lesson, so
+	# the run's first frame is already still while the player reads it.
+	GameState.set_paused(true)
+	add_child(_hint_popup)
+	# Spent only once the popup is really up — marking it earlier would burn
+	# today's one showing on any failure along the way.
+	GameState.mark_wanted_intro_seen()
+
+
 func _show_intro_hint() -> void:
 	if not GameState.intro_hint_due():
 		return
@@ -891,6 +1056,9 @@ func _capture_state() -> Dictionary:
 		var counted: bool = b.node.counted if is_instance_valid(b.node) else bool(b.counted)
 		billboards.append({"x": b.x, "id": b.id, "counted": counted,
 				"variant": b.variant, "tilt": b.tilt})
+	var wanted: Array = []
+	for w in _wanted:
+		wanted.append({"x": w.x, "id": w.id, "tilt": w.tilt})
 	var litter: Array = []
 	for l in _litter:
 		litter.append({"x": l.x, "y": l.y, "id": l.id, "flip": l.flip})
@@ -900,6 +1068,7 @@ func _capture_state() -> Dictionary:
 		"venue_index": _venue_index,
 		"doors": doors,
 		"billboards": billboards,
+		"wanted": wanted,
 		"litter": litter,
 	}
 

@@ -1328,6 +1328,105 @@ func player_links(cfg: Dictionary) -> Array:
 	return []
 
 
+# --------------------------------------------------------------------- WANTED
+## Today's bounty: ONE comedian per edition per day, worth WANTED_BONUS extra
+## on every KO that lands on them.
+##
+## Deliberately computed on the client. Every player in an edition has to hunt
+## the same person, and the only two inputs are the day and the roster — both
+## sides already have both — so there is no endpoint, no table and no backend
+## deploy behind this. The score it feeds is the same client-computed,
+## server-clamped number every other KO pays into, so this trusts the client
+## no further than the game already does.
+const WANTED_BONUS := 0.1
+
+## Cached per day: the hash runs once when the day turns over, not once per KO.
+var _wanted_day := ""
+var _wanted_id := ""
+## The day whose WANTED intro has already been shown, so each new bounty is
+## introduced exactly once and then gets out of the way. Persisted in settings.
+var wanted_intro_day := ""
+
+
+## Which day the bounty belongs to. The server's Eastern day when we have it —
+## the one /login already reports for the JOKE BOOK, so both features agree on
+## when midnight is — and the device clock otherwise. An offline device with a
+## wrong clock hunts the wrong comedian for a day; that is the whole cost of
+## not adding an endpoint for this.
+func wanted_day() -> String:
+	var day := Leaderboard.today()
+	return day if day != "" else Time.get_date_string_from_system()
+
+
+## CharacterId of today's bounty, or "" when the roster has nobody eligible.
+func wanted_id() -> String:
+	var day := wanted_day()
+	# An empty answer is never cached: this can be asked before _load_roster
+	# has run, and that must not pin "" for the rest of the day.
+	if day == _wanted_day and _wanted_id != "":
+		return _wanted_id
+	_wanted_day = day
+	_wanted_id = _roll_wanted(day)
+	return _wanted_id
+
+
+## Pick from `playable`, sorted by CharacterId — NOT roster order. Reordering
+## characters.json is an ordinary edit and must not move the bounty; adding or
+## benching a comedian does move it, which is right, because the pool changed.
+func _roll_wanted(day: String) -> String:
+	var ids: Array = []
+	for i in playable:
+		var id := String(characters[i].get("CharacterId", ""))
+		if id != "":
+			ids.append(id)
+	if ids.is_empty():
+		return ""
+	ids.sort()
+	return String(ids[_fnv1a("%s/%s" % [day, active_game]) % ids.size()])
+
+
+## FNV-1a, spelled out rather than String.hash(): every client must land on the
+## same comedian, so the mixing has to be something we control instead of an
+## engine detail that could differ between builds or platforms.
+static func _fnv1a(text: String) -> int:
+	var h := 2166136261
+	for b in text.to_utf8_buffer():
+		h = ((h ^ int(b)) * 16777619) & 0xFFFFFFFF
+	return h
+
+
+## Roster entry for today's bounty, or {} when there isn't one.
+func wanted_data() -> Dictionary:
+	var idx := character_index_by_id(wanted_id())
+	return characters[idx] if idx != -1 else {}
+
+
+## True when this CharacterId is today's bounty. An empty id never matches, so
+## a fighter built from anything but the roster is simply never wanted.
+func is_wanted(char_id: String) -> bool:
+	var id := wanted_id()
+	return id != "" and char_id == id
+
+
+## What a KO on this fighter pays. The bonus lands on the BASE, before the
+## streak multiplier, so a wanted KO inside a venue is +10% of the bigger venue
+## number exactly the way it is +10% of 100 on the street.
+func ko_points_for(char_id: String, base_points: int) -> int:
+	if not is_wanted(char_id):
+		return base_points
+	return int(round(base_points * (1.0 + WANTED_BONUS)))
+
+
+## True while today's bounty still owes the player an introduction.
+func wanted_intro_due() -> bool:
+	return wanted_id() != "" and wanted_intro_day != wanted_day()
+
+
+func mark_wanted_intro_seen() -> void:
+	wanted_intro_day = wanted_day()
+	_save_settings()
+
+
 # ---------------------------------------------------------------- share links
 ## Where this game lives in the public URL. Almost always the game id — the
 ## exception is tight5, which ships at /jax/. Only the desktop and editor
@@ -1865,6 +1964,9 @@ func _load_settings() -> void:
 	# Sticky once true: the doorway popup is a first-run lesson, not a setting.
 	venue_hint_seen = bool(d.get("venueHintSeen", false))
 	intro_hint_seen = bool(d.get("introHintSeen", false))
+	# A day string, not a flag: the bounty turns over daily, so "already seen"
+	# has to expire with it. An unknown or garbage value simply shows the intro.
+	wanted_intro_day = String(d.get("wantedIntroDay", ""))
 	_apply_volume("Music", music_volume)
 	_apply_volume("SFX", sfx_volume)
 
@@ -1886,6 +1988,7 @@ func _save_settings() -> void:
 		"random": _random_before_deeplink if borrowed else random_select,
 		"venueHintSeen": venue_hint_seen,
 		"introHintSeen": intro_hint_seen,
+		"wantedIntroDay": wanted_intro_day,
 	})
 
 

@@ -34,6 +34,11 @@ const HEAD_BASE_PX := 16.0
 ## Roster name from characters.json ("CharacterName"). The global board
 ## counts KOs by this, so an unconfigured fighter ("" here) never reports.
 var char_name := ""
+## Roster id from characters.json ("CharacterId") — the permanent identity, so
+## anything that must survive a rename keys on this rather than on char_name.
+## Today that is the WANTED bounty check. Empty for an unconfigured fighter,
+## which therefore matches nothing.
+var char_id := ""
 var body_type := "M"
 var skin_color := CharacterFactory.DEFAULT_SKIN
 ## Index into CharacterFactory.OUTFITS. Player and Enemy each pick one in
@@ -179,6 +184,7 @@ func _process(_delta: float) -> void:
 ## Apply a character entry from characters.json. Call before add_child().
 func configure(cfg: Dictionary) -> void:
 	char_name = String(cfg.get("CharacterName", ""))
+	char_id = String(cfg.get("CharacterId", ""))
 	body_type = String(cfg.get("BodyType", "M"))
 	skin_color = Color.from_string(String(cfg.get("SkinColor", "")),
 			CharacterFactory.DEFAULT_SKIN)

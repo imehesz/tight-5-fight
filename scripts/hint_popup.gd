@@ -26,6 +26,9 @@ const DIM := Color(0, 0, 0, 0.5)
 
 var title_text := "HEADS UP"
 var body_text := ""
+## Optional artwork shown between the title and the body — a WANTED bill, so
+## far. Set before add_child(); left null, the popup is text-only as before.
+var art: Control = null
 
 var _panel: Panel
 var _button: Button
@@ -69,6 +72,13 @@ func _ready() -> void:
 	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_panel.add_child(col)
 	_add_label(col, title_text, 12, Color(1.0, 0.85, 0.4))
+	if art != null:
+		# Centred rather than stretched: the art has a fixed pixel size and
+		# letting a VBox widen it would smear the paper edges.
+		var hold := HBoxContainer.new()
+		hold.alignment = BoxContainer.ALIGNMENT_CENTER
+		hold.add_child(art)
+		col.add_child(hold)
 	# Title-only popups (PAUSE) skip the body entirely rather than reserving an
 	# empty line under the heading.
 	if body_text != "":

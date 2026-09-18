@@ -151,15 +151,23 @@ func take_hit(damage: float, from_x: float, knockback := 1.0) -> void:
 
 func _die() -> void:
 	_bar_bg.visible = false
-	var mult := GameState.bank_ko_score(score_value)
+	# Today's WANTED comedian pays extra. The bonus lands on the base value,
+	# before the streak multiplier, so a bounty KO is worth +10% of whatever
+	# that KO was already worth — 100 on the street, more inside a venue.
+	var wanted := GameState.is_wanted(char_id)
+	var points := GameState.ko_points_for(char_id, score_value)
+	var mult := GameState.bank_ko_score(points)
 	GameState.count_ko(char_name)
 	if crowd_cheers and randf() < CHEER_CHANCE:
 		GameState.play_crowd("cheer")
 	# Visual pop on every KO (the cheer SFX above stays rarer, by CHEER_CHANCE).
 	if crowd_cheers:
 		GameState.crowd_reaction.emit("cheer")
+	# Gold instead of green on a bounty: without it the extra 10% is invisible
+	# and the poster never pays off visibly.
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -90),
-			"+%d" % (score_value * mult), Color(0.6, 1.0, 0.6))
+			"+%d" % (points * mult),
+			Color(1.0, 0.84, 0.3) if wanted else Color(0.6, 1.0, 0.6))
 	if mult > 1:
 		# 34px above the +N popup: the 12px shout plus its thick outline needs
 		# more clearance than the default 8px texts do (both rise in lockstep,

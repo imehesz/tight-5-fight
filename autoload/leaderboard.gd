@@ -329,6 +329,14 @@ func streak_days() -> int:
 	return int(_jokebook.get("streak", 0))
 
 
+## The server's idea of today, "YYYY-MM-DD" in Eastern time, or "" before the
+## boot login lands (offline, or a VPS that is down). Already computed for the
+## JOKE BOOK calendar — exposed here so anything else that has to agree on
+## what day it is can share the one answer instead of inventing a second.
+func today() -> String:
+	return String(_jokebook.get("today", ""))
+
+
 # ------------------------------------------------------------ joke crafter
 ## The cached crafter state, or {} if nothing has landed yet.
 func crafter() -> Dictionary:
