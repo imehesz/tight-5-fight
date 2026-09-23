@@ -191,13 +191,23 @@ static func texture(idx: int) -> Texture2D:
 	return load(path) as Texture2D
 
 
+## True when the art for `idx` has been imported — checked WITHOUT loading
+## it. Loading is what costs: every caller of available() (the SETTINGS tab
+## row, the category headings) only needs to know the art is there, and
+## loading all of it just to ask made opening SETTINGS pull in every PNG on
+## the shelf before the DECOR tab was ever tapped.
+static func has_art(idx: int) -> bool:
+	var path := String(entry(idx).get("tex", ""))
+	return path != "" and ResourceLoader.exists(path)
+
+
 ## Indices whose art actually imported — what the picker lists, so a half-added
 ## decoration shows up as nothing rather than as an empty card you can equip
 ## and then appear to wear nothing.
 static func available() -> Array[int]:
 	var out: Array[int] = []
 	for i in _rows.size():
-		if texture(i) != null:
+		if has_art(i):
 			out.append(i)
 	return out
 

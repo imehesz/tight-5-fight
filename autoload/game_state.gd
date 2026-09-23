@@ -1094,7 +1094,39 @@ func finish_run() -> void:
 	change_scene(SCENE_GAME_OVER)
 
 
-func change_scene(path: String) -> void:
+## `show_loading` puts LoadingBanner up for the whole switch — the file load
+## AND the new screen's _ready(), which is where menus like SETTINGS do their
+## heavy building — and only takes it down once the new scene is in the tree.
+## While such a switch is pending every other change_scene() is ignored, so a
+## second tap in the gap can't send the player somewhere else.
+var _loading_scene := false
+
+
+func change_scene(path: String, show_loading := false) -> void:
+	if _loading_scene:
+		return
+	if show_loading:
+		_loading_scene = true
+		await LoadingBanner.run(func(): await _change_scene_and_wait(path))
+		_loading_scene = false
+		return
+	_change_scene_now(path)
+
+
+## Switch, then wait until the tree's current scene is the new one (its _ready
+## has run by then). Capped, so a switch that never lands can't leave the
+## banner up forever.
+func _change_scene_and_wait(path: String) -> void:
+	var old := get_tree().current_scene
+	_change_scene_now(path)
+	for i in 300:
+		await get_tree().process_frame
+		var cur := get_tree().current_scene
+		if cur != null and cur != old:
+			return
+
+
+func _change_scene_now(path: String) -> void:
 	# Leaving the venue (street, game over, menu) ends venue-KO attribution.
 	if path != SCENE_VENUE:
 		current_venue_name = ""

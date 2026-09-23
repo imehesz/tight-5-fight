@@ -101,6 +101,8 @@ var _rack_scroll: ScrollContainer
 ## card) so a crafter reply can repaint prices and locks in place without
 ## rebuilding it — same reason the weapon overlays are kept.
 var _decor_cards := {}
+## Parent of every tab panel, kept so the DECOR panel can join it later.
+var _panel_host: Control
 var _decor_prices := {}
 var _decor_scroll: ScrollContainer
 ## The decoration a purchase is in flight for. Buying one is how you pick it,
@@ -134,6 +136,7 @@ func _ready() -> void:
 
 	_show_tab(Tab.SOUNDS)
 	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
+	add_player_stats()
 	_add_version_label()
 
 
@@ -194,21 +197,45 @@ func _tab_button(tab: Tab, text: String) -> Button:
 func _build_panels() -> Control:
 	var host := Control.new()
 	host.custom_minimum_size = PANEL_SIZE
+	_panel_host = host
 	_panels[Tab.SOUNDS] = _sounds_panel()
 	_panels[Tab.COLORS] = _colors_panel()
 	_panels[Tab.WEAPONS] = _weapons_panel()
-	if Decorators.any():
-		_panels[Tab.DECOR] = _decor_panel()
+	# DECOR is NOT built here — see _ensure_decor_panel(). Building it loads
+	# every decoration's art, which made opening SETTINGS slow for a tab most
+	# visits never open.
 	for tab in _panels:
-		var p: Control = _panels[tab]
-		# Anchors AND offsets: anchors alone would leave the child sized zero.
-		p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		host.add_child(p)
+		_mount_panel(_panels[tab])
 	return host
+
+
+func _mount_panel(p: Control) -> void:
+	# Anchors AND offsets: anchors alone would leave the child sized zero.
+	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_panel_host.add_child(p)
+
+
+## Build the DECOR shelf the first time its tab is opened, then keep it. The
+## tab button itself only needs Decorators.any(), which checks the art exists
+## without loading it.
+func _ensure_decor_panel() -> void:
+	if _panels.has(Tab.DECOR) or not Decorators.any():
+		return
+	_panels[Tab.DECOR] = _decor_panel()
+	_mount_panel(_panels[Tab.DECOR])
 
 
 func _show_tab(tab: Tab) -> void:
 	_tab = tab
+	if tab == Tab.DECOR and not _panels.has(Tab.DECOR) and Decorators.any():
+		# First open loads every decoration's art — say so rather than freeze.
+		await LoadingBanner.run(_ensure_decor_panel)
+		# Another tab may have been tapped during the wait; that tap wins, and
+		# the shelf that just got built stays out of its way.
+		if _tab != tab:
+			if _panels.has(Tab.DECOR):
+				_panels[Tab.DECOR].visible = false
+			return
 	for t in _panels:
 		_panels[t].visible = t == tab
 	if tab == Tab.WEAPONS:

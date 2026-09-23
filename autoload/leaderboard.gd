@@ -329,6 +329,12 @@ func streak_days() -> int:
 	return int(_jokebook.get("streak", 0))
 
 
+## How far back the server counts a streak (config.jokeBook.windowDays), so
+## streak_days() never exceeds it. 0 when unknown.
+func streak_window() -> int:
+	return int(_jokebook.get("windowDays", 0))
+
+
 ## The server's idea of today, "YYYY-MM-DD" in Eastern time, or "" before the
 ## boot login lands (offline, or a VPS that is down). Already computed for the
 ## JOKE BOOK calendar — exposed here so anything else that has to agree on

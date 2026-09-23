@@ -402,6 +402,48 @@ static func make_back_button(cb: Callable) -> Button:
 	return b
 
 
+## Top-right counterpart to BACK: the player's DAILY STREAK and JOKE POINTS,
+## read-only, on the screens where they matter (LEADERBOARD, SETTINGS). Both
+## numbers are already cached by Leaderboard's boot fetch; the label repaints
+## whenever either answer lands, so a slow server fills it in rather than
+## leaving it stale. The streak shows 1 until the server says otherwise — the
+## player IS here today, which is day one of any streak.
+var _stats_label: Label
+
+
+func add_player_stats() -> Label:
+	if not Leaderboard.JOKE_BOOK_ENABLED:
+		return null
+	_stats_label = Label.new()
+	_stats_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_stats_label.offset_right = -EDGE_ARROW_MARGIN
+	_stats_label.offset_top = EDGE_ARROW_MARGIN
+	_stats_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_stats_label.add_theme_font_size_override("font_size", 8)
+	_stats_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	# Read-only: never swallows a tap meant for whatever it sits over.
+	_stats_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_stats_label)
+	# Methods, not lambdas: a connection to a freed node's method is dropped
+	# automatically when the screen closes; a lambda would outlive the label.
+	Leaderboard.jokebook_loaded.connect(_paint_player_stats)
+	Leaderboard.crafter_loaded.connect(_paint_player_stats)
+	_paint_player_stats()
+	return _stats_label
+
+
+func _paint_player_stats(_data: Dictionary = {}) -> void:
+	if _stats_label == null:
+		return
+	# The server only counts back streak_window() days, so a streak AT that cap
+	# may really be longer — say so rather than claim it is exactly 90.
+	var days := maxi(Leaderboard.streak_days(), 1)
+	var window := Leaderboard.streak_window()
+	var streak := ("%d+" % window) if window > 0 and days >= window else str(days)
+	_stats_label.text = "DAILY STREAK: %s  JP: %d" % [streak, Leaderboard.joke_points()]
+
+
 func add_back_button(cb: Callable) -> Button:
 	var b := make_back_button(guard_tap(cb))
 	# Top-left corner, growing right/down so a wider screen never moves it.

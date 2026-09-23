@@ -244,6 +244,7 @@ func _ready() -> void:
 	_prev_btn = add_edge_arrow("<", false, func(): _turn_page(-1))
 	_next_btn = add_edge_arrow(">", true, func(): _turn_page(1))
 	add_back_button(func(): GameState.change_scene(GameState.SCENE_MAIN_MENU))
+	add_player_stats()
 
 	# Arriving from game over, open straight to the page holding the new
 	# entry — otherwise a top-50 board buries it and the run feels unrecorded.
