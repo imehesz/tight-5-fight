@@ -4,10 +4,16 @@ extends RefCounted
 ## pinned to the shirt (or the dress) wherever their comedian is drawn.
 ## Purely cosmetic: nothing here touches damage, speed or score.
 ##
-## The catalog lives in games/<id>/decorators.json, right next to the art it
-## lists — data, like characters.json and weapons.json, not code. Adding one is
-## a two-step job: drop a PNG in games/<id>/assets/decorators/ and add a row to
-## that file. Nothing in the game hardcodes a decoration.
+## The catalog is ONE shared list every edition wears — shared/assets/
+## decorators/decorators.json, right next to the art it lists — plus an
+## optional games/<id>/decorators.json for a city's own extras. Data, like
+## characters.json and weapons.json, not code: adding one is a PNG in that
+## folder and a row in that file. Nothing in the game hardcodes a decoration.
+##
+## Unlike weapons, a city file ADDS to the shared list rather than replacing it.
+## A city row whose id is new leads the shelf; one whose id is already shared
+## overlays that row field by field, so `{"id": "palm-tree", "enabled": false}`
+## benches one shared decoration in one edition without copying the rest.
 ##
 ## NB the manifest key is "decorators", NOT "decor" — that one is already taken
 ## by the street's ambient dressing (see StreetDecor).
@@ -18,7 +24,8 @@ extends RefCounted
 ##   category display grouping ONLY — the picker heads a block with it and
 ##            nothing else ever reads it.
 ##   name     what the card is labelled.
-##   path     game-relative PNG (or "shared/..." / a full res:// path).
+##   path     PNG relative to the JSON it is written in (or "shared/..." / a
+##            full res:// path).
 ##   price    JOKE POINTS. 0 means wear it straight away; anything higher has
 ##            to be bought once, and the SERVER charges it (see /decor).
 ##   enabled  false benches the row: dropped entirely, like a disabled venue.
@@ -57,31 +64,62 @@ const DUCK_SCALE := 0.7
 static var _rows: Array[Dictionary] = []
 
 
+## Every edition wears this list; a city's decorators.json only adds to it.
+const SHARED_PATH := "res://shared/assets/decorators/decorators.json"
+
+
 ## Parse the catalog. GameState calls this at boot with the active game's
-## games/<id>/decorators.json path. A game that ships no such file simply has
-## no decorations — this is opt-in per edition, not a shared rack.
+## games/<id>/decorators.json path, which usually does not exist — then the
+## edition simply wears the shared list as it is.
 static func load_roster(path: String) -> void:
-	_rows = []
-	if path == "" or not FileAccess.file_exists(path):
-		return
-	var rows: Array = _read_json(path).get("decorators", [])
-	var base := path.get_base_dir()
+	var shared := _read_rows(SHARED_PATH)
+	var city: Array[Dictionary] = []
+	if path != SHARED_PATH:
+		city = _read_rows(path)
+	var by_id := {}
+	for r in shared:
+		by_id[r["id"]] = r
+	var extras: Array[Dictionary] = []
+	for r in city:
+		if by_id.has(r["id"]):
+			# Overlay: only the fields the city wrote change. A missing "path"
+			# keeps the shared art, already resolved against the shared folder.
+			by_id[r["id"]].merge(r, true)
+		else:
+			extras.append(r)
 	var out: Array[Dictionary] = []
-	for r in rows:
-		if not (r is Dictionary) or not bool(r.get("enabled", true)):
+	for r in extras + shared:
+		if not bool(r.get("enabled", true)):
 			continue
-		var id := String(r.get("id", ""))
-		if id == "":
-			continue
+		var id := String(r["id"])
 		out.append({
 			"id": id,
 			"name": String(r.get("name", id.to_upper())),
 			"category": String(r.get("category", "MISC")),
 			"price": maxi(int(r.get("price", 0)), 0),
-			"tex": _resolve_path(String(r.get("path", "")), base),
+			"tex": String(r.get("path", "")),
 			"scale": maxf(float(r.get("scale", 1.0)), 0.05),
 		})
 	_rows = out
+
+
+## One file's rows, with ids checked and each "path" resolved against THAT
+## file's folder — done per file, before merging, because a city overlay and
+## the shared row it overlays live in different folders. A missing file is [].
+static func _read_rows(path: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if path == "" or not FileAccess.file_exists(path):
+		return out
+	var base := path.get_base_dir()
+	for r in _read_json(path).get("decorators", []):
+		if not (r is Dictionary) or String(r.get("id", "")) == "":
+			continue
+		var row: Dictionary = r.duplicate()
+		row["id"] = String(row["id"])
+		if row.has("path"):
+			row["path"] = _resolve_path(String(row["path"]), base)
+		out.append(row)
+	return out
 
 
 ## Paths resolve like every other path in the data files: relative to the

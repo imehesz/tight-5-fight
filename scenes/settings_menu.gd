@@ -102,7 +102,6 @@ var _rack_scroll: ScrollContainer
 ## rebuilding it — same reason the weapon overlays are kept.
 var _decor_cards := {}
 var _decor_prices := {}
-var _decor_jp_label: Label
 var _decor_scroll: ScrollContainer
 ## The decoration a purchase is in flight for. Buying one is how you pick it,
 ## so the reply equips it — without this the player would have to tap twice,
@@ -167,8 +166,8 @@ func _build_tabs() -> HBoxContainer:
 	tabs.add_child(_tab_button(Tab.SOUNDS, "SOUNDS"))
 	tabs.add_child(_tab_button(Tab.COLORS, "COLORS"))
 	tabs.add_child(_tab_button(Tab.WEAPONS, "WEAPONS"))
-	# Only an edition that ships decorators.json gets the tab — everywhere else
-	# the row stays the three it has always been, at its original size.
+	# Every edition wears the shared decorations, so the tab is normally there;
+	# this only drops it if none of the art imported, leaving the original three.
 	if Decorators.any():
 		tabs.add_child(_tab_button(Tab.DECOR, "DECOR"))
 		for b in _tab_buttons.values():
@@ -670,8 +669,8 @@ func _paint_weapon_cards() -> void:
 
 
 # ---------------------------------------------------------------- decor
-## The DECOR shelf: the chest decorations this edition ships (games/<id>/
-## decorators.json), grouped under their `category`. The grouping is display
+## The DECOR shelf: the shared chest decorations plus any city extras (see
+## Decorators), grouped under their `category`. The grouping is display
 ## only — nothing else in the game reads it — so a category is just a heading
 ## with a grid of cards under it, in file order.
 ##
@@ -680,12 +679,9 @@ func _paint_weapon_cards() -> void:
 ## upgrade: this screen only asks, and repaints from whatever comes back.
 func _decor_panel() -> Control:
 	var col := _panel_column()
+	# No JOKE POINTS readout here: decorations are free for now, and the price
+	# on a locked card already says what one would cost.
 	if Leaderboard.JOKE_BOOK_ENABLED:
-		_decor_jp_label = Label.new()
-		_decor_jp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_decor_jp_label.add_theme_font_size_override("font_size", 7)
-		_decor_jp_label.add_theme_color_override("font_color", GOLD)
-		col.add_child(_decor_jp_label)
 		# The weapons panel is built first and already asks; this is only the
 		# fallback for a build where that panel is gone. _crafter_call drops a
 		# second call while the first is in flight, so a duplicate is free.
@@ -839,9 +835,6 @@ func _on_decor_pressed(index: int) -> void:
 ## Repaint the shelf from the cached crafter state: which card wears the gold
 ## ring, which are still locked, and what the locked ones cost.
 func _paint_decor() -> void:
-	if _decor_jp_label != null:
-		_decor_jp_label.text = "JOKE POINTS  JP%s" \
-				% String.num_int64(Leaderboard.joke_points()).pad_zeros(6)
 	for index in _decor_cards:
 		var btn: Button = _decor_cards[index]
 		var on: bool = index == GameState.decor

@@ -1,0 +1,260 @@
+{
+    "decorators": [
+        {
+            "id": "gold-star",
+            "category": "Generic",
+            "name": "Gold Star",
+            "path": "gold-star.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "t5f-logo",
+            "category": "Generic",
+            "name": "T5F",
+            "path": "logo_t5f.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "flag-hu",
+            "category": "Flags",
+            "name": "Hungary",
+            "path": "flag_hu.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "flag-pride",
+            "category": "Flags",
+            "name": "Pride",
+            "path": "flag_pride.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "flag-usa",
+            "category": "Flags",
+            "name": "USA",
+            "path": "flag_usa.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "logo-jags",
+            "category": "Sport",
+            "name": "JAGS",
+            "path": "logo_jags.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "logo-dolphins",
+            "category": "Sport",
+            "name": "Dolphins",
+            "path": "dolphins.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "logo-gators",
+            "category": "Sport",
+            "name": "Gators",
+            "path": "gators.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "heart",
+            "category": "Icons",
+            "name": "Heart",
+            "path": "heart.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "lightning",
+            "category": "Icons",
+            "name": "Lightning",
+            "path": "lightning.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "smiley",
+            "category": "Icons",
+            "name": "Smiley",
+            "path": "smiley.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "skull",
+            "category": "Icons",
+            "name": "Skull",
+            "path": "skull.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "flame",
+            "category": "Icons",
+            "name": "Flame",
+            "path": "flame.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "crown",
+            "category": "Icons",
+            "name": "Crown",
+            "path": "crown.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "diamond",
+            "category": "Icons",
+            "name": "Diamond",
+            "path": "diamond.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "ghost",
+            "category": "Icons",
+            "name": "Ghost",
+            "path": "ghost.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "moon",
+            "category": "Icons",
+            "name": "Moon",
+            "path": "moon.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "music-note",
+            "category": "Icons",
+            "name": "Music Note",
+            "path": "music-note.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "microphone",
+            "category": "Comedy",
+            "name": "Microphone",
+            "path": "microphone.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "tomato",
+            "category": "Comedy",
+            "name": "Tomato",
+            "path": "tomato.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "banana",
+            "category": "Comedy",
+            "name": "Banana Peel",
+            "path": "banana.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "mustache",
+            "category": "Comedy",
+            "name": "Mustache",
+            "path": "mustache.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "sunglasses",
+            "category": "Comedy",
+            "name": "Shades",
+            "path": "sunglasses.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "palm-tree",
+            "category": "Florida",
+            "name": "Palm Tree",
+            "path": "palm-tree.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "sun",
+            "category": "Florida",
+            "name": "Sun",
+            "path": "sun.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "gummy-bear",
+            "category": "Snacks",
+            "name": "Gummy Bear",
+            "path": "gummy-bear.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "pizza",
+            "category": "Snacks",
+            "name": "Pizza",
+            "path": "pizza.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "donut",
+            "category": "Snacks",
+            "name": "Donut",
+            "path": "donut.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "cherries",
+            "category": "Snacks",
+            "name": "Cherries",
+            "path": "cherries.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "nine-inch-nails",
+            "category": "Music",
+            "name": "NIN",
+            "path": "nin.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "violator",
+            "category": "Music",
+            "name": "Violator",
+            "path": "violator.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
+            "id": "wutang",
+            "category": "Music",
+            "name": "Wu-Tang",
+            "path": "wutang.png",
+            "price": 0,
+            "enabled": true
+        }
+    ]
+}

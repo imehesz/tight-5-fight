@@ -511,9 +511,10 @@ func _load_roster() -> void:
 	# unless a game ships its own decor.json (a beach edition wanting seagulls
 	# and soda cups instead of city rats needs no code, just the file).
 	StreetDecor.load_roster(game_path(String(manifest.get("decor", "decor.json"))))
-	# Chest decorations are opt-in per edition: a game with no decorators.json
-	# simply has none, and the settings screen drops the tab. NB the manifest
-	# key is "decorators" — "decor" above is the street dressing.
+	# Chest decorations: every edition wears the shared list, and a game's own
+	# decorators.json (usually absent) only adds city extras on top — see
+	# Decorators. NB the manifest key is "decorators" — "decor" above is the
+	# street dressing.
 	Decorators.load_roster(game_path(String(manifest.get("decorators", "decorators.json"))))
 
 

@@ -99,22 +99,29 @@ func refresh_decor() -> void:
 
 ## The chest decoration, drawn exactly where Player wears it (the offsets and
 ## the size both come from Decorators, so the preview can never drift from the
-## real thing). In FRONT of the body and behind the strap, matching Player's
-## stacking — by index rather than z_index, for the reason in _build_weapon().
-## Unlike the weapon this is always built: every screen that shows the player's
-## comedian shows what they are wearing.
+## real thing). In FRONT of the body, matching Player's stacking — by index
+## rather than z_index, for the reason in _build_weapon(). Wearing one hides
+## the strap, as Player does. Unlike the weapon this is always built: every
+## screen that shows the player's comedian shows what they are wearing.
 func _build_decor() -> void:
 	if _decor:
 		_decor.queue_free()
 		_decor = null
 	var tex := Decorators.texture(GameState.decor)
-	if tex == null:
-		return
-	_decor = Sprite2D.new()
-	_decor.texture = tex
-	_decor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	add_child(_decor)
-	move_child(_decor, _strap.get_index() if _strap else _body.get_index() + 1)
+	if tex != null:
+		_decor = Sprite2D.new()
+		_decor.texture = tex
+		_decor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		add_child(_decor)
+		move_child(_decor, _strap.get_index() if _strap else _body.get_index() + 1)
+	_sync_strap()
+
+
+## The strap only shows on a bare chest. Called from both builders, since
+## either one can run after the other (a DECOR tap, or a WEAPONS tap).
+func _sync_strap() -> void:
+	if _strap:
+		_strap.visible = _decor == null
 
 
 ## Weapon behind everything (child index 0) and strap just in front of the
@@ -148,6 +155,7 @@ func _build_weapon() -> void:
 	add_child(_strap)
 	move_child(_strap, _body.get_index() + 1)
 	_update_strap()
+	_sync_strap()
 
 
 ## The strap hangs off the animation's neck anchor, so it rides the dance bob

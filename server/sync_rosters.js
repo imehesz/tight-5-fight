@@ -1,6 +1,7 @@
 "use strict";
 // Regenerates server/rosters/<gameId>.json from each game's characters.json,
-// venues.json and decorators.json. The server is deployed without the game's asset tree, so
+// venues.json and decorators.json (the shared list plus any city extras). The
+// server is deployed without the game's asset tree, so
 // it can't read the rosters directly — these extracts are committed
 // alongside it.
 //
@@ -33,12 +34,16 @@ const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // caught before they go out.
 const LINK_KEY = "playerLink";
 
-// Chest decorations (games/<id>/decorators.json, optional). Only the PRICES
-// ship to the server — it never draws one, it only has to know what to charge,
-// and a price the client could name is a price the client could set to 0.
-// Same slug rules as a CharacterId, and the same linting: a bad row here is
-// caught before a deploy, not after somebody buys it.
+// Chest decorations: ONE shared list every edition wears, plus an optional
+// games/<id>/decorators.json of city extras merged over it exactly the way
+// Decorators.load_roster() does in the game (a new id adds, a known id
+// overlays). Only the PRICES ship to the server — it never draws one, it only
+// has to know what to charge, and a price the client could name is a price
+// the client could set to 0. Same slug rules as a CharacterId, and the same
+// linting: a bad row here is caught before a deploy, not after somebody buys it.
 const DECOR_FILE = "decorators.json";
+const repoRoot = path.join(__dirname, "..");
+const sharedDecorFile = path.join(repoRoot, "shared", "assets", "decorators", DECOR_FILE);
 
 const errors = [];
 const warnings = [];
@@ -143,12 +148,21 @@ function extract(gameId, file, listKey, nameKey, idKey) {
   return names.sort();
 }
 
-// Pull { id: price } out of one game's decorators.json. A game with no such
-// file simply has no decorations — that is the common case, so a missing file
-// is silent, while an unreadable one is an error like any other roster.
-function extractDecor(gameId, file) {
+// Resolve a decoration's "path" the way the game does: relative to the JSON's
+// own folder, except a leading "shared/" (project root) or a full res:// path.
+function decorArtPath(file, rel) {
+  if (rel.startsWith("res://")) return path.join(repoRoot, rel.slice("res://".length));
+  if (rel.startsWith("shared/")) return path.join(repoRoot, rel);
+  return path.join(path.dirname(file), rel);
+}
+
+// Pull { id: price } out of one decorators.json. A missing file is silent —
+// most cities ship no extras — while an unreadable one is an error like any
+// other roster. With `base` (the shared list's prices) this is a CITY file: a
+// row whose id is already shared is an overlay, so its price and path may be
+// left out and are inherited.
+function extractDecor(label, file, base = null) {
   if (!fs.existsSync(file)) return null;
-  const label = `${gameId}/${DECOR_FILE}`;
   let entries;
   try {
     entries = JSON.parse(fs.readFileSync(file, "utf8")).decorators;
@@ -183,7 +197,8 @@ function extractDecor(gameId, file) {
       errors.push(`${who}: id "${id}" is longer than 32 characters`);
       return;
     }
-    const price = entry.price;
+    const overlay = base !== null && id in base;
+    const price = overlay && entry.price === undefined ? base[id] : entry.price;
     if (!Number.isInteger(price) || price < 0) {
       errors.push(`${who}: price must be a whole number of joke points (0 = free)`);
       return;
@@ -193,6 +208,7 @@ function extractDecor(gameId, file) {
     // client legitimately shipped.
     out[id] = price;
     const rel = entry.path;
+    if (overlay && rel === undefined) return; // keeps the shared art
     if (typeof rel !== "string" || rel.trim() === "") {
       errors.push(`${who} "${id}": missing path`);
       return;
@@ -200,12 +216,15 @@ function extractDecor(gameId, file) {
     // The art never reaches the server, but a decoration whose PNG is missing
     // is an empty card in the shelf — and this is the one place that can see
     // both the JSON and the asset tree.
-    if (!fs.existsSync(path.join(path.dirname(file), rel))) {
+    if (!fs.existsSync(decorArtPath(file, rel))) {
       errors.push(`${who} "${id}": path "${rel}" does not exist`);
     }
   });
   return out;
 }
+
+// The shared list, read once: every edition's extract starts from it.
+const sharedDecor = extractDecor("shared/assets/decorators/" + DECOR_FILE, sharedDecorFile) || {};
 
 // ---- pass 1: read + validate every game, writing nothing yet
 const pending = [];
@@ -230,10 +249,14 @@ for (const gameId of config.games) {
       path.join(gameDir, manifest.venues || "venues.json"),
       "venues", "VenueName", "VenueId"
     ),
-    decorators: extractDecor(
-      gameId,
-      path.join(gameDir, manifest.decorators || DECOR_FILE)
-    ),
+    decorators: {
+      ...sharedDecor,
+      ...extractDecor(
+        `${gameId}/${DECOR_FILE}`,
+        path.join(gameDir, manifest.decorators || DECOR_FILE),
+        sharedDecor
+      ),
+    },
   });
 }
 
@@ -242,7 +265,7 @@ for (const w of warnings) console.warn(`warning: ${w}`);
 if (errors.length) {
   console.error(`\n${errors.length} roster problem(s) — nothing was written:\n`);
   for (const e of errors) console.error(`  ${e}`);
-  console.error("\nFix games/<id>/characters.json or venues.json and re-run.");
+  console.error("\nFix games/<id>/characters.json, venues.json or a decorators.json and re-run.");
   process.exit(1);
 }
 
@@ -250,10 +273,11 @@ if (errors.length) {
 fs.mkdirSync(outDir, { recursive: true });
 for (const { gameId, characters, venues, decorators } of pending) {
   const out = path.join(outDir, `${gameId}.json`);
-  // `decorators` is left out entirely for a game that ships none, so the
-  // extract of an edition without them is byte-for-byte what it always was.
-  const payload = decorators ? { characters, venues, decorators } : { characters, venues };
+  // `decorators` is left out only if the merged list is empty (no shared list
+  // and no city extras), keeping such an extract what it always was.
+  const hasDecor = Object.keys(decorators).length > 0;
+  const payload = hasDecor ? { characters, venues, decorators } : { characters, venues };
   fs.writeFileSync(out, JSON.stringify(payload, null, 2) + "\n");
-  const decorNote = decorators ? `, ${Object.keys(decorators).length} decorations` : "";
+  const decorNote = hasDecor ? `, ${Object.keys(decorators).length} decorations` : "";
   console.log(`${gameId}: ${characters.length} characters, ${venues.length} venues${decorNote} -> ${path.relative(process.cwd(), out)}`);
 }

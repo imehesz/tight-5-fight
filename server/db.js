@@ -174,13 +174,14 @@ const SCHEMA = {
       UNIQUE (player_uuid, weapon_id, level)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_upg_uuid ON weapon_upgrades (player_uuid, id)`,
-    // One row per chest decoration BOUGHT (see games/<id>/decorators.json).
+    // One row per chest decoration BOUGHT (see shared/assets/decorators/
+    // decorators.json and any games/<id>/decorators.json extras).
     // Free decorations never land here — the client wears those without asking
     // anyone, which is what keeps them working with the server down.
     //
-    // Not scoped by game on purpose: ids come from ONE game's decorators.json
-    // and the id is what a save stores, so scoping would only add a column
-    // that every query then has to carry. The UNIQUE means two racing taps
+    // Not scoped by game on purpose: most ids come from the ONE shared list,
+    // so a decoration bought in one edition is owned in all of them, and the
+    // id is what a save stores. The UNIQUE means two racing taps
     // cost the price once rather than twice, exactly like an upgrade level.
     `CREATE TABLE IF NOT EXISTS decor_purchases (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,

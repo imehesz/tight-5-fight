@@ -55,7 +55,7 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 | `audio.musicMain` / `.musicVenue` | optional | no music (paths are **extensionless**) |
 | `overrides.bodyMale` / `.bodyFemale` | optional | `shared/assets/bodies/body_{male,female}.png` |
 | `weapons` | optional | `weapons.json` in the game folder if present, else the shared rack (`shared/assets/weapons/weapons.json`) |
-| `decorators` | optional | `decorators.json` in the game folder if present, else the edition ships no chest decorations |
+| `decorators` | optional | `decorators.json` in the game folder if present — city EXTRAS merged over the shared list (`shared/assets/decorators/decorators.json`), which every edition wears regardless |
 | `planeBanners` (array of sentences) | optional | no banner-plane flybys on the street |
 
 ### `CharacterId` / `VenueId` — the permanent handle
@@ -167,18 +167,31 @@ replace the shared rack for that edition only.
 
 ---
 
-## Chest decorations (`games/<id>/decorators.json`, optional)
+## Chest decorations (`shared/assets/decorators/decorators.json` + optional city extras)
 
 The DECOR tab in SETTINGS: a flag, a team logo, a gold star — worn on the
 shirt/dress chest everywhere the player's own comedian is drawn (in the run,
 the roster preview, the settings preview, the game-over screen). Purely
-cosmetic, like weapons. Unlike weapons this is **per edition, not shared**: a
-game with no `decorators.json` simply has no DECOR tab.
+cosmetic, like weapons.
+
+**One shared list, every edition.** The catalog and its art live in
+`shared/assets/decorators/`, and every game wears it. A game MAY add a
+`games/<id>/decorators.json` of city extras — and unlike `weapons.json` it
+**adds to** the shared list rather than replacing it:
+
+- a row with a **new id** is a city extra, and leads the shelf;
+- a row with an **id already shared** is an overlay: only the fields it writes
+  change. `{ "id": "palm-tree", "enabled": false }` benches one shared
+  decoration in one edition; `{ "id": "logo-jags", "price": 100 }` re-prices
+  one. Price and path may be left out of an overlay and are inherited.
+
+Prefix city ids (`mia-flamingo`, `ncfl-gators`) so a city extra can never
+collide with something added to the shared list later.
 
 ```json
 { "decorators": [
-  { "id": "logo-jags", "category": "Flags", "name": "Jaguars",
-    "path": "assets/decorators/logo_jags.png", "price": 500, "enabled": true }
+  { "id": "logo-jags", "category": "Sport", "name": "JAGS",
+    "path": "logo_jags.png", "price": 0, "enabled": true }
 ] }
 ```
 
@@ -188,7 +201,8 @@ game with no `decorators.json` simply has no DECOR tab.
 - **`category`** — display grouping only. The picker heads a block with it, in
   first-seen file order; nothing else in the game ever reads it.
 - **`name`** — the card's label. Upper-cased on screen, so write it in prose.
-- **`path`** — relative to the JSON's own folder, with the same two escapes
+- **`path`** — relative to the JSON's own folder (so a city extra can keep its
+  art in `games/<id>/assets/…`), with the same two escapes
   weapons get (`shared/…` from the project root, full `res://` passes through).
   Any canvas size works; the art is fitted to the card and normalized down to
   `Decorators.CHEST_BASE_PX` on the body.
@@ -204,7 +218,8 @@ A row whose PNG hasn't been imported yet simply doesn't show on the shelf.
 
 **Re-run `cd server && npm run sync-rosters` after every price change** — the
 server is deployed without the game's asset tree, so it charges from its own
-synced extract (`server/rosters/<id>.json`). A price the client could name is a
+synced extract (`server/rosters/<id>.json`), which merges the shared list and
+the city extras exactly as the game does. A price the client could name is a
 price the client could set to zero, so an id the extract has never heard of is
 refused rather than sold. That sync, a backend deploy and a `pm2` restart all
 have to land **before** the frontend build, exactly like a roster change.

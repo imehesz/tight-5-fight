@@ -135,8 +135,8 @@ func _build_chest_strap() -> void:
 
 
 ## The chest decoration picked in SETTINGS > DECOR — a flag, a logo, a star —
-## pinned on the shirt. Sits between the body and the strap, so the strap runs
-## OVER it the way a real one would, and placed by index for the same reason
+## pinned on the shirt. Wearing one hides the strap (see _process), so the art
+## is never crossed out by it. Placed by index for the same reason
 ## everything else here is: a negative z_index would sink it behind the scene
 ## background. Nothing is built at all for a player wearing none, which is
 ## also what a missing PNG degrades to.
@@ -170,9 +170,10 @@ func _process(delta: float) -> void:
 		_carried_weapon.rotation = -CARRY_TILT * facing + Weapons.carry_spin(GameState.weapon)
 	if _chest_strap:
 		# Worn through the swing (the weapon leaves, the strap stays), dropped
-		# only on defeat — the defeated frame lies the body down sideways, so
-		# a chest-height diagonal would hang in the air.
-		_chest_strap.visible = state != FState.DEAD
+		# on defeat — the defeated frame lies the body down sideways, so a
+		# chest-height diagonal would hang in the air — and dropped for good
+		# while a chest decoration is worn, since it would run across the art.
+		_chest_strap.visible = state != FState.DEAD and _chest_decor == null
 		if _chest_strap.visible:
 			var ducking := body_sprite.animation == "duck"
 			var top := STRAP_DUCK_TOP if ducking else STRAP_TOP
