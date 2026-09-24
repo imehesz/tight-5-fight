@@ -65,6 +65,14 @@
             "enabled": true
         },
         {
+            "id": "tb-lightning",
+            "category": "Sport",
+            "name": "TB",
+            "path": "tb-lightning.png",
+            "price": 0,
+            "enabled": true
+        },
+        {
             "id": "heart",
             "category": "Icons",
             "name": "Heart",

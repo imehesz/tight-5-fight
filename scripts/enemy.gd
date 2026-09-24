@@ -168,6 +168,8 @@ func _die() -> void:
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -90),
 			"+%d" % (points * mult),
 			Color(1.0, 0.84, 0.3) if wanted else Color(0.6, 1.0, 0.6))
+	if wanted:
+		BountyBanner.spawn(global_position + Vector2(0, -60))
 	if mult > 1:
 		# 34px above the +N popup: the 12px shout plus its thick outline needs
 		# more clearance than the default 8px texts do (both rise in lockstep,
