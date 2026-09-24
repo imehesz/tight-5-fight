@@ -652,6 +652,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "shedrick-williams",
+      "CharacterName": "Shedrick Williams",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/shedrick-williams.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
+    },
+    {
       "CharacterId": "sin-phony",
       "CharacterName": "Sin Phony",
       "HeadScale": 1,
