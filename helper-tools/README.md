@@ -228,3 +228,25 @@ Swapping flat green for a photograph costs about half again in file size —
 64-colour palette saves 17% and wrecks the artwork, and `scale=0.75` comes out
 *bigger* than full size, because lanczos invents colours in between the pixel
 art's flat ones. `--scale 0.5` is the only lever that genuinely halves it.
+
+## wanted-scraper.py
+
+Screenshots each live edition's main menu and cuts today's WANTED bill out as
+a PNG, with the in-game "+10% KO" line painted out and the edition's name
+printed in its place, tilted, in a western font (Rye, OFL,
+in `helper-tools/fonts/`). Games and the crop rect are in
+`wanted-scraper.conf.json`; output goes to `helper-tools/wanted-scraper-out/<gameID>_wanted.png`
+(gitignored).
+
+```bash
+python3 helper-tools/wanted-scraper.py              # headless, every game in the conf
+python3 helper-tools/wanted-scraper.py --test       # visible browser, keeps <gameID>_full.png
+python3 helper-tools/wanted-scraper.py --only celebs
+```
+
+The crop is a fixed rect, not a search: the menu always pins the left bill 18px
+in, vertically centred, lifted 16px, at 105x146 design px. At the conf's
+1280x720 viewport (2x the 640x360 design) that's x=36 y=182 w=210 h=292. If
+you change the viewport, change the rect with it. If a run grabs the menu
+before it has finished drawing, raise `gameLoadWaitSec`. Needs Playwright (with
+its Chromium) and Pillow.

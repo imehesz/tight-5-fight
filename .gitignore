@@ -23,6 +23,8 @@ deploy-be/
 tools/*
 helper-tools/.cache/
 helper-tools/__pycache__/
+helper-tools/wanted-scraper-out/
+helper-tools/wanted-scraper.conf.json
 
 requirements/
 build/

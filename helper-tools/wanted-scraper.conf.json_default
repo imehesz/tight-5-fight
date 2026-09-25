@@ -1,0 +1,18 @@
+{
+  "viewportWidth": 640,
+  "viewportHeight": 360,
+  "wantedPosterPosX": 123,
+  "wantedPosterPosY": 123,
+  "wantedPosterWidth": 123,
+  "wantedPosterHeight": 132,
+  "landingWaitSec": 1,
+  "gameLoadWaitSec": 1,
+  "rewardEraseBox": [1, 2, 3, 4],
+  "nameBox": [4, 3, 2, 1],
+  "nameTiltDeg": 1,
+  "outputDir": "out",
+  "games": [
+    { "gameID": "game1", "gameName": "GAME #1" },
+    { "gameID": "game2", "gameName": "GAME #2" }
+  ]
+}
