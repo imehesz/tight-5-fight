@@ -239,7 +239,6 @@ func _ready() -> void:
 			if _wanted_spot_clear(WANTED_OPENING_X):
 				_nail_wanted_at(WANTED_OPENING_X)
 			_show_intro_hint()
-			_show_wanted_intro()
 	camera.position = Vector2(maxf(player.position.x, 320.0), 180.0)
 	camera.reset_smoothing()
 	# Before the first frame is drawn, so a restored street opens with its
@@ -931,32 +930,6 @@ func _on_shake(px: float) -> void:
 ## Called from _ready() on a FRESH street only, and only with no venue entered
 ## yet, so it can never interrupt a run in progress — walking back out of a
 ## venue, or restarting after game over, both leave it alone.
-## Introduce today's bounty, once per day, at the top of a fresh run — the
-## player cannot hunt someone they have never been shown.
-##
-## Skipped while the WELCOME popup is up rather than stacked behind it: on a
-## brand-new save both are due on the same frame, and two frozen panels in a
-## row is a worse first thirty seconds than meeting the bounty one run later.
-## Nothing is marked seen in that case, so it simply comes back next run.
-func _show_wanted_intro() -> void:
-	if is_instance_valid(_hint_popup) or not GameState.wanted_intro_due():
-		return
-	var cfg: Dictionary = GameState.wanted_data()
-	if cfg.is_empty():
-		return
-	_hint_popup = HintPopup.new()
-	_hint_popup.title_text = "WANTED TODAY"
-	_hint_popup.body_text = "PUT THEM ON THE FLOOR\nFOR AN EXTRA 10% A KO."
-	_hint_popup.art = WantedPoster.make_bill(cfg)
-	# Frozen before the popup enters the tree, same as the welcome lesson, so
-	# the run's first frame is already still while the player reads it.
-	GameState.set_paused(true)
-	add_child(_hint_popup)
-	# Spent only once the popup is really up — marking it earlier would burn
-	# today's one showing on any failure along the way.
-	GameState.mark_wanted_intro_seen()
-
-
 func _show_intro_hint() -> void:
 	if not GameState.intro_hint_due():
 		return
