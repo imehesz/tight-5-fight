@@ -206,6 +206,33 @@
       "HeadSpritePath": "assets/heads/zombie.png",
       "BodyType": "M",
       "SkinColor": "#8fa07e"
+    },
+    {
+      "CharacterId": "beetlejuice",
+      "CharacterName": "BJ",
+      "HeadScale": 0.85,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/beetlejuice.png",
+      "BodyType": "M",
+      "SkinColor": "#a9bf9a"
+    },
+    {
+      "CharacterId": "jack-skellington",
+      "CharacterName": "Jack",
+      "HeadScale": 0.75,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/jack-skellington.png",
+      "BodyType": "M",
+      "SkinColor": "#ece6d2"
+    },
+    {
+      "CharacterId": "marilyn-manson",
+      "CharacterName": "Manson",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/marilyn-manson.png",
+      "BodyType": "M",
+      "SkinColor": "#e6eaee"
     }
   ]
 }
