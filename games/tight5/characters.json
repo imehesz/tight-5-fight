@@ -142,6 +142,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "brandon-burch",
+      "CharacterName": "Brandon Burch",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/brandon-burch.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "brandon-follett",
       "CharacterName": "Brandon Follett",
       "HeadScale": 1,
