@@ -138,7 +138,13 @@ func _fetch_json() -> Variant:
 		return parsed if parsed is Dictionary else null
 	if not _hosted_reachable():
 		return null
-	var body := await _http_get(PROD_SPONSORS_URL + "sponsors.json")
+	# Apache sends no Cache-Control, so on web the browser heuristically caches
+	# this for ~10% of its age (days) and HTTPRequest never asks again — the
+	# 2026-10-02 Halloween sponsors didn't show for anyone who'd played the day
+	# before. A per-boot query string forces a fresh copy; the ad images keep
+	# their normal caching (filenames are stable).
+	var bust := "?t=%d" % int(Time.get_unix_time_from_system())
+	var body := await _http_get(PROD_SPONSORS_URL + "sponsors.json" + bust)
 	if body.is_empty():
 		return null
 	var parsed = JSON.parse_string(body.get_string_from_utf8())
