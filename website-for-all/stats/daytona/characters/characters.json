@@ -100,6 +100,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "jason-garcia",
+      "CharacterName": "Jason Garcia",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/jason-garcia.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "joe-lovece",
       "CharacterName": "Joe Lovece",
       "HeadScale": 1,

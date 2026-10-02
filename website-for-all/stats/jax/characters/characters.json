@@ -142,6 +142,15 @@
       "SkinColor": "#e9c098"
     },
     {
+      "CharacterId": "brandon-burch",
+      "CharacterName": "Brandon Burch",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/brandon-burch.png",
+      "BodyType": "M",
+      "SkinColor": "#e9c098"
+    },
+    {
       "CharacterId": "brandon-follett",
       "CharacterName": "Brandon Follett",
       "HeadScale": 1,
@@ -650,6 +659,15 @@
       "HeadSpritePath": "assets/heads/seansteele.png",
       "BodyType": "M",
       "SkinColor": "#e9c098"
+    },
+    {
+      "CharacterId": "shedrick-williams",
+      "CharacterName": "Shedrick Williams",
+      "HeadScale": 1,
+      "HeadOffsetY": 0,
+      "HeadSpritePath": "assets/heads/shedrick-williams.png",
+      "BodyType": "M",
+      "SkinColor": "#a0683c"
     },
     {
       "CharacterId": "sin-phony",

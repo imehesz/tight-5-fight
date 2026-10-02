@@ -41,6 +41,18 @@
       "VenueName": "Hilltop Tavern",
       "ExteriorSpritePath": "assets/venues/hilltop-tavern_ext.png",
       "InteriorSpritePath": "assets/venues/hilltop-tavern_int.png" 
+    },
+    { 
+      "VenueId": "snowbirds",
+      "VenueName": "Snowbirds Billiards",
+      "ExteriorSpritePath": "assets/venues/snowbirds_ext.png",
+      "InteriorSpritePath": "assets/venues/snowbirds_int.png" 
+    },
+    { 
+      "VenueId": "bragging-rights",
+      "VenueName": "Bragging Rights",
+      "ExteriorSpritePath": "assets/venues/bragging-rights_ext.png",
+      "InteriorSpritePath": "assets/venues/bragging-rights_int.png" 
     }
   ]
 }
