@@ -57,6 +57,7 @@ own folder** (the engine prefixes `res://games/<id>/`). Engine code never hardco
 | `weapons` | optional | `weapons.json` in the game folder if present, else the shared rack (`shared/assets/weapons/weapons.json`) |
 | `decorators` | optional | `decorators.json` in the game folder if present — city EXTRAS merged over the shared list (`shared/assets/decorators/decorators.json`), which every edition wears regardless |
 | `planeBanners` (array of sentences) | optional | no banner-plane flybys on the street |
+| `wantedId` (a playable `CharacterId`) | optional | the daily WANTED roll — set it to make that comedian the permanent bounty |
 
 ### `CharacterId` / `VenueId` — the permanent handle
 

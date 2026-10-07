@@ -1423,6 +1423,11 @@ func _roll_wanted(day: String) -> String:
 			ids.append(id)
 	if ids.is_empty():
 		return ""
+	# An edition can pin a permanent bounty with "wantedId" in game.json; an
+	# id that isn't playable falls through to the daily roll.
+	var pinned := String(manifest.get("wantedId", ""))
+	if ids.has(pinned):
+		return pinned
 	ids.sort()
 	return String(ids[_fnv1a("%s/%s" % [day, active_game]) % ids.size()])
 

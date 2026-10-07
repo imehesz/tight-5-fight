@@ -1,0 +1,10 @@
+{
+  "venues": [
+    {
+      "VenueId": "siriusxm-nyc",
+      "VenueName": "SiriusXM NYC",
+      "ExteriorSpritePath": "assets/venues/siriusxm-nyc_ext.png",
+      "InteriorSpritePath": "assets/venues/siriusxm-nyc_int.png"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "characters": [
+	{
+	  "CharacterId": "mr-road-dog",
+	  "CharacterName": "Mr. Road Dog",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath": "assets/heads/mr-road-dog.png",
+	  "BodyType": "M",
+	  "SkinColor": "#c9956b",
+	  "bio": "Ten years of one-nighters, 200,000 miles on the Corolla, and his set was finally getting airplay on channel 99. Was."
+	},
+	{
+	  "CharacterId": "ms-road-dog",
+	  "CharacterName": "Ms. Road Dog",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath": "assets/heads/ms-road-dog.png",
+	  "BodyType": "F",
+	  "SkinColor": "#e0a983",
+	  "bio": "Drove eleven hours for a guest spot, got paid in drink tickets, and her radio checks were the only steady money she had. Had."
+	},
+	{
+	  "CharacterId": "sebastian",
+	  "CharacterName": "Sebastian",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 0,
+	  "HeadSpritePath": "assets/heads/sebastian.png",
+	  "BodyType": "M",
+	  "SkinColor": "#c98d5f"
+	},
+	{
+	  "CharacterId": "jennifer-witz",
+	  "CharacterName": "Jennifer",
+	  "HeadScale": 1,
+	  "HeadOffsetY": 5,
+	  "HeadSpritePath": "assets/heads/jennifer-witz.png",
+	  "BodyType": "F",
+	  "SkinColor": "#f2c9a6"
+	}
+  ]
+}
