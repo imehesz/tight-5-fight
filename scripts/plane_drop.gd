@@ -172,6 +172,7 @@ func _grab_beer() -> void:
 		return
 	_done = true
 	GameState.set_bottles(GameState.MAX_BOTTLES)
+	Achievements.add("beer_boxes")
 	GameState.add_score(BOX_POINTS)
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -46),
 			"FREE BEER!", Color(1.0, 0.78, 0.25))
@@ -184,6 +185,7 @@ func _grab_beer() -> void:
 func _grab(p: Player) -> void:
 	_done = true
 	p.apply_speed_effect(BOOST_MULT, EFFECT_TIME)
+	Achievements.add("boxes")
 	GameState.add_score(BOX_POINTS)
 	# Seconds back on the run clock — chasing the box is worth the detour. The
 	# HUD flies its own "+10s" up to the clock (hud.gd _on_time_added), so no
@@ -211,6 +213,7 @@ func _explode() -> void:
 	if p is Player and is_instance_valid(p) \
 			and global_position.distance_to(p.global_position) <= BOOM_RADIUS:
 		p.apply_speed_effect(SLOW_MULT, EFFECT_TIME)
+		Achievements.add("bombs")
 		# Through take_hit so the blast also flinches/knocks the player back
 		# (and handles death) exactly like any other hit.
 		p.take_hit(p.max_health * BOMB_DAMAGE_PCT, global_position.x)

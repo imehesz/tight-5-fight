@@ -54,6 +54,7 @@ func _physics_process(delta: float) -> void:
 		if is_instance_valid(p) and p.is_ducking() \
 				and absf(position.x - p.global_position.x) < CLOSE_CALL_X:
 			_close_call_done = true
+			Achievements.add("close_calls")
 			GameState.add_score(CLOSE_CALL_POINTS)
 			FloatingText.spawn(get_parent(), global_position + Vector2(0, -14),
 					"CLOSE ONE! +%d" % CLOSE_CALL_POINTS, Color(0.6, 1.0, 0.6))
@@ -76,6 +77,7 @@ func _on_area_entered(area: Area2D) -> void:
 	if area.has_meta("boss"):
 		var boss: Boss = area.get_meta("boss")
 		if boss.stagger():
+			Achievements.add("stuns")
 			GameState.add_score(Boss.STAGGER_POINTS)
 			FloatingText.spawn(get_parent(), global_position + Vector2(0, -20),
 					"STUNNED! +%d" % Boss.STAGGER_POINTS, Color(1.0, 0.85, 0.4))

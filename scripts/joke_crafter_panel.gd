@@ -78,6 +78,9 @@ var _status: Label
 ## True only between pressing GENERATE and the server's reply — the one
 ## window in which the button really is dead to the touch.
 var _writing := false
+## How many jokes the in-flight GENERATE asked for, credited to the STICKERS
+## book only when the server confirms the craft.
+var _crafting_n := 0
 var _help: HintPopup
 
 
@@ -412,6 +415,7 @@ func _on_generate() -> void:
 	GameState.play_sfx("click")
 	_status.text = "WRITING ..."
 	_writing = true
+	_crafting_n = n
 	_generate.disabled = true
 	_x_mark.visible = false
 	# Cleared optimistically: the reply carries the post-craft inventory, so
@@ -435,6 +439,9 @@ func _explain() -> void:
 
 
 func _on_loaded(_d: Dictionary) -> void:
+	if _writing and _crafting_n > 0:
+		Achievements.add("jokes", _crafting_n)
+	_crafting_n = 0
 	_writing = false
 	if is_instance_valid(_status):
 		_status.text = ""
@@ -442,6 +449,7 @@ func _on_loaded(_d: Dictionary) -> void:
 
 
 func _on_failed(reason: String) -> void:
+	_crafting_n = 0
 	_writing = false
 	if not is_instance_valid(_status):
 		return

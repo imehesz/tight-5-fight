@@ -767,6 +767,7 @@ func add_component(kind: String) -> void:
 		return
 	var total: int = mini(int(run_components.get(kind, 0)) + 1, MAX_COMPONENTS)
 	run_components[kind] = total
+	Achievements.add("components")
 	component_collected.emit(kind, total)
 
 
@@ -819,6 +820,7 @@ func lives_cap() -> int:
 ## was granted, so the venue can celebrate it on the HUD.
 func on_boss_defeated() -> bool:
 	bosses_defeated += 1
+	Achievements.add("bosses")
 	bosses_changed.emit(bosses_defeated)
 	if lives < lives_cap():
 		lives += 1
@@ -886,6 +888,7 @@ func bank_ko_score(base_points: int) -> int:
 	if now > _streak_deadline_ms:
 		streak = 0
 	streak += 1
+	Achievements.best("best_streak", streak)
 	_streak_deadline_ms = now + STREAK_WINDOW_MS
 	var mult := streak_mult()
 	add_score(base_points * mult)
@@ -903,6 +906,7 @@ func reset_streak() -> void:
 ## Bank one KO for the beaten-up comedian. Enemy._die() calls this; a fighter
 ## never configured from the roster has no name and is not counted.
 func count_ko(char_name: String) -> void:
+	Achievements.add("kos")
 	if char_name != "":
 		run_kos[char_name] = int(run_kos.get(char_name, 0)) + 1
 	# A nameless fighter is still a fight: the venue tally counts the KO even
@@ -1077,6 +1081,9 @@ func lose_life() -> bool:
 func finish_run() -> void:
 	play_death_stinger()
 	last_run_rank = _record_score()
+	# Counters only reach disk here (see Achievements._dirty).
+	Achievements.add("runs")
+	Achievements.save()
 	# Banks this character's play on the global board. Deliberately not
 	# awaited: it outlives the scene change (Leaderboard is an autoload) and
 	# a failure must never stall or block game over.

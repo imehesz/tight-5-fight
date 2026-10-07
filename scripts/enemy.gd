@@ -169,6 +169,7 @@ func _die() -> void:
 			"+%d" % (points * mult),
 			Color(1.0, 0.84, 0.3) if wanted else Color(0.6, 1.0, 0.6))
 	if wanted:
+		Achievements.add("bounties")
 		BountyBanner.spawn(global_position + Vector2(0, -60))
 	if mult > 1:
 		# 34px above the +N popup: the 12px shout plus its thick outline needs

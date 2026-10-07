@@ -243,6 +243,7 @@ func _venue_cleared() -> void:
 		return
 	_finished = true
 	GameState.mark_pending_venue_cleared()
+	Achievements.add("venues")
 	GameState.play_sfx("clear")
 	GameState.crowd_reaction.emit("celebrate")
 	var bonus := CLEAR_BONUS_PER_LEVEL * _level
@@ -260,6 +261,7 @@ func _boss_survived() -> void:
 		return
 	_finished = true
 	GameState.mark_pending_venue_cleared()
+	Achievements.add("venues")
 	# One defeat banked PER BOSS in the room — a double-boss stage counts 2
 	# (BOSSES tally, +10% mob toughness each, and up to one life each).
 	var lives_granted := 0

@@ -1,0 +1,354 @@
+{
+ "stickers": [
+  {
+   "id": "ko_1",
+   "stat": "kos",
+   "goal": 1,
+   "name": "FIRST PUNCHLINE",
+   "desc": "KO your first heckler."
+  },
+  {
+   "id": "ko_10",
+   "stat": "kos",
+   "goal": 10,
+   "name": "TEN COUNT",
+   "desc": "KO 10 hecklers."
+  },
+  {
+   "id": "ko_100",
+   "stat": "kos",
+   "goal": 100,
+   "name": "CENTURY CLUB",
+   "desc": "KO 100 hecklers."
+  },
+  {
+   "id": "ko_1000",
+   "stat": "kos",
+   "goal": 1000,
+   "name": "HECKLER HUNTER",
+   "desc": "KO 1,000 hecklers."
+  },
+  {
+   "id": "ko_10000",
+   "stat": "kos",
+   "goal": 10000,
+   "name": "LEGEND OF THE OPEN MIC",
+   "desc": "KO 10,000 hecklers."
+  },
+  {
+   "id": "boss_1",
+   "stat": "bosses",
+   "goal": 1,
+   "name": "OPENED FOR THE HEADLINER",
+   "desc": "Survive your first boss."
+  },
+  {
+   "id": "boss_10",
+   "stat": "bosses",
+   "goal": 10,
+   "name": "KILLED IT",
+   "desc": "Survive 10 bosses."
+  },
+  {
+   "id": "boss_50",
+   "stat": "bosses",
+   "goal": 50,
+   "name": "BOSS OF BOSSES",
+   "desc": "Survive 50 bosses."
+  },
+  {
+   "id": "boss_250",
+   "stat": "bosses",
+   "goal": 250,
+   "name": "COMEDY KINGPIN",
+   "desc": "Survive 250 bosses."
+  },
+  {
+   "id": "venue_1",
+   "stat": "venues",
+   "goal": 1,
+   "name": "FIRST GIG",
+   "desc": "Battle your first venue."
+  },
+  {
+   "id": "venue_10",
+   "stat": "venues",
+   "goal": 10,
+   "name": "ROAD DOG",
+   "desc": "Battle 10 venues."
+  },
+  {
+   "id": "venue_100",
+   "stat": "venues",
+   "goal": 100,
+   "name": "CIRCUIT REGULAR",
+   "desc": "Battle 100 venues."
+  },
+  {
+   "id": "venue_500",
+   "stat": "venues",
+   "goal": 500,
+   "name": "WORLD TOUR",
+   "desc": "Battle 500 venues."
+  },
+  {
+   "id": "run_1",
+   "stat": "runs",
+   "goal": 1,
+   "name": "TIGHT FIVE",
+   "desc": "Finish your first set."
+  },
+  {
+   "id": "run_10",
+   "stat": "runs",
+   "goal": 10,
+   "name": "OPEN MIC REGULAR",
+   "desc": "Finish 10 sets."
+  },
+  {
+   "id": "run_100",
+   "stat": "runs",
+   "goal": 100,
+   "name": "SEASONED PRO",
+   "desc": "Finish 100 sets."
+  },
+  {
+   "id": "run_500",
+   "stat": "runs",
+   "goal": 500,
+   "name": "LIFER",
+   "desc": "Finish 500 sets."
+  },
+  {
+   "id": "bomb_1",
+   "stat": "bombs",
+   "goal": 1,
+   "name": "YOU BOMBED",
+   "desc": "Get caught in a plane bomb blast."
+  },
+  {
+   "id": "bomb_5",
+   "stat": "bombs",
+   "goal": 5,
+   "name": "TOUGH CROWD",
+   "desc": "Get bombed 5 times."
+  },
+  {
+   "id": "bomb_25",
+   "stat": "bombs",
+   "goal": 25,
+   "name": "SHELL SHOCKED",
+   "desc": "Get bombed 25 times."
+  },
+  {
+   "id": "bomb_100",
+   "stat": "bombs",
+   "goal": 100,
+   "name": "WALKING CRATER",
+   "desc": "Get bombed 100 times."
+  },
+  {
+   "id": "bomb_500",
+   "stat": "bombs",
+   "goal": 500,
+   "name": "CERTIFIED DISASTER",
+   "desc": "Get bombed 500 times."
+  },
+  {
+   "id": "box_1",
+   "stat": "boxes",
+   "goal": 1,
+   "name": "GOOD SET!",
+   "desc": "Grab a GOOD SET box."
+  },
+  {
+   "id": "box_10",
+   "stat": "boxes",
+   "goal": 10,
+   "name": "CARE PACKAGE",
+   "desc": "Grab 10 GOOD SET boxes."
+  },
+  {
+   "id": "box_100",
+   "stat": "boxes",
+   "goal": 100,
+   "name": "AIR SUPPLY",
+   "desc": "Grab 100 GOOD SET boxes."
+  },
+  {
+   "id": "beerbox_1",
+   "stat": "beer_boxes",
+   "goal": 1,
+   "name": "FREE BEER!",
+   "desc": "Grab a FREE BEER box."
+  },
+  {
+   "id": "beerbox_25",
+   "stat": "beer_boxes",
+   "goal": 25,
+   "name": "OPEN BAR",
+   "desc": "Grab 25 FREE BEER boxes."
+  },
+  {
+   "id": "bottle_1",
+   "stat": "bottles",
+   "goal": 1,
+   "name": "LAST CALL",
+   "desc": "Throw a beer bottle."
+  },
+  {
+   "id": "bottle_100",
+   "stat": "bottles",
+   "goal": 100,
+   "name": "BAR FIGHT LEGEND",
+   "desc": "Throw 100 beer bottles."
+  },
+  {
+   "id": "stun_1",
+   "stat": "stuns",
+   "goal": 1,
+   "name": "SEEING STARS",
+   "desc": "Stun a boss with a bottle."
+  },
+  {
+   "id": "stun_25",
+   "stat": "stuns",
+   "goal": 25,
+   "name": "RINGING BELL",
+   "desc": "Stun bosses 25 times."
+  },
+  {
+   "id": "stun_100",
+   "stat": "stuns",
+   "goal": 100,
+   "name": "KNOCKOUT ARTIST",
+   "desc": "Stun bosses 100 times."
+  },
+  {
+   "id": "close_1",
+   "stat": "close_calls",
+   "goal": 1,
+   "name": "CLOSE ONE!",
+   "desc": "Duck under a boss fastball."
+  },
+  {
+   "id": "close_25",
+   "stat": "close_calls",
+   "goal": 25,
+   "name": "MATRIX MODE",
+   "desc": "Duck 25 boss fastballs."
+  },
+  {
+   "id": "close_100",
+   "stat": "close_calls",
+   "goal": 100,
+   "name": "UNTOUCHABLE",
+   "desc": "Duck 100 boss fastballs."
+  },
+  {
+   "id": "bounty_1",
+   "stat": "bounties",
+   "goal": 1,
+   "name": "BOUNTY HUNTER",
+   "desc": "KO today's WANTED comedian."
+  },
+  {
+   "id": "bounty_10",
+   "stat": "bounties",
+   "goal": 10,
+   "name": "SHERIFF",
+   "desc": "KO 10 WANTED comedians."
+  },
+  {
+   "id": "bounty_50",
+   "stat": "bounties",
+   "goal": 50,
+   "name": "MOST WANTED",
+   "desc": "KO 50 WANTED comedians."
+  },
+  {
+   "id": "streak_5",
+   "stat": "best_streak",
+   "goal": 5,
+   "name": "ON A ROLL",
+   "desc": "Chain a 5-KO streak."
+  },
+  {
+   "id": "streak_10",
+   "stat": "best_streak",
+   "goal": 10,
+   "name": "HOT STREAK",
+   "desc": "Chain a 10-KO streak."
+  },
+  {
+   "id": "streak_25",
+   "stat": "best_streak",
+   "goal": 25,
+   "name": "UNSTOPPABLE",
+   "desc": "Chain a 25-KO streak."
+  },
+  {
+   "id": "comp_10",
+   "stat": "components",
+   "goal": 10,
+   "name": "NOTE TAKER",
+   "desc": "Pick up 10 joke components."
+  },
+  {
+   "id": "comp_100",
+   "stat": "components",
+   "goal": 100,
+   "name": "JOKE HOARDER",
+   "desc": "Pick up 100 joke components."
+  },
+  {
+   "id": "comp_1000",
+   "stat": "components",
+   "goal": 1000,
+   "name": "MATERIAL MOGUL",
+   "desc": "Pick up 1,000 joke components."
+  },
+  {
+   "id": "joke_1",
+   "stat": "jokes",
+   "goal": 1,
+   "name": "FIRST BIT",
+   "desc": "Generate your first joke."
+  },
+  {
+   "id": "joke_10",
+   "stat": "jokes",
+   "goal": 10,
+   "name": "JOKE MACHINE",
+   "desc": "Generate 10 jokes."
+  },
+  {
+   "id": "joke_100",
+   "stat": "jokes",
+   "goal": 100,
+   "name": "COMEDY FACTORY",
+   "desc": "Generate 100 jokes."
+  },
+  {
+   "id": "daily_3",
+   "stat": "daily_streak",
+   "goal": 3,
+   "name": "SHOWING UP",
+   "desc": "Play 3 days in a row."
+  },
+  {
+   "id": "daily_7",
+   "stat": "daily_streak",
+   "goal": 7,
+   "name": "WEEKLY REGULAR",
+   "desc": "Play 7 days in a row."
+  },
+  {
+   "id": "daily_30",
+   "stat": "daily_streak",
+   "goal": 30,
+   "name": "HABIT FORMING",
+   "desc": "Play 30 days in a row."
+  }
+ ]
+}
