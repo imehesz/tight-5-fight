@@ -595,6 +595,47 @@ async function postDecor(req, res) {
   json(res, 200, await crafterPayload(body.uuid));
 }
 
+// POST /stickers { gameId, uuid, stats: {stat: n}, unlocked: {id: unixTime} }
+//   -> { stats, unlocked }
+// Syncs the STICKERS book (autoload/achievements.gd) both ways in one call:
+// the client posts its whole local book, the server keeps the highest value
+// it has ever seen for each stat plus every unlock, and answers with the
+// merged result for the client to adopt. Sent at boot and after every run.
+//
+// Like /collect, the server can't verify any of it. Unlike /collect, nothing
+// is spent from it, so validation only keeps the shape and the sizes sane.
+async function postStickers(req, res) {
+  const ip = clientIp(req);
+  const body = await crafterRequest(req, res);
+  if (!body) return;
+  const { gameId } = body;
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown game" });
+  if (overLimit("stickers", ip, config.limits.stickersPerHourPerIp)) {
+    return json(res, 429, { error: "too many sticker syncs from this address" });
+  }
+  const stats = stickerMap(body.stats, 1e9);
+  const unlocked = stickerMap(body.unlocked, 4102444800); // 2100-01-01
+  if (!stats || !unlocked) return json(res, 400, { error: "bad stickers" });
+  await db.recordStickers({ playerUuid: body.uuid, gameId, stats, unlocked });
+  chargeHit("stickers", ip);
+  json(res, 200, await db.stickerState(body.uuid, gameId));
+}
+
+// {key: integer} with ids shaped like the ones in achievements.json, or null.
+// Values are clamped into 0..max rather than rejected, the same as /play's.
+function stickerMap(raw, max) {
+  if (raw === undefined) return {};
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const entries = Object.entries(raw);
+  if (entries.length > 200) return null;
+  const out = {};
+  for (const [key, value] of entries) {
+    if (!/^[a-z0-9_]{1,32}$/.test(key) || typeof value !== "number") return null;
+    out[key] = Math.min(Math.max(Math.floor(value) || 0, 0), max);
+  }
+  return out;
+}
+
 // POST /play { gameId, character, uuid, score?, seconds?, weapon? } -> { ok: true }
 // Records one play (with the run's final score, feeding the per-character
 // TOP SCORE board, and how many seconds the run lasted, feeding the run-length
@@ -1118,6 +1159,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "/craft") return await postCraft(req, res);
     if (req.method === "POST" && route === "/upgrade") return await postUpgrade(req, res);
     if (req.method === "POST" && route === "/decor") return await postDecor(req, res);
+    if (req.method === "POST" && route === "/stickers") return await postStickers(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
     if (req.method === "GET" && route === "/beef") return await getBeef(req, res, url);

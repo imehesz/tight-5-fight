@@ -192,6 +192,32 @@ const SCHEMA = {
       UNIQUE (player_uuid, decor_id)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_decor_uuid ON decor_purchases (player_uuid, id)`,
+    // STICKERS — a server copy of the achievement book (autoload/
+    // achievements.gd), per player per edition, so a book outlives the
+    // browser storage it was earned in.
+    //
+    // The one deliberate exception to "never a bare counter": these ARE
+    // stored values, raised to the highest one ever reported (see
+    // recordStickers). Stickers buy nothing and rank nothing, so an inflated
+    // value only gilds that player's own book — and like every other table
+    // its rows can be deleted by player_uuid.
+    `CREATE TABLE IF NOT EXISTS sticker_stats (
+      player_uuid TEXT    NOT NULL,
+      game_id     TEXT    NOT NULL,
+      stat        TEXT    NOT NULL,
+      value       INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (player_uuid, game_id, stat)
+    )`,
+    // One row per sticker earned. unlocked_at is the CLIENT's unix time of the
+    // unlock (the book shows it), created_at is when the server first heard.
+    `CREATE TABLE IF NOT EXISTS sticker_unlocks (
+      player_uuid TEXT    NOT NULL,
+      game_id     TEXT    NOT NULL,
+      sticker_id  TEXT    NOT NULL,
+      unlocked_at INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (player_uuid, game_id, sticker_id)
+    )`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -352,6 +378,21 @@ const SCHEMA = {
       PRIMARY KEY (id),
       UNIQUE KEY uniq_decor (player_uuid, decor_id),
       KEY idx_decor_uuid (player_uuid, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS sticker_stats (
+      player_uuid CHAR(36)    NOT NULL,
+      game_id     VARCHAR(32) NOT NULL,
+      stat        VARCHAR(32) NOT NULL,
+      value       INT         NOT NULL DEFAULT 0,
+      PRIMARY KEY (player_uuid, game_id, stat)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS sticker_unlocks (
+      player_uuid CHAR(36)    NOT NULL,
+      game_id     VARCHAR(32) NOT NULL,
+      sticker_id  VARCHAR(32) NOT NULL,
+      unlocked_at INT         NOT NULL DEFAULT 0,
+      created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (player_uuid, game_id, sticker_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
@@ -593,6 +634,48 @@ async function recordDecorPurchase({ playerUuid, decorId, cost }) {
 // client retrying after a lost response inserts nothing the second time, which
 // is what stops a dropped reply from minting free currency.
 // Returns true if this call actually wrote a row.
+// ---------------------------------------------------------------- stickers
+// The server's copy of one player's book in one edition:
+// { stats: {stat: value}, unlocked: {stickerId: unixTime} }.
+async function stickerState(uuid, gameId) {
+  const stats = await all(
+    "SELECT stat, value FROM sticker_stats WHERE player_uuid = ? AND game_id = ?",
+    [uuid, gameId]
+  );
+  const unlocks = await all(
+    "SELECT sticker_id, unlocked_at FROM sticker_unlocks WHERE player_uuid = ? AND game_id = ?",
+    [uuid, gameId]
+  );
+  const out = { stats: {}, unlocked: {} };
+  for (const r of stats) out.stats[String(r.stat)] = Number(r.value);
+  for (const r of unlocks) out.unlocked[String(r.sticker_id)] = Number(r.unlocked_at);
+  return out;
+}
+
+// Merge a client's whole book into the stored one. Every write only ever moves
+// a value UP (and an unlock, once stored, is never touched again), so the same
+// book posted twice — a retry, or two tabs — is a no-op the second time and no
+// ordering of requests can take progress away.
+async function recordStickers({ playerUuid, gameId, stats, unlocked }) {
+  const upsert = DRIVER === "sqlite"
+    ? `INSERT INTO sticker_stats (player_uuid, game_id, stat, value) VALUES (?, ?, ?, ?)
+         ON CONFLICT (player_uuid, game_id, stat)
+         DO UPDATE SET value = MAX(value, excluded.value)`
+    : `INSERT INTO sticker_stats (player_uuid, game_id, stat, value) VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE value = GREATEST(value, VALUES(value))`;
+  for (const [stat, value] of Object.entries(stats)) {
+    await run(upsert, [playerUuid, gameId, stat, value]);
+  }
+  const verb = DRIVER === "sqlite" ? "INSERT OR IGNORE" : "INSERT IGNORE";
+  for (const [stickerId, at] of Object.entries(unlocked)) {
+    await run(
+      `${verb} INTO sticker_unlocks (player_uuid, game_id, sticker_id, unlocked_at)
+         VALUES (?, ?, ?, ?)`,
+      [playerUuid, gameId, stickerId, at]
+    );
+  }
+}
+
 async function recordComponentDrop({ gameId, playerUuid, runNonce, setups, punchlines, tags }) {
   const verb = DRIVER === "sqlite" ? "INSERT OR IGNORE" : "INSERT IGNORE";
   const res = await run(
@@ -1164,6 +1247,8 @@ module.exports = {
   weaponUpgrades,
   decorOwned,
   recordDecorPurchase,
+  stickerState,
+  recordStickers,
   recordComponentDrop,
   recordCraft,
   recordUpgrade,

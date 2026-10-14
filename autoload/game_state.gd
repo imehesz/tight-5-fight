@@ -1084,6 +1084,8 @@ func finish_run() -> void:
 	# Counters only reach disk here (see Achievements._dirty).
 	Achievements.add("runs")
 	Achievements.save()
+	# Not awaited, same as the two calls below.
+	Achievements.sync()
 	# Banks this character's play on the global board. Deliberately not
 	# awaited: it outlives the scene change (Leaderboard is an autoload) and
 	# a failure must never stall or block game over.

@@ -97,6 +97,9 @@ const base = {
     collectsPerHourPerIp: 30,
     craftsPerHourPerIp: 60,
     upgradesPerHourPerIp: 40,
+    // STICKERS sync: one per boot plus one per finished run. Idempotent, so
+    // this only bounds a scripted flood.
+    stickersPerHourPerIp: 60,
   },
 
   // Disk ceiling for the crash table. A row is ~300 bytes, so the cap below

@@ -450,6 +450,21 @@ func buy_decor(decor_id: String) -> void:
 	})
 
 
+## STICKERS backup (see Achievements.sync): post the whole local book, get the
+## server's merged copy back. Never mints an id — a device with no id has never
+## finished a run, so there is nothing to back up, and a mint from here could
+## race the boot sequence's own (see _boot_fetch).
+func sync_stickers(stats: Dictionary, unlocked: Dictionary) -> Dictionary:
+	if _player_uuid == "":
+		return {"ok": false, "error": "no player"}
+	return await _request(HTTPClient.METHOD_POST, "/stickers", {
+		"gameId": GameState.active_game,
+		"uuid": _player_uuid,
+		"stats": stats,
+		"unlocked": unlocked,
+	})
+
+
 ## Shared tail of every crafter call: mint an id if needed, post, and either
 ## replace the whole cached state or report why not.
 func _crafter_call(path: String, body: Dictionary) -> void:

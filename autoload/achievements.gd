@@ -13,8 +13,12 @@ extends Node
 ## the unlock is stored with its own timestamp, so retuning a goal later never
 ## takes a sticker back off anyone.
 ##
-## LOCAL ONLY for now — user://<game>_achievements.json, per edition like the
-## high scores. No server, so clearing site data clears the book.
+## Saved locally in user://<game>_achievements.json, per edition like the high
+## scores, and backed up to the server (POST /stickers) at boot and after every
+## run. The server keeps the highest value it has ever seen for each stat, so a
+## sync can only ever ADD to a book. It is keyed on this device's player id,
+## which is itself local: clearing site data still loses the book until there
+## is a way to carry that id to a new device.
 
 signal unlocked(id: String)
 
@@ -31,6 +35,8 @@ var _file := ""
 ## Counters move on every KO; they reach disk at game over (and on any unlock),
 ## not per hit — a web save is an IndexedDB write.
 var _dirty := false
+## One sync in flight at a time; a second would only post the same book again.
+var _syncing := false
 
 
 func _ready() -> void:
@@ -40,6 +46,8 @@ func _ready() -> void:
 	_load()
 	if Leaderboard.JOKE_BOOK_ENABLED:
 		Leaderboard.jokebook_loaded.connect(_on_jokebook_loaded)
+	# Not awaited: boot must not wait on the network.
+	sync()
 
 
 func _load_defs() -> void:
@@ -125,3 +133,36 @@ func _check(stat: String) -> void:
 
 func _on_jokebook_loaded(_data: Dictionary) -> void:
 	best("daily_streak", Leaderboard.streak_days())
+
+
+## Back the book up and adopt anything the server knows that this device
+## doesn't. Best-effort like every other network call: offline, an old server,
+## or a device that has never been given a player id just means no sync.
+func sync() -> void:
+	if _syncing:
+		return
+	_syncing = true
+	var res: Dictionary = await Leaderboard.sync_stickers(_stats, _unlocked)
+	_syncing = false
+	if bool(res.get("ok", false)):
+		_merge(res.get("data", {}))
+
+
+## Take the higher of each stat and every unlock we don't already have (with
+## the server's timestamp, i.e. when it was first earned).
+func _merge(server: Dictionary) -> void:
+	var stats: Dictionary = server.get("stats", {})
+	for stat in stats:
+		var value := int(stats[stat])
+		if value > stat_value(stat):
+			_stats[stat] = value
+			_dirty = true
+	var unlocks: Dictionary = server.get("unlocked", {})
+	for id in unlocks:
+		if not _unlocked.has(id):
+			_unlocked[id] = int(unlocks[id])
+			_dirty = true
+	# A raised stat can cross a goal this book has never checked against.
+	for stat in _stats.keys():
+		_check(stat)
+	save()
