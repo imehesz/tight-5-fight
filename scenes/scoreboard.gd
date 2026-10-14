@@ -166,6 +166,40 @@ const NOTE_TILT := 2.4
 ## second headline, which is what it is.
 const NOTE_PAID_FONT := 5
 const NOTE_PAID_H := 7
+## BADGES: the JOKE BOOK's second view. The calendar goes away and the
+## notepad shell opens out into a two-page spread — the crafter's shell on
+## the right, a mirror of it on the left, so the rings meet at the spine.
+## The overlap closes the gap until the two covers meet at the spine and the
+## two ring columns sit over each other, so it reads as ONE notebook rather
+## than two side by side.
+##
+## Pages are 300x180, a touch under the crafter's 324x194 (same aspect), so
+## the pager arrows can come back: the spread is 545 wide, and its outer
+## covers start ~66px in from either screen edge — clear of the arrows, which
+## end at 55. The overlap is the 59 that made the covers meet at 324, scaled.
+const BADGE_PAGE := Vector2(300, 180)
+const BADGE_SPINE_OVERLAP := 55
+## The ruled area of a page, as fractions of the shell art — the same
+## measured numbers the crafter uses (JokeCrafterPanel.PAGE_*). The mirrored
+## left page reads them from the other side.
+## Stickers sit on a jittered grid inside it: 4x3 a page, 24 a spread. A grid
+## underneath rather than true scatter, so nothing ever overlaps however many
+## stickers the JSON grows to — the jitter and lean are what sell "stuck on by
+## hand". Both come off the sticker id's hash, so a sticker never moves
+## between visits.
+const STICKER_COLS := 4
+const STICKER_ROWS := 3
+const STICKERS_PER_PAGE := STICKER_COLS * STICKER_ROWS
+const STICKER_SIZE := 42
+const STICKER_JITTER := 4.0
+const STICKER_TILT := 12.0
+## The CALENDAR/BADGES toggle. It sits in the same slot in both views — under
+## the calendar column — so it can be tapped back and forth without the
+## finger moving. It hangs below the fixed well rather than inside it (the
+## calendar already uses 192 of its 194px), in the strip above the pager.
+const BADGE_TOGGLE := Vector2(96, 26)
+const BADGE_TOGGLE_GAP := 3
+
 const MONTHS := ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
 		"Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."]
 
@@ -181,6 +215,9 @@ var _global_page := 0
 var _venues_page := 0
 var _beef_page := 0
 var _joke_page := 0
+## JOKE BOOK is showing the BADGES spread instead of the calendar.
+var _badges := false
+var _badge_page := 0
 ## Page counts reported by the server; 1 until the first response lands.
 var _global_pages := 1
 var _venues_pages := 1
@@ -237,6 +274,9 @@ func _ready() -> void:
 	box.add_child(well)
 	_rows = VBoxContainer.new()
 	_rows.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Centre anything wider than the well (the BADGES spread) instead of
+	# letting it hang off to the right.
+	_rows.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_rows.add_theme_constant_override("separation", 0)
 	well.add_child(_rows)
 
@@ -313,6 +353,8 @@ func _page_count() -> int:
 	if _tab == Tab.BEEF:
 		return maxi(_beef_pages, 1)
 	if _tab == Tab.JOKE_BOOK:
+		if _badges:
+			return maxi(ceili(Achievements.stickers.size() / float(STICKERS_PER_PAGE * 2)), 1)
 		# Fixed: the window is always the full 90 days, present or not.
 		return JOKE_PAGES
 	return maxi(ceili(GameState.high_scores.size() / float(ROWS_PER_PAGE)), 1)
@@ -327,12 +369,16 @@ func _page() -> int:
 		Tab.BEEF:
 			return _beef_page
 		Tab.JOKE_BOOK:
-			return _joke_page
+			return _badge_page if _badges else _joke_page
 		_:
 			return _local_page
 
 
 func _turn_page(dir: int) -> void:
+	if _tab == Tab.JOKE_BOOK and _badges:
+		_badge_page = wrapi(_badge_page + dir, 0, _page_count())
+		_render_jokebook()
+		return
 	var next := wrapi(_page() + dir, 0, _page_count())
 	match _tab:
 		Tab.GLOBAL:
@@ -362,6 +408,9 @@ func _update_pager() -> void:
 	_pager.text = "PAGE %d / %d" % [_page() + 1, pages]
 	_prev_btn.disabled = pages <= 1
 	_next_btn.disabled = pages <= 1
+	if _tab == Tab.JOKE_BOOK and _badges:
+		_pager.text += "   STICKERS %d / %d" % [
+				Achievements.unlocked_count(), Achievements.stickers.size()]
 
 
 func _show_tab(tab: Tab) -> void:
@@ -480,6 +529,11 @@ func _on_jokebook_failed(reason: String) -> void:
 func _render_jokebook() -> void:
 	_clear_rows()
 	_update_pager()
+	# Ahead of the payload checks: the spread doesn't read the attendance data,
+	# so it must not sit on "CHECKING IN ..." while that loads.
+	if _badges:
+		_render_badges()
+		return
 	var book: Dictionary = Leaderboard.jokebook()
 	if book.is_empty():
 		_message("CHECKING IN ...")
@@ -546,6 +600,146 @@ func _render_jokebook() -> void:
 		var entry: Dictionary = days[idx]
 		grid.add_child(_joke_cell(String(entry.get("day", "")),
 				bool(entry.get("played", false)), idx == 0, ladder[idx]))
+
+	_rows.add_child(_badge_toggle_row("BADGES"))
+
+
+# ---------------------------------------------------------------- badges
+## The open sticker book: the crafter's shell on the right, the same art
+## mirrored on the left, one page of Achievements.stickers on each. Earned
+## stickers are in full colour; the rest are pure black silhouettes.
+func _render_badges() -> void:
+	var spread := HBoxContainer.new()
+	spread.alignment = BoxContainer.ALIGNMENT_CENTER
+	spread.add_theme_constant_override("separation", -BADGE_SPINE_OVERLAP)
+	_rows.add_child(spread)
+	var first := _badge_page * STICKERS_PER_PAGE * 2
+	var all: Array = Achievements.stickers
+	spread.add_child(_notepad_page(true,
+			all.slice(first, first + STICKERS_PER_PAGE)))
+	spread.add_child(_notepad_page(false,
+			all.slice(first + STICKERS_PER_PAGE, first + STICKERS_PER_PAGE * 2)))
+	_rows.add_child(_badge_toggle_row("CALENDAR"))
+
+
+func _notepad_page(mirrored: bool, page: Array) -> Control:
+	var art := TextureRect.new()
+	art.custom_minimum_size = BADGE_PAGE
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.flip_h = mirrored
+	# PASS, not IGNORE: the stickers on top are buttons.
+	art.mouse_filter = Control.MOUSE_FILTER_PASS
+	if ResourceLoader.exists(JokeCrafterPanel.SHELL_ART):
+		art.texture = load(JokeCrafterPanel.SHELL_ART)
+
+	var l := JokeCrafterPanel.PAGE_L
+	var r := JokeCrafterPanel.PAGE_R
+	if mirrored:
+		l = 1.0 - JokeCrafterPanel.PAGE_R
+		r = 1.0 - JokeCrafterPanel.PAGE_L
+	var area := Rect2(BADGE_PAGE.x * l, BADGE_PAGE.y * JokeCrafterPanel.PAGE_T,
+			BADGE_PAGE.x * (r - l),
+			BADGE_PAGE.y * (JokeCrafterPanel.PAGE_B - JokeCrafterPanel.PAGE_T))
+	var cell := Vector2(area.size.x / STICKER_COLS, area.size.y / STICKER_ROWS)
+	for i in page.size():
+		var at := area.position + Vector2(i % STICKER_COLS, i / STICKER_COLS) * cell
+		art.add_child(_sticker(page[i], Rect2(at, cell)))
+	return art
+
+
+## One sticker: the whole grid cell is the tap target (51x50 — bigger than
+## the art), the art sits jittered and leaning inside it. Placed by position,
+## not by a container: containers zero a child's rotation every layout pass.
+func _sticker(def: Dictionary, cell: Rect2) -> Control:
+	var id := String(def.get("id", ""))
+	var h := id.hash()
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.position = cell.position
+	b.size = cell.size
+	var clear := StyleBoxEmpty.new()
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		b.add_theme_stylebox_override(state, clear)
+	b.pressed.connect(guard_tap(func():
+		GameState.play_sfx("click")
+		_explain_sticker(def)))
+
+	var pic := TextureRect.new()
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pic.size = Vector2(STICKER_SIZE, STICKER_SIZE)
+	pic.pivot_offset = pic.size / 2.0
+	var jx := (float(h & 0xff) / 255.0 * 2.0 - 1.0) * STICKER_JITTER
+	var jy := (float((h >> 8) & 0xff) / 255.0 * 2.0 - 1.0) * STICKER_JITTER
+	pic.position = (cell.size - pic.size) / 2.0 + Vector2(jx, jy)
+	pic.rotation_degrees = (float((h >> 16) & 0xff) / 255.0 * 2.0 - 1.0) * STICKER_TILT
+	var path := Achievements.texture_path(id)
+	if ResourceLoader.exists(path):
+		pic.texture = load(path)
+	# Not earned: the sticker's own shape, blacked out completely.
+	if not Achievements.is_unlocked(id):
+		pic.modulate = Color(0, 0, 0)
+	b.add_child(pic)
+	return b
+
+
+func _explain_sticker(def: Dictionary) -> void:
+	var id := String(def.get("id", ""))
+	var goal := int(def.get("goal", 0))
+	var have := mini(Achievements.stat_value(String(def.get("stat", ""))), goal)
+	var popup := HintPopup.new()
+	var path := Achievements.texture_path(id)
+	if ResourceLoader.exists(path):
+		var pic := TextureRect.new()
+		pic.texture = load(path)
+		pic.custom_minimum_size = Vector2(STICKER_SIZE, STICKER_SIZE) * 2.0
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		# Still a silhouette until it is earned — the popup must not spoil it.
+		if not Achievements.is_unlocked(id):
+			pic.modulate = Color(0, 0, 0)
+		popup.art = pic
+	popup.title_text = String(def.get("name", id))
+	popup.body_text = "%s\n\n%s" % [String(def.get("desc", "")),
+			"EARNED!" if Achievements.is_unlocked(id) else "%d / %d" % [have, goal]]
+	add_child(popup)
+
+
+## The toggle's row copies the calendar view's column layout — a calendar-wide
+## slot, the 16px gap, a crafter-wide slot — so the button lands under the
+## calendar in BOTH views. It overflows the well downward on purpose; see
+## BADGE_TOGGLE.
+func _badge_toggle_row(text: String) -> Control:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+
+	var slot := CenterContainer.new()
+	slot.custom_minimum_size = Vector2(JOKE_CELL * JOKE_COLS + 22 * (JOKE_COLS - 1), 0)
+	row.add_child(slot)
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = BADGE_TOGGLE
+	b.add_theme_font_size_override("font_size", 8)
+	style_purple_button(b)
+	b.pressed.connect(guard_tap(func():
+		GameState.play_sfx("click")
+		_badges = not _badges
+		_render_jokebook()))
+	slot.add_child(b)
+
+	var rest := Control.new()
+	rest.custom_minimum_size = Vector2(JokeCrafterPanel.PANEL.x, 0)
+	row.add_child(rest)
+
+	var wrap := VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 0)
+	add_spacer(wrap, BADGE_TOGGLE_GAP)
+	wrap.add_child(row)
+	return wrap
 
 
 # ---------------------------------------------------------------- crafter

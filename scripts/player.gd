@@ -313,6 +313,7 @@ func _try_throw() -> bool:
 	if not can_act() or not GameState.use_bottle():
 		return false
 	_throw_lock = 0.35
+	Achievements.add("bottles")
 	velocity.x = 0
 	_play("punch")  # reuse the wind-up pose; state stays IDLE so no fist hitbox
 	GameState.play_sfx("throw")

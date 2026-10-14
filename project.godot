@@ -27,6 +27,7 @@ driver/output_latency.web=120
 GameState="*res://autoload/game_state.gd"
 Leaderboard="*res://autoload/leaderboard.gd"
 Sponsors="*res://autoload/sponsors.gd"
+Achievements="*res://autoload/achievements.gd"
 CrashDiag="*res://autoload/crash_diag.gd"
 
 [display]
