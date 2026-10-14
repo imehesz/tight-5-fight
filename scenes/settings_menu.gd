@@ -1,7 +1,8 @@
 extends MenuBase
 ## Settings, in tabs down the left — SOUNDS (music/SFX volume), COLORS
-## (outfit), WEAPONS (the melee weapon carried on the player's back) and DECOR
-## (the decoration worn on the chest, when the edition ships any) — with the
+## (outfit), WEAPONS (the melee weapon carried on the player's back), DECOR
+## (the decoration worn on the chest, when the edition ships any) and ACCOUNT
+## (the recovery code that carries a player to a new device) — with the
 ## player's comedian previewed on the right, wearing the outfit, the decoration
 ## and the weapon exactly as they will in the run. Everything here is
 ## persisted per game the moment it is picked (see GameState.SETTINGS_PATH).
@@ -10,7 +11,7 @@ extends MenuBase
 ## Tabs borrow the scoreboard's look and its rule: all three panels live in one
 ## fixed-size box, so switching tabs never moves the screen around.
 
-enum Tab { SOUNDS, COLORS, WEAPONS, DECOR }
+enum Tab { SOUNDS, COLORS, WEAPONS, DECOR, ACCOUNT }
 
 ## Matches the character select preview, so the comedian is framed and sized
 ## the same on both screens.
@@ -34,6 +35,11 @@ const TAB_FONT := 11
 ## keeps the longest label ("WEAPONS", 7 monospace glyphs = 56px) inside it.
 const TAB_SIZE_4 := Vector2(64, 28)
 const TAB_FONT_4 := 8
+## Five tabs (DECOR plus ACCOUNT): 5 * 52 + 4 * 4 = 276, flush again, and 6pt
+## puts the longest labels ("WEAPONS", "ACCOUNT", 7 glyphs = 42px) inside 52.
+const TAB_SIZE_5 := Vector2(52, 28)
+const TAB_GAP_5 := 4
+const TAB_FONT_5 := 6
 const TAB_ON := Color(1.0, 0.85, 0.4)
 const TAB_OFF := Color(0.6, 0.6, 0.68)
 ## Weapon rack: a 3x3 rack of cards like the roster's, padded with blanks so
@@ -109,6 +115,15 @@ var _decor_scroll: ScrollContainer
 ## so the reply equips it — without this the player would have to tap twice,
 ## and the second tap would look like it cost them again.
 var _decor_pending := Decorators.NONE
+## ACCOUNT tab. The code is fetched the first time the tab opens, not when
+## SETTINGS does — most visits never look at it.
+var _code_label: Label
+var _code := ""
+var _code_asked := false
+var _copy_button: Button
+## Off the web only (the editor, a desktop build): typing goes into this field.
+## On the web a native prompt() asks instead — see _ask_code().
+var _code_field: LineEdit
 
 
 func _ready() -> void:
@@ -173,9 +188,17 @@ func _build_tabs() -> HBoxContainer:
 	# this only drops it if none of the art imported, leaving the original three.
 	if Decorators.any():
 		tabs.add_child(_tab_button(Tab.DECOR, "DECOR"))
-		for b in _tab_buttons.values():
-			b.custom_minimum_size = TAB_SIZE_4
-			b.add_theme_font_size_override("font_size", TAB_FONT_4)
+	tabs.add_child(_tab_button(Tab.ACCOUNT, "ACCOUNT"))
+	var tab_size := TAB_SIZE_5 if _tab_buttons.size() == 5 else TAB_SIZE_4
+	var tab_font := TAB_FONT_5 if _tab_buttons.size() == 5 else TAB_FONT_4
+	if _tab_buttons.size() == 5:
+		tabs.add_theme_constant_override("separation", TAB_GAP_5)
+	for b in _tab_buttons.values():
+		b.custom_minimum_size = tab_size
+		b.add_theme_font_size_override("font_size", tab_font)
+		# A label that runs over must not widen its tab, or the row stops
+		# lining up with the panel under it.
+		b.clip_text = true
 	return tabs
 
 
@@ -201,6 +224,7 @@ func _build_panels() -> Control:
 	_panels[Tab.SOUNDS] = _sounds_panel()
 	_panels[Tab.COLORS] = _colors_panel()
 	_panels[Tab.WEAPONS] = _weapons_panel()
+	_panels[Tab.ACCOUNT] = _account_panel()
 	# DECOR is NOT built here — see _ensure_decor_panel(). Building it loads
 	# every decoration's art, which made opening SETTINGS slow for a tab most
 	# visits never open.
@@ -249,6 +273,9 @@ func _show_tab(tab: Tab) -> void:
 		# fold, and a shelf that opens on decorations you are NOT wearing reads
 		# as having lost your choice.
 		_reveal_equipped_decor.call_deferred()
+	elif tab == Tab.ACCOUNT and not _code_asked:
+		_code_asked = true
+		_load_code()
 	# The active tab is gold and bright; the others are dimmed on every axis a
 	# Button paints text with, so hovering an inactive one doesn't fake it.
 	for t in _tab_buttons:
@@ -889,3 +916,166 @@ func _reveal_equipped_decor() -> void:
 		return
 	# The card, not the button, so the name label under it comes along.
 	_decor_scroll.ensure_control_visible(_decor_cards[GameState.decor].get_parent())
+
+
+# ---------------------------------------------------------------- account
+## The player's recovery code, and the way in for someone who has one from
+## another device. Nothing here is a login: the code IS the account, and
+## typing it on a new phone hands that phone the player id it was issued to.
+func _account_panel() -> Control:
+	var col := _panel_column()
+	var heading := Label.new()
+	heading.text = "YOUR RECOVERY CODE"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 7)
+	heading.add_theme_color_override("font_color", GOLD)
+	col.add_child(heading)
+
+	# On solid black: the code is the one thing on this screen a player has to
+	# copy out exactly, so it must not sit on the busy street backdrop.
+	var plate := PanelContainer.new()
+	plate.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 1)
+	sb.set_corner_radius_all(3)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	plate.add_theme_stylebox_override("panel", sb)
+	col.add_child(plate)
+
+	_code_label = Label.new()
+	_code_label.text = "....."
+	_code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_code_label.add_theme_font_size_override("font_size", 16)
+	plate.add_child(_code_label)
+
+	var hint := Label.new()
+	hint.text = "SCREENSHOT IT OR WRITE IT DOWN. ON A NEW PHONE, ENTER IT HERE TO GET YOUR JOKE POINTS, UPGRADES AND STICKERS BACK."
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(PANEL_SIZE.x - 8, 0)
+	hint.add_theme_font_size_override("font_size", 6)
+	hint.add_theme_color_override("font_color", Color(0.75, 0.75, 0.82))
+	col.add_child(hint)
+
+	if not OS.has_feature("web"):
+		_code_field = LineEdit.new()
+		_code_field.placeholder_text = "XXXXX-XXXXX"
+		_code_field.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_code_field.custom_minimum_size = Vector2(160, 24)
+		_code_field.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_code_field.add_theme_font_size_override("font_size", 9)
+		col.add_child(_code_field)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	col.add_child(row)
+	_copy_button = _account_button("COPY", _on_copy_pressed)
+	row.add_child(_copy_button)
+	row.add_child(_account_button("ENTER A CODE", _on_enter_code_pressed))
+	return col
+
+
+## Phone-sized, like every other button a thumb has to find.
+func _account_button(text: String, cb: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(118, 40)
+	b.add_theme_font_size_override("font_size", 8)
+	b.pressed.connect(guard_tap(cb))
+	return b
+
+
+func _load_code() -> void:
+	_code_label.text = "....."
+	var res := await Leaderboard.recovery_code()
+	if not is_instance_valid(_code_label):
+		return
+	if bool(res.get("ok", false)):
+		_code = String(res.get("data", {}).get("code", ""))
+		_code_label.text = _pretty_code(_code)
+	else:
+		_code = ""
+		# Small, so a sentence fits where the code would have been.
+		_code_label.text = "FINISH A RUN FIRST" \
+				if String(res.get("error", "")) == "no player" else "OFFLINE, TRY LATER"
+	_code_label.add_theme_font_size_override("font_size", 16 if _code != "" else 8)
+
+
+## XXXXXXXXXX -> XXXXX-XXXXX, which is how the player reads it out and types
+## it. The server ignores the dash either way.
+static func _pretty_code(code: String) -> String:
+	return code.substr(0, 5) + "-" + code.substr(5) if code.length() == 10 else code
+
+
+static func _bare_code(text: String) -> String:
+	var out := ""
+	for ch in text.to_upper():
+		if (ch >= "A" and ch <= "Z") or (ch >= "0" and ch <= "9"):
+			out += ch
+	return out
+
+
+func _on_copy_pressed() -> void:
+	GameState.play_sfx("click")
+	if _code == "":
+		return
+	DisplayServer.clipboard_set(_pretty_code(_code))
+	_copy_button.text = "COPIED!"
+	get_tree().create_timer(1.5).timeout.connect(func():
+		if is_instance_valid(_copy_button):
+			_copy_button.text = "COPY")
+
+
+func _on_enter_code_pressed() -> void:
+	GameState.play_sfx("click")
+	var code := _bare_code(_ask_code())
+	if code == "":
+		return
+	if code == _code:
+		show_modal("THAT'S ALREADY THIS DEVICE'S CODE.")
+		return
+	show_modal("SWITCH THIS DEVICE TO CODE %s? THE JOKE POINTS AND UPGRADES ON THIS DEVICE WILL BE REPLACED BY THAT PLAYER'S." \
+			% _pretty_code(code), func(): _restore(code))
+
+
+## What the player typed, or "" if they backed out. On the web a native
+## prompt() rather than a LineEdit: it brings up the phone's own keyboard
+## (paste included) with none of the canvas-input quirks, and the code is the
+## one thing in the game a player has to type.
+func _ask_code() -> String:
+	if OS.has_feature("web"):
+		var r: Variant = JavaScriptBridge.eval(
+				"window.prompt('ENTER YOUR RECOVERY CODE', '') || ''", true)
+		return String(r) if r != null else ""
+	return _code_field.text if _code_field else ""
+
+
+func _restore(code: String) -> void:
+	_code_label.add_theme_font_size_override("font_size", 8)
+	_code_label.text = "RESTORING..."
+	var res := await Leaderboard.restore_account(code)
+	if not is_instance_valid(_code_label):
+		return
+	if bool(res.get("ok", false)):
+		if _code_field:
+			_code_field.text = ""
+		await _load_code()
+		show_modal("WELCOME BACK! THIS DEVICE IS NOW YOUR ACCOUNT.")
+		return
+	# Put the old code back up before saying what went wrong.
+	_code_label.add_theme_font_size_override("font_size", 16 if _code != "" else 8)
+	_code_label.text = _pretty_code(_code) if _code != "" else "....."
+	match String(res.get("error", "")):
+		"unknown code":
+			show_modal("THAT CODE DOESN'T MATCH ANY PLAYER. CHECK IT AND TRY AGAIN.")
+		"wrong edition":
+			show_modal("THAT CODE IS FOR A DIFFERENT EDITION OF THE GAME.")
+		"offline":
+			show_modal("CAN'T REACH THE SERVER. TRY AGAIN LATER.")
+		_:
+			# Rate limited, or anything else the server said no to.
+			show_modal("TOO MANY TRIES. WAIT A BIT AND TRY AGAIN.")

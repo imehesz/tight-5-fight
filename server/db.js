@@ -218,6 +218,18 @@ const SCHEMA = {
       created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (player_uuid, game_id, sticker_id)
     )`,
+    // ACCOUNT recovery: one short code per player, shown on the SETTINGS
+    // ACCOUNT tab. Typing it on another device hands that device this
+    // player's uuid, which is how everything keyed on the uuid (joke points,
+    // upgrades, stickers, plays) follows a player to a new phone.
+    // game_id is the edition the code was issued in: player ids are per
+    // edition on the client, so a code only restores into its own edition.
+    `CREATE TABLE IF NOT EXISTS recovery_codes (
+      code        TEXT NOT NULL PRIMARY KEY,
+      player_uuid TEXT NOT NULL UNIQUE,
+      game_id     TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
   ],
   // NB: written to run on the prod VPS's MySQL 5.5 as well as 8.x.
   // - 5.5 permits only ONE TIMESTAMP column per table with a
@@ -393,6 +405,14 @@ const SCHEMA = {
       unlocked_at INT         NOT NULL DEFAULT 0,
       created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (player_uuid, game_id, sticker_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS recovery_codes (
+      code        CHAR(10)    NOT NULL,
+      player_uuid CHAR(36)    NOT NULL,
+      game_id     VARCHAR(32) NOT NULL,
+      created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (code),
+      UNIQUE KEY uniq_recovery_uuid (player_uuid)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ],
 };
@@ -674,6 +694,34 @@ async function recordStickers({ playerUuid, gameId, stats, unlocked }) {
       [playerUuid, gameId, stickerId, at]
     );
   }
+}
+
+// ---------------------------------------------------------------- account
+// This player's recovery code row ({code, game_id}), or undefined.
+async function recoveryCodeOf(uuid) {
+  return await get(
+    "SELECT code, game_id FROM recovery_codes WHERE player_uuid = ?", [uuid]
+  );
+}
+
+// The player a code belongs to ({player_uuid, game_id}), or undefined.
+async function recoveryLookup(code) {
+  return await get(
+    "SELECT player_uuid, game_id FROM recovery_codes WHERE code = ?", [code]
+  );
+}
+
+// Store a freshly drawn code. Returns false when nothing was written — the
+// code collided with someone else's, or this player got one from a racing
+// request — and the caller re-reads rather than trusting what it drew.
+async function createRecoveryCode({ playerUuid, gameId, code }) {
+  const verb = DRIVER === "sqlite" ? "INSERT OR IGNORE" : "INSERT IGNORE";
+  const res = await run(
+    `${verb} INTO recovery_codes (code, player_uuid, game_id) VALUES (?, ?, ?)`,
+    [code, playerUuid, gameId]
+  );
+  if (res && typeof res.changes === "number") return res.changes > 0;
+  return true;
 }
 
 async function recordComponentDrop({ gameId, playerUuid, runNonce, setups, punchlines, tags }) {
@@ -1249,6 +1297,9 @@ module.exports = {
   recordDecorPurchase,
   stickerState,
   recordStickers,
+  recoveryCodeOf,
+  recoveryLookup,
+  createRecoveryCode,
   recordComponentDrop,
   recordCraft,
   recordUpgrade,

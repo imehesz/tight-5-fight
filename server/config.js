@@ -100,6 +100,11 @@ const base = {
     // STICKERS sync: one per boot plus one per finished run. Idempotent, so
     // this only bounds a scripted flood.
     stickersPerHourPerIp: 60,
+    // ACCOUNT recovery. Issuing a code is once per player for life, so this
+    // only bounds a scripted flood. Restores are the guessable side: every
+    // attempt counts, hit or miss, and a real player needs one or two.
+    codesPerHourPerIp: 30,
+    restoresPerHourPerIp: 10,
   },
 
   // Disk ceiling for the crash table. A row is ~300 bytes, so the cap below

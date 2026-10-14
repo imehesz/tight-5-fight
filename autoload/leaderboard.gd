@@ -35,6 +35,9 @@ signal crafter_failed(reason: String)
 ## meant for a board the player has already navigated away from.
 signal beef_loaded(data: Dictionary)
 signal beef_failed(reason: String)
+## This device just adopted another player's id from a recovery code (see
+## restore_account). Screens showing anything keyed on the id redraw from it.
+signal account_restored
 
 ## Production backend: Apache on games.imstandup.com proxies /tight5fight/api/
 ## to the node process (see server/README.md). The game is served from the same
@@ -448,6 +451,46 @@ func buy_decor(decor_id: String) -> void:
 		"gameId": GameState.active_game,
 		"decorId": decor_id,
 	})
+
+
+# ---------------------------------------------------------------- account
+## This player's recovery code, as {"ok", "data": {code}} or {"ok": false,
+## "error"}. Same "never mints" rule as sync_stickers: a device with no id has
+## nothing to recover yet, and the SETTINGS screen says so.
+func recovery_code() -> Dictionary:
+	if _player_uuid == "":
+		return {"ok": false, "error": "no player"}
+	return await _request(HTTPClient.METHOD_POST, "/account/code", {
+		"gameId": GameState.active_game,
+		"uuid": _player_uuid,
+	})
+
+
+## Trade a recovery code for the player id it belongs to and become that
+## player on this device. Whatever this device's own id had built up stays with
+## that id on the server — the code's player REPLACES it here, it doesn't merge
+## (stickers are the exception: the local book merges into the restored one on
+## the sync below, since a book only ever grows).
+func restore_account(code: String) -> Dictionary:
+	var res := await _request(HTTPClient.METHOD_POST, "/account/restore", {
+		"gameId": GameState.active_game,
+		"code": code,
+	})
+	if not bool(res.get("ok", false)):
+		return res
+	var uuid := String(res.get("data", {}).get("uuid", ""))
+	if uuid == "":
+		return {"ok": false, "error": "server error"}
+	_player_uuid = uuid
+	_save_uuid()
+	# Both caches describe the OLD player; drop them so nothing reads a stale
+	# balance or streak, then refetch exactly as a fresh boot would.
+	_jokebook = {}
+	_crafter = {}
+	await _boot_fetch()
+	await Achievements.sync()
+	account_restored.emit()
+	return res
 
 
 ## STICKERS backup (see Achievements.sync): post the whole local book, get the

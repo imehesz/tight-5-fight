@@ -595,6 +595,85 @@ async function postDecor(req, res) {
   json(res, 200, await crafterPayload(body.uuid));
 }
 
+// ---------------------------------------------------------------- account
+// Recovery codes: 10 characters from an alphabet with the look-alikes taken
+// out (no 0/O, 1/I/L), shown to the player as XXXXX-XXXXX. 31^10 is ~8e14
+// codes, and restores are rate limited per IP on every attempt, hit or miss,
+// so guessing someone's code is not a practical way in.
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const CODE_LENGTH = 10;
+
+function drawCode() {
+  let out = "";
+  for (let i = 0; i < CODE_LENGTH; i++) out += CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)];
+  return out;
+}
+
+// What a player typed, reduced to the stored form: upper case, dashes and
+// spaces gone. null if what is left can't be a code at all.
+function normalizeCode(raw) {
+  if (typeof raw !== "string") return null;
+  const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (code.length !== CODE_LENGTH) return null;
+  for (const ch of code) if (!CODE_ALPHABET.includes(ch)) return null;
+  return code;
+}
+
+// POST /account/code { gameId, uuid } -> { code }
+// This player's recovery code, issued on first ask and the same one forever
+// after. The edition it is first asked from is the one it restores into.
+async function postAccountCode(req, res) {
+  const ip = clientIp(req);
+  const body = await crafterRequest(req, res);
+  if (!body) return;
+  const { gameId } = body;
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown game" });
+  let row = await db.recoveryCodeOf(body.uuid);
+  if (!row) {
+    if (overLimit("code", ip, config.limits.codesPerHourPerIp)) {
+      return json(res, 429, { error: "too many codes from this address" });
+    }
+    // A collision with another player's code just draws again; a racing
+    // request for the SAME player wins and this one adopts its code below.
+    for (let i = 0; i < 5 && !row; i++) {
+      await db.createRecoveryCode({ playerUuid: body.uuid, gameId, code: drawCode() });
+      row = await db.recoveryCodeOf(body.uuid);
+    }
+    if (!row) return json(res, 500, { error: "could not issue a code" });
+    chargeHit("code", ip);
+  }
+  json(res, 200, { code: String(row.code), gameId: String(row.game_id) });
+}
+
+// POST /account/restore { gameId, code } -> { uuid }
+// Trade a recovery code for the player id it was issued to. The client then
+// adopts that id in place of its own, so everything keyed on it follows.
+// No uuid in the request: the device restoring may not have one at all.
+async function postAccountRestore(req, res) {
+  const ip = clientIp(req);
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (e) {
+    return json(res, 400, { error: e.message });
+  }
+  const { gameId } = body;
+  if (!config.games.includes(gameId)) return json(res, 400, { error: "unknown game" });
+  // Charged up front, hit or miss: this limit is the whole defence against
+  // someone walking the code space.
+  if (overLimit("restore", ip, config.limits.restoresPerHourPerIp)) {
+    return json(res, 429, { error: "too many tries, wait an hour" });
+  }
+  chargeHit("restore", ip);
+  const code = normalizeCode(body.code);
+  const row = code ? await db.recoveryLookup(code) : null;
+  if (!row) return json(res, 404, { error: "unknown code" });
+  if (String(row.game_id) !== gameId) {
+    return json(res, 409, { error: "wrong edition", gameId: String(row.game_id) });
+  }
+  json(res, 200, { uuid: String(row.player_uuid) });
+}
+
 // POST /stickers { gameId, uuid, stats: {stat: n}, unlocked: {id: unixTime} }
 //   -> { stats, unlocked }
 // Syncs the STICKERS book (autoload/achievements.gd) both ways in one call:
@@ -1160,6 +1239,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "/upgrade") return await postUpgrade(req, res);
     if (req.method === "POST" && route === "/decor") return await postDecor(req, res);
     if (req.method === "POST" && route === "/stickers") return await postStickers(req, res);
+    if (req.method === "POST" && route === "/account/code") return await postAccountCode(req, res);
+    if (req.method === "POST" && route === "/account/restore") return await postAccountRestore(req, res);
     if (req.method === "GET" && route === "/leaderboard") return await getLeaderboard(req, res, url);
     if (req.method === "GET" && route === "/venues") return await getVenues(req, res, url);
     if (req.method === "GET" && route === "/beef") return await getBeef(req, res, url);
